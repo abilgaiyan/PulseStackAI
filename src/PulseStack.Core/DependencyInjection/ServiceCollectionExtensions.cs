@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using PulseStack.Abstractions.Tools;
 using PulseStack.Core.Tools;
 
@@ -9,7 +10,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddPulseStack(
         this IServiceCollection services)
     {
-        services.AddSingleton<IToolRegistry, ToolRegistry>();
+        services.TryAddSingleton<IToolRegistry, ToolRegistry>();
 
         return services;
     }
