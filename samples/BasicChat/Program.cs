@@ -1,8 +1,7 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Configuration.EnvironmentVariables;
 using Microsoft.Extensions.DependencyInjection;
-using PulseStack.Core.Chat;
+using PulseStack.Agents.Builders;
 using PulseStack.Core.DependencyInjection;
 using PulseStack.Providers.OpenAI.DependencyInjection;
 
@@ -12,7 +11,7 @@ var config = new ConfigurationBuilder()
     .Build();
 
 var apiKey = config["OpenAI:ApiKey"];
-var model  = config["OpenAI:Model"] ?? "gpt-4o-mini";
+var model = config["OpenAI:Model"] ?? "gpt-4o-mini";
 
 var services = new ServiceCollection();
 
@@ -21,11 +20,17 @@ services.AddPulseStack()
 
 await using var sp = services.BuildServiceProvider();
 
-var ai = sp.GetRequiredService<IChatClient>();
+var client = sp.GetRequiredService<IChatClient>();
 
-Console.WriteLine("PulseStackAI Basic Chat");
+var agent = new AgentBuilder("Tutor", client)
+    .WithInstructions("You are a helpful programming tutor. Be concise.")
+    .WithTemperature(0.3f)
+    .Build();
+
+Console.WriteLine("PulseStackAI Basic Agent");
 Console.WriteLine(new string('-', 30));
 
-var answer = await ai.AskAsync("What is the capital of India? Reply in one sentence.");
+var result = await agent.RunAsync(
+    "Explain dependency injection in simple terms.");
 
-Console.WriteLine(answer);
+Console.WriteLine(result.Text);
