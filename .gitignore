@@ -36,9 +36,14 @@ ScaffoldingReadMe.txt
 # NuGet Symbol Packages
 *.snupkg
 
+# dotenv environment variables file
+.env
+appsettings*.json
+
 # Others
 ~$*
 *~
+
 CodeCoverage/
 
 # MSBuild Binary and Structured Log
