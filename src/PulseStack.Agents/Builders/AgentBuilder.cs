@@ -1,5 +1,6 @@
 using Microsoft.Extensions.AI;
 using PulseStack.Abstractions.Agents;
+using PulseStack.Abstractions.Tools;
 using PulseStack.Agents.Runtime;
 
 namespace PulseStack.Agents.Builders;
@@ -11,6 +12,8 @@ public sealed class AgentBuilder
 
     private string? _instructions;
     private float? _temperature;
+
+    private IToolRegistry? _tools;
 
     public AgentBuilder(string name, IChatClient client)
     {
@@ -30,6 +33,12 @@ public sealed class AgentBuilder
         return this;
     }
 
+    public AgentBuilder WithTools(IToolRegistry tools)
+    {
+        _tools = tools;
+        return this;
+    }
+
     public IAgent Build()
-        => new Agent(_name, _client, _instructions, _temperature);
+        => new Agent(_name, _client, _instructions, _temperature, _tools);
 }

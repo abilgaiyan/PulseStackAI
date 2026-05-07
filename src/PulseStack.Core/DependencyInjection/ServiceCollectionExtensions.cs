@@ -12,6 +12,18 @@ public static class ServiceCollectionExtensions
     {
         services.TryAddSingleton<IToolRegistry, ToolRegistry>();
 
+        // Populate registry AFTER container builds
+        services.AddSingleton<IToolRegistry>(sp =>
+        {
+            var registry = new ToolRegistry();
+            var tools = sp.GetServices<ITool>();
+
+            foreach (var tool in tools)
+                registry.Register(tool);
+
+            return registry;
+        });
+
         return services;
     }
 }
