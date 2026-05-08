@@ -40,9 +40,14 @@ ScaffoldingReadMe.txt
 .env
 appsettings*.json
 
+#.vs folder
+.vs/
+
 # Others
 ~$*
 *~
+*.docx
+*.docm  
 
 CodeCoverage/
 
