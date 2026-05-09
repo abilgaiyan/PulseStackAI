@@ -113,6 +113,39 @@ internal sealed class Agent : IAgent
         return await _client.GetResponseAsync(messages, cancellationToken: cancellationToken);
     }
 
+    public async IAsyncEnumerable<string> StreamAsync(
+        string input,
+        [System.Runtime.CompilerServices.EnumeratorCancellation]
+        CancellationToken cancellationToken = default)
+    {
+        var messages = new List<ChatMessage>();
+
+        if (!string.IsNullOrWhiteSpace(_instructions))
+        {
+            messages.Add(new ChatMessage(
+                ChatRole.System,
+                _instructions));
+        }
+
+        messages.Add(new ChatMessage(
+            ChatRole.User,
+            input));
+
+        var options = new ChatOptions();
+
+        if (_temperature.HasValue)
+            options.Temperature = _temperature.Value;
+
+        await foreach (var update in _client.GetStreamingResponseAsync(
+            messages,
+            options,
+            cancellationToken))
+        {
+            if (!string.IsNullOrWhiteSpace(update.Text))
+                yield return update.Text;
+        }
+    }
+    
     private static ToolCall? ParseToolCall(string text)
     {
         try
