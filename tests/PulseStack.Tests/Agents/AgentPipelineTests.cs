@@ -47,9 +47,10 @@ internal sealed class FakeAgent : IAgent
 
     public async IAsyncEnumerable<string> StreamAsync(
         string input,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] 
         CancellationToken cancellationToken = default)
     {
         yield return _response;
-        await Task.CompletedTask;
+       
     }
 }
