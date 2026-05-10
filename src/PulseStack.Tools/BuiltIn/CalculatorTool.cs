@@ -1,6 +1,5 @@
-﻿using PulseStack.Abstractions.Tools;
-using System.Data;
-
+﻿using System.Data;
+using PulseStack.Abstractions.Tools;
 
 namespace PulseStack.Tools.BuiltIn;
 
@@ -8,20 +7,36 @@ public sealed class CalculatorTool : ITool
 {
     public string Name => "calculator";
 
-    public string Description => "Evaluates basic math expressions.";
+    public string Description =>
+        "Evaluates basic math expressions.";
 
-    public IReadOnlyCollection<string> Tags => ["utility", "math"];
+    public string Category => "Utility";
 
-    public Task<string> ExecuteAsync(string input, CancellationToken cancellationToken = default)
+    public bool IsEnabled => true;
+
+    public IReadOnlyCollection<string> Tags =>
+        ["utility", "math"];
+
+    public Task<string> ExecuteAsync(
+        string input,
+        CancellationToken cancellationToken = default)
     {
         try
         {
-            var result = new DataTable().Compute(input, null);
-            return Task.FromResult(result?.ToString() ?? "0");
+            // TODO:
+            // Replace DataTable.Compute with a dedicated math parser
+            // for safer and more predictable evaluation.
+
+            var result = new DataTable()
+                .Compute(input, null);
+
+            return Task.FromResult(
+                result?.ToString() ?? "0");
         }
         catch
         {
-            return Task.FromResult("Invalid expression.");
+            return Task.FromResult(
+                "Unable to evaluate the math expression.");
         }
     }
 }
