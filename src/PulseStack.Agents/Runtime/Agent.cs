@@ -5,6 +5,7 @@ using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Memory;
 using PulseStack.Abstractions.Tools;
 using PulseStack.Agents.Models;
+using PulseStack.Agents.Tools;
 
 namespace PulseStack.Agents.Runtime;
 
@@ -17,6 +18,7 @@ internal sealed class Agent : IAgent
     private readonly IConversationMemory? _memory;
 
     public string Name { get; }
+    private const int MaxToolIterations = 3;
 
     public Agent(
         string name,
@@ -113,25 +115,12 @@ internal sealed class Agent : IAgent
         if (_tools is null)
             return;
 
-        var toolDescriptions = _tools.GetAll()
-            .Select(t => $"{t.Name}: {t.Description}");
+       var toolPrompt = ToolPromptBuilder.Build(
+                _tools.GetAll()
+                    .Where(t => t.IsEnabled)
+                    .ToList());
 
-        messages.Add(new ChatMessage(
-            ChatRole.System,
-            $$"""
-            Available tools:
-
-            {{string.Join("\n", toolDescriptions)}}
-
-            When a tool is needed, respond ONLY with valid JSON:
-
-            {
-              "tool": "tool_name",
-              "input": "tool input"
-            }
-
-            Do not add explanations.
-            """));
+        messages.Add(new ChatMessage(ChatRole.System, toolPrompt));
     }
 
     private void AddMemory(List<ChatMessage> messages)
@@ -148,7 +137,7 @@ internal sealed class Agent : IAgent
         ChatOptions options,
         CancellationToken cancellationToken)
     {
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < MaxToolIterations; i++)
         {
             var response = await _client.GetResponseAsync(
                 messages,
@@ -179,10 +168,28 @@ internal sealed class Agent : IAgent
                 continue;
             }
 
+            if (!tool.IsEnabled)
+            {
+                messages.Add(new ChatMessage(
+                    ChatRole.Tool,
+                    $"Tool '{tool.Name}' is disabled."));
+
+                continue;
+            }
+
             // Execute tool
-            var result = await tool.ExecuteAsync(
-                toolCall.Input,
-                cancellationToken);
+            string result;
+
+            try
+            {
+                result = await tool.ExecuteAsync(
+                    toolCall.Input,
+                    cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                result = $"Tool '{tool.Name}' failed: {ex.Message}";
+            }
 
             // Continue conversation
             var assistantMessage = new ChatMessage(

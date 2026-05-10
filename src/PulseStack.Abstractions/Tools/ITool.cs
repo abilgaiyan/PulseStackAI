@@ -6,6 +6,10 @@ public interface ITool
 
     string Description { get; }
 
+    string Category { get; }
+
+    bool IsEnabled => true;
+
     IReadOnlyCollection<string> Tags { get; }
 
     Task<string> ExecuteAsync(
