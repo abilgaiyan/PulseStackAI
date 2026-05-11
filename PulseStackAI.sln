@@ -31,6 +31,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StreamingChat", "samples\St
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PulseStack.Providers.AzureOpenAI", "src\PulseStack.Providers.AzureOpenAI\PulseStack.Providers.AzureOpenAI.csproj", "{46EC92DF-A555-42E5-A7EF-2B9C9F55259C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AzureOpenAIChat", "samples\AzureOpenAIChat\AzureOpenAIChat.csproj", "{74AE1C6C-8951-429D-8E45-D7B47FE7CE29}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -173,6 +175,18 @@ Global
 		{46EC92DF-A555-42E5-A7EF-2B9C9F55259C}.Release|x64.Build.0 = Release|Any CPU
 		{46EC92DF-A555-42E5-A7EF-2B9C9F55259C}.Release|x86.ActiveCfg = Release|Any CPU
 		{46EC92DF-A555-42E5-A7EF-2B9C9F55259C}.Release|x86.Build.0 = Release|Any CPU
+		{74AE1C6C-8951-429D-8E45-D7B47FE7CE29}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{74AE1C6C-8951-429D-8E45-D7B47FE7CE29}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{74AE1C6C-8951-429D-8E45-D7B47FE7CE29}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{74AE1C6C-8951-429D-8E45-D7B47FE7CE29}.Debug|x64.Build.0 = Debug|Any CPU
+		{74AE1C6C-8951-429D-8E45-D7B47FE7CE29}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{74AE1C6C-8951-429D-8E45-D7B47FE7CE29}.Debug|x86.Build.0 = Debug|Any CPU
+		{74AE1C6C-8951-429D-8E45-D7B47FE7CE29}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{74AE1C6C-8951-429D-8E45-D7B47FE7CE29}.Release|Any CPU.Build.0 = Release|Any CPU
+		{74AE1C6C-8951-429D-8E45-D7B47FE7CE29}.Release|x64.ActiveCfg = Release|Any CPU
+		{74AE1C6C-8951-429D-8E45-D7B47FE7CE29}.Release|x64.Build.0 = Release|Any CPU
+		{74AE1C6C-8951-429D-8E45-D7B47FE7CE29}.Release|x86.ActiveCfg = Release|Any CPU
+		{74AE1C6C-8951-429D-8E45-D7B47FE7CE29}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -189,5 +203,6 @@ Global
 		{1DE61497-7863-4FC6-B6A9-074F0DC04155} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
 		{CFEE3AE5-75D9-43E3-8772-7E778AA34B74} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
 		{46EC92DF-A555-42E5-A7EF-2B9C9F55259C} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{74AE1C6C-8951-429D-8E45-D7B47FE7CE29} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
 	EndGlobalSection
 EndGlobal

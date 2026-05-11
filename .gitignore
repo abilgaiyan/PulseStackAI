@@ -38,7 +38,7 @@ ScaffoldingReadMe.txt
 
 # dotenv environment variables file
 .env
-appsettings*.json
+**/appsettings.json
 
 #.vs folder
 .vs/
