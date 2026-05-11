@@ -20,6 +20,9 @@
     <PackageVersion Include="Azure.AI.Inference"                                       Version="1.0.0-beta.3" />
     <PackageVersion Include="Azure.Identity"                                           Version="1.14.0" />
     <PackageVersion Include="OllamaSharp"                                              Version="5.4.25" />
+    <PackageVersion Include="Google.GenAI"                                             Version="1.0.0" />
+    <PackageVersion Include="Google_GenerativeAI"                                      Version="2.4.3" />
+    <PackageVersion Include="Google_GenerativeAI.Microsoft"                            Version="2.4.3" />
 
     <!-- ── MCP ──────────────────────────────────────────────────────── -->
     <PackageVersion Include="ModelContextProtocol"                                     Version="1.2.0"  />

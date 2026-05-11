@@ -28,4 +28,10 @@
     <ProjectReference Include="..\..\src\PulseStack.Providers.OpenAI\PulseStack.Providers.OpenAI.csproj" />
   </ItemGroup>
 
+    <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

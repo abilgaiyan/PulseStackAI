@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\PulseStack.Abstractions\PulseStack.Abstractions.csproj" />
+    <ProjectReference Include="..\PulseStack.Core\PulseStack.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.GenAI" />
+    <PackageReference Include="Google_GenerativeAI" />
+    <PackageReference Include="Google_GenerativeAI.Microsoft" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
