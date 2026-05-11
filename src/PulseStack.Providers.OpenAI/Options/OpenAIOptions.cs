@@ -1,4 +1,4 @@
-namespace PulseStack.Providers.OpenAI.Configuration;
+namespace PulseStack.Providers.OpenAI.Options;
 
 public sealed class OpenAIOptions
 {
