@@ -2,7 +2,7 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using OpenAI;
-using PulseStack.Providers.OpenAI.Configuration;
+using PulseStack.Providers.OpenAI.Options;
 
 namespace PulseStack.Providers.OpenAI.DependencyInjection;
 
