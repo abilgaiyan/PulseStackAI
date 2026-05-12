@@ -3,7 +3,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using OpenAI;
+using PulseStack.Abstractions.Chat;
 using PulseStack.Providers.OpenRouter.Options;
+using PulseStack.Providers.OpenRouter.Factories;
 
 namespace PulseStack.Providers.OpenRouter.DependencyInjection;
 
@@ -12,7 +14,7 @@ public static class OpenRouterServiceCollectionExtensions
     public static IServiceCollection UseOpenRouter(
         this IServiceCollection services,
         string apiKey,
-        string model = "openai/gpt-4.1-mini")
+        string model = "deepseek/deepseek-chat-v3-0324")
     {
         ArgumentNullException.ThrowIfNull(services);
 
@@ -45,6 +47,9 @@ public static class OpenRouterServiceCollectionExtensions
                 .GetChatClient(options.Model)
                 .AsIChatClient();
         });
+
+        services.TryAddSingleton<IChatClientFactory,
+                OpenRouterChatClientFactory>();
 
         return services;
     }

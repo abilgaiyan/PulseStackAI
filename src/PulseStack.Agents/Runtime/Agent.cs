@@ -19,7 +19,10 @@ internal sealed class Agent : IAgent
     private readonly IConversationMemory? _memory;
 
     public string Name { get; }
+    private readonly string? _model;
+    public string? Model => _model;
     private const int MaxToolIterations = 3;
+
 
     public Agent(
         string name,
@@ -27,7 +30,8 @@ internal sealed class Agent : IAgent
         string? instructions,
         float? temperature,
         IToolRegistry? tools,
-        IConversationMemory? memory = null)
+        IConversationMemory? memory = null,
+        string? model = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(client);
@@ -38,6 +42,7 @@ internal sealed class Agent : IAgent
         _temperature = temperature;
         _tools = tools;
         _memory = memory;
+        _model = model;
     }
 
     public async Task<ChatResponse> RunAsync(
