@@ -2,9 +2,13 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using PulseStack.Core.Chat;
+using PulseStack.Core.Chat; 
+using PulseStack.Abstractions.Tools;
+using PulseStack.Agents.Builders;
 using PulseStack.Core.DependencyInjection;
 using PulseStack.Providers.Groq.DependencyInjection;
+using PulseStack.Tools.BuiltIn;
+using PulseStack.Tools.DependencyInjection;
 
 var configuration = new ConfigurationBuilder()
     .AddJsonFile("appsettings.json", optional: false)
@@ -45,3 +49,58 @@ var answer = await client.AskAsync(
 Console.WriteLine();
 Console.WriteLine("Assistant:");
 Console.WriteLine(answer);
+
+
+services.AddLogging(builder =>
+{
+    builder.AddConsole();
+});
+
+services.AddPulseStack()
+    .UseGroq(apiKey!, model);
+
+// Register tools
+services.AddTool<CalculatorTool>();
+services.AddTool<DateTimeTool>();
+
+await using var serviceGroqProvider =
+    services.BuildServiceProvider();
+
+var clientGroq = serviceGroqProvider
+    .GetRequiredService<IChatClient>();
+
+var toolRegistry = serviceGroqProvider
+    .GetRequiredService<IToolRegistry>();
+
+var agent = new AgentBuilder(
+        "GroqAssistant",
+        clientGroq)
+    .WithInstructions("""
+        You are a helpful AI assistant.
+
+        You have access to tools.
+
+        Use tools whenever needed.
+
+        Available tools include:
+        - calculator
+        - datetime
+        """)
+    .WithTools(toolRegistry)
+    .Build();
+
+Console.WriteLine("PulseStackAI - Groq Agent Sample");
+Console.WriteLine(new string('-', 50));
+
+var response = await agent.RunAsync(
+    """
+    What is:
+    
+    (125 * 12) + 450
+    
+    Also tell me the current UTC date and time.
+    """);
+
+Console.WriteLine();
+Console.WriteLine("Assistant:");
+Console.WriteLine(response.Text);

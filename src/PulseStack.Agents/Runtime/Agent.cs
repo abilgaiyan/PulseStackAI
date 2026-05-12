@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.AI;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Memory;
@@ -146,74 +147,104 @@ internal sealed class Agent : IAgent
 
             var text = response.Text ?? string.Empty;
 
-            var toolCall = ParseToolCall(text);
+            var toolCalls = ExtractToolCalls(text);
 
             // Final AI response
-            if (toolCall is null || _tools is null)
+            if (toolCalls.Count == 0 || _tools is null)
             {
                 PersistAssistantMessage(text);
 
                 return response;
             }
 
-            // Resolve tool
-            var tool = _tools.GetByName(toolCall.Tool);
-
-            if (tool is null)
-            {
-                messages.Add(new ChatMessage(
-                    ChatRole.Tool,
-                    $"Tool '{toolCall.Tool}' not found."));
-
-                continue;
-            }
-
-            if (!tool.IsEnabled)
-            {
-                messages.Add(new ChatMessage(
-                    ChatRole.Tool,
-                    $"Tool '{tool.Name}' is disabled."));
-
-                continue;
-            }
-
-            // Execute tool
-            string result;
-
-            try
-            {
-                result = await tool.ExecuteAsync(
-                    toolCall.Input,
-                    cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                result = $"Tool '{tool.Name}' failed: {ex.Message}";
-            }
-
-            // Continue conversation
+            // Persist assistant reasoning/tool request
             var assistantMessage = new ChatMessage(
                 ChatRole.Assistant,
                 text);
 
-            var toolMessage = new ChatMessage(
-                ChatRole.Tool,
-                result);
-
             messages.Add(assistantMessage);
-            messages.Add(toolMessage);
 
             _memory?.Add(assistantMessage);
-            _memory?.Add(toolMessage);
+
+            // Execute ALL tools
+            foreach (var toolCall in toolCalls)
+            {
+                var tool = _tools.GetByName(toolCall.Tool);
+
+                if (tool is null)
+                {
+                    var errorMessage = new ChatMessage(
+                        ChatRole.Tool,
+                        $"Tool '{toolCall.Tool}' not found.");
+
+                    messages.Add(errorMessage);
+
+                    _memory?.Add(errorMessage);
+
+                    continue;
+                }
+
+                if (!tool.IsEnabled)
+                {
+                    var disabledMessage = new ChatMessage(
+                        ChatRole.Tool,
+                        $"Tool '{tool.Name}' is disabled.");
+
+                    messages.Add(disabledMessage);
+
+                    _memory?.Add(disabledMessage);
+
+                    continue;
+                }
+
+                string result;
+
+                try
+                {
+                    result = await tool.ExecuteAsync(
+                        toolCall.Input,
+                        cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    result =
+                        $"Tool '{tool.Name}' failed: {ex.Message}";
+                }
+
+               var toolMessage = new ChatMessage(
+                    ChatRole.Assistant,
+                    $"""
+                    Tool Execution Result
+
+                    Tool: {tool.Name}
+
+                    Result:
+                    {result}
+                    """);
+
+                messages.Add(toolMessage);
+
+                _memory?.Add(toolMessage);
+            }
+            messages.Add(new ChatMessage(
+                ChatRole.User,
+                """
+                Use the tool execution results above.
+
+                Do not assume or invent values.
+
+                Provide the final answer using ONLY the tool results.
+                """));
         }
 
-        // Fallback final response
+        // Fallback response
         var fallback = await _client.GetResponseAsync(
             messages,
             options,
             cancellationToken);
 
-        PersistAssistantMessage(fallback.Text ?? string.Empty);
+        PersistAssistantMessage(
+            fallback.Text ?? string.Empty);
 
         return fallback;
     }
@@ -241,25 +272,44 @@ internal sealed class Agent : IAgent
             text));
     }
 
-    private static ToolCall? ParseToolCall(string text)
+    
+    private static IReadOnlyCollection<ToolCall> ExtractToolCalls(
+        string text)
     {
-        try
+        if (string.IsNullOrWhiteSpace(text))
         {
-            var result = JsonSerializer.Deserialize<ToolCall>(
-                text,
-                new JsonSerializerOptions
+            return [];
+        }
+
+        var matches = Regex.Matches(
+            text,
+            @"\{[\s\S]*?""tool""[\s\S]*?""input""[\s\S]*?\}",
+            RegexOptions.IgnoreCase);
+
+        var results = new List<ToolCall>();
+
+        foreach (Match match in matches)
+        {
+            try
+            {
+                var toolCall = JsonSerializer.Deserialize<ToolCall>(
+                    match.Value,
+                    new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+
+                if (toolCall is not null)
                 {
-                    PropertyNameCaseInsensitive = true
-                });
-
-            if (string.IsNullOrWhiteSpace(result?.Tool))
-                return null;
-
-            return result;
+                    results.Add(toolCall);
+                }
+            }
+            catch
+            {
+                // Ignore invalid tool JSON
+            }
         }
-        catch
-        {
-            return null;
-        }
-    }
+
+        return results;
+    }  
 }

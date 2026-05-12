@@ -9,20 +9,18 @@ public sealed class DateTimeTool : ITool
     public string Description =>
         "Returns the current UTC date and time.";
 
+    public IReadOnlyCollection<string> Tags =>
+        ["datetime", "time", "utility"];
+
     public string Category => "Utility";
 
     public bool IsEnabled => true;
-
-    public IReadOnlyCollection<string> Tags =>
-        ["utility", "datetime", "clock"];
 
     public Task<string> ExecuteAsync(
         string input,
         CancellationToken cancellationToken = default)
     {
-        var now = DateTimeOffset.UtcNow;
-
         return Task.FromResult(
-            $"Current UTC date/time: {now:O}");
+            DateTimeOffset.UtcNow.ToString("u"));
     }
 }

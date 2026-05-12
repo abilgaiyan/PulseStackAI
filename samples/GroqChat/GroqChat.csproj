@@ -3,6 +3,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\PulseStack.Core\PulseStack.Core.csproj" />
     <ProjectReference Include="..\..\src\PulseStack.Providers.Groq\PulseStack.Providers.Groq.csproj" />
+    <ProjectReference Include="..\..\src\PulseStack.Tools\PulseStack.Tools.csproj" />
+    <ProjectReference Include="..\..\src\PulseStack.Agents\PulseStack.Agents.csproj" />
   </ItemGroup>
 
   <ItemGroup>
