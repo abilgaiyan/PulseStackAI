@@ -40,9 +40,9 @@ var writer = new AgentBuilder("Writer", client)
     .Build();
 
 // Pipeline
-var pipeline = new AgentPipeline("ResearchPipeline")
-    .AddAgent(researcher)
-    .AddAgent(writer);
+var pipeline = new SequentialPipeline("ResearchPipeline")
+    .Add(researcher)
+    .Add(writer);
 
 // Execute
 var result = await pipeline.RunAsync(

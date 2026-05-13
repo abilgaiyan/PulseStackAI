@@ -12,7 +12,7 @@ public interface ITool
 
     IReadOnlyCollection<string> Tags { get; }
 
-    Task<string> ExecuteAsync(
+    Task<ToolExecutionResult> ExecuteAsync(
         string input,
         CancellationToken cancellationToken = default);
 }
