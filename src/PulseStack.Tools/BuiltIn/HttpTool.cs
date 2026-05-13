@@ -23,7 +23,7 @@ public sealed class HttpTool : ITool
     public IReadOnlyCollection<string> Tags =>
         ["http", "web", "api"];
 
-    public async Task<string> ExecuteAsync(
+    public async Task<ToolExecutionResult> ExecuteAsync(
         string input,
         CancellationToken cancellationToken = default)
     {
@@ -32,7 +32,10 @@ public sealed class HttpTool : ITool
             UriKind.Absolute,
             out var uri))
         {
-            return "Invalid URL.";
+            return new ToolExecutionResult(
+                Success: false,
+                Output: string.Empty,
+                Error: "Invalid URL.");
         }
 
         try
@@ -43,12 +46,16 @@ public sealed class HttpTool : ITool
 
             response.EnsureSuccessStatusCode();
 
-            return await response.Content
-                .ReadAsStringAsync(cancellationToken);
+            return new ToolExecutionResult(
+                Success: true,
+                Output: await response.Content.ReadAsStringAsync(cancellationToken));
         }
         catch (Exception ex)
         {
-            return $"HTTP request failed: {ex.Message}";
+            return new ToolExecutionResult(
+                Success: false,
+                Output: string.Empty,
+                Error: $"HTTP request failed: {ex.Message}");
         }
     }
 }

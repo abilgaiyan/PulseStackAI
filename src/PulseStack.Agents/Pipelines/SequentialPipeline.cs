@@ -31,11 +31,28 @@ public sealed class SequentialPipeline
         return this;
     }
 
-    public async Task<PipelineResult> RunAsync(
+    public Task<PipelineResult> RunAsync(
         string input,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(input);
+
+        var context = new PipelineContext
+        {
+            Input = input,
+            CurrentOutput = input
+        };
+
+        return RunAsync(
+            context,
+            cancellationToken);
+    }
+
+    public async Task<PipelineResult> RunAsync(
+        PipelineContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
 
         if (_agents.Count == 0)
         {
@@ -45,12 +62,12 @@ public sealed class SequentialPipeline
 
         var steps = new List<PipelineStepResult>();
 
-        var current = input;
-
         foreach (var agent in _agents)
         {
+            var input = context.CurrentOutput;
+
             var response = await agent.RunAsync(
-                current,
+                input,
                 cancellationToken);
 
             var output = response.Text ?? string.Empty;
@@ -58,14 +75,14 @@ public sealed class SequentialPipeline
             steps.Add(new PipelineStepResult(
                 agent.Name,
                 agent.Model,
-                current,
+                input,
                 output));
 
-            current = output;
+            context.CurrentOutput = output;
         }
 
         return new PipelineResult(
-            current,
+            context.CurrentOutput,
             steps);
     }
 }

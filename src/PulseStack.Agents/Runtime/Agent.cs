@@ -202,7 +202,7 @@ internal sealed class Agent : IAgent
                     continue;
                 }
 
-                string result;
+                ToolExecutionResult result;
 
                 try
                 {
@@ -212,23 +212,22 @@ internal sealed class Agent : IAgent
                 }
                 catch (Exception ex)
                 {
-                    result =
-                        $"Tool '{tool.Name}' failed: {ex.Message}";
+                    result = new ToolExecutionResult(
+                        Success: false,
+                        Output: string.Empty,
+                        Error: $"Tool '{tool.Name}' failed: {ex.Message}");
                 }
 
-               var toolMessage = new ChatMessage(
-                    ChatRole.Assistant,
-                    $"""
-                    Tool Execution Result
+                var toolContent = result.Success
+                    ? $"Tool '{tool.Name}' result:\n{result.Output}"
+                    : $"Tool '{tool.Name}' failed:\n{result.Error}";
 
-                    Tool: {tool.Name}
-
-                    Result:
-                    {result}
-                    """);
+                var toolMessage = new ChatMessage(
+                    ChatRole.Tool,
+                    toolContent);
 
                 messages.Add(toolMessage);
-
+    
                 _memory?.Add(toolMessage);
             }
             messages.Add(new ChatMessage(

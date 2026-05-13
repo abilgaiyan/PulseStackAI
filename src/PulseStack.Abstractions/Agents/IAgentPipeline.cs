@@ -7,4 +7,8 @@ public interface IAgentPipeline
     Task<PipelineResult> RunAsync(
         string input,
         CancellationToken cancellationToken = default);
+
+    Task<PipelineResult> RunAsync(
+        PipelineContext context,
+        CancellationToken cancellationToken = default);        
 }

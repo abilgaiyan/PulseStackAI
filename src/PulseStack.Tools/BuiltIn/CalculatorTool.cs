@@ -17,7 +17,7 @@ public sealed class CalculatorTool : ITool
     public IReadOnlyCollection<string> Tags =>
         ["utility", "math"];
 
-    public Task<string> ExecuteAsync(
+    public Task<ToolExecutionResult> ExecuteAsync(
         string input,
         CancellationToken cancellationToken = default)
     {
@@ -31,12 +31,17 @@ public sealed class CalculatorTool : ITool
                 .Compute(input, null);
 
             return Task.FromResult(
-                result?.ToString() ?? "0");
+                new ToolExecutionResult(
+                    Success: true,
+                    Output: result?.ToString() ?? "0"));
         }
         catch
         {
             return Task.FromResult(
-                "Unable to evaluate the math expression.");
+                new ToolExecutionResult(
+                    Success: false,
+                    Output: string.Empty,
+                    Error: "Invalid expression."));
         }
     }
 }
