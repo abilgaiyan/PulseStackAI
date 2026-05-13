@@ -145,6 +145,7 @@ internal sealed class Agent : IAgent
     {
         for (int i = 0; i < MaxToolIterations; i++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var response = await _client.GetResponseAsync(
                 messages,
                 options,
