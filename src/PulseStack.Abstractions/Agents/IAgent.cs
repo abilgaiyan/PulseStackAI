@@ -5,6 +5,7 @@ namespace PulseStack.Abstractions.Agents;
 public interface IAgent
 {
     string Name { get; }
+    string? Model { get; }
 
     Task<ChatResponse> RunAsync(
         string input,

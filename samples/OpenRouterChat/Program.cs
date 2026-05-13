@@ -1,16 +1,13 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using PulseStack.Abstractions.Chat;
-using PulseStack.Abstractions.Tools;
 using PulseStack.Agents.Builders;
+using PulseStack.Agents.Pipelines;
 using PulseStack.Core.DependencyInjection;
 using PulseStack.Providers.OpenRouter.DependencyInjection;
-using PulseStack.Tools.BuiltIn;
-using PulseStack.Tools.DependencyInjection;
 
 var configuration = new ConfigurationBuilder()
-    .AddJsonFile("appsettings.json", optional: false)
-    .AddEnvironmentVariables()
+    .AddJsonFile("appsettings.json")
     .Build();
 
 var apiKey = configuration["OpenRouter:ApiKey"];
@@ -20,109 +17,70 @@ var services = new ServiceCollection();
 services.AddPulseStack()
     .UseOpenRouter(apiKey!);
 
-// Tools
-services.AddTool<CalculatorTool>();
-services.AddTool<DateTimeTool>();
-services.AddTool<HttpTool>();
-
-await using var serviceProvider =
+await using var provider =
     services.BuildServiceProvider();
 
-var factory = serviceProvider
+var factory = provider
     .GetRequiredService<IChatClientFactory>();
 
-var tools = serviceProvider
-    .GetRequiredService<IToolRegistry>();
-
-// Planner Agent
-var plannerAgent = new AgentBuilder(
-        "PlannerAgent",
+// Planner
+var planner = new AgentBuilder(
+        "Planner",
         factory)
     .WithModel("meta-llama/llama-3.3-70b-instruct")
     .WithInstructions("""
         You are a planning agent.
 
-        Break problems into smaller steps.
+        Break the problem into concise steps.
 
-        Be concise.
+        Do not provide the final answer.
         """)
     .Build();
 
-// Math Agent
-var mathAgent = new AgentBuilder(
-        "MathAgent",
+// Writer
+var writer = new AgentBuilder(
+        "Writer",
         factory)
     .WithModel("deepseek/deepseek-chat-v3-0324")
     .WithInstructions("""
-        You are a math and reasoning agent.
+        You are a professional technical writer.
 
-        Use tools whenever required.
-
-        After tool execution results are returned,
-        provide a final response using ONLY tool results.
-        """)
-    .WithTools(tools)
-    .Build();
-
-// Research Agent
-var researchAgent = new AgentBuilder(
-        "ResearchAgent",
-        factory)
-    .WithModel("meta-llama/llama-3.3-70b-instruct")
-    .WithInstructions("""
-        You are a lightweight research assistant.
-
-        Keep answers short and factual.
+        Use the provided planning steps
+        to produce a polished final response.
         """)
     .Build();
 
-Console.WriteLine("PulseStackAI - Multi Model Sample");
-Console.WriteLine(new string('-', 55));
+var pipeline = new SequentialPipeline(
+        "EnterpriseAgentsPipeline")
+    .Add(planner)
+    .Add(writer);
 
+Console.WriteLine("PulseStackAI - Sequential Pipeline");
+Console.WriteLine(new string('-', 50));
 
-// STEP 1 — Planning
-
-var plan = await plannerAgent.RunAsync(
+var result = await pipeline.RunAsync(
     """
-    I need to:
-    
-    1. Calculate:
-       (250 * 4) + 300
-
-    2. Get current UTC date and time.
-
-    Create a short execution plan.
+    Explain how AI agents work
+    in modern enterprise systems.
     """);
 
 Console.WriteLine();
-Console.WriteLine("=== Planner Agent ===");
-Console.WriteLine(plan.Text);
-
-
-// STEP 2 — Math + Tools
-
-var mathResult = await mathAgent.RunAsync(
-    """
-    Calculate:
-    (250 * 4) + 300
-
-    Also provide the current UTC time.
-    """);
+Console.WriteLine("=== Final Output ===");
+Console.WriteLine(result.FinalOutput);
 
 Console.WriteLine();
-Console.WriteLine("=== Math Agent ===");
-Console.WriteLine(mathResult.Text);
+Console.WriteLine("=== Pipeline Steps ===");
 
+foreach (var step in result.Steps)
+{
+    Console.WriteLine();
+    Console.WriteLine($"Agent: {step.AgentName}");
 
-// STEP 3 — Final Summary
+    if (!string.IsNullOrWhiteSpace(step.Model))
+    {
+        Console.WriteLine($"Model: {step.Model}");
+    }
 
-var summary = await researchAgent.RunAsync(
-    $"""
-    Summarize this result in a concise way:
-
-    {mathResult.Text}
-    """);
-
-Console.WriteLine();
-Console.WriteLine("=== Research Agent ===");
-Console.WriteLine(summary.Text);
+    Console.WriteLine("Output:");
+    Console.WriteLine(step.Output);
+}

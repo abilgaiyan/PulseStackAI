@@ -2,20 +2,27 @@ using PulseStack.Abstractions.Agents;
 
 namespace PulseStack.Agents.Pipelines;
 
-public sealed class AgentPipeline : IAgentPipeline
+/// <summary>
+/// Executes agents sequentially,
+/// passing each agent output
+/// to the next agent.
+/// </summary>
+public sealed class SequentialPipeline
+    : IAgentPipeline
 {
     private readonly List<IAgent> _agents = [];
 
     public string Name { get; }
 
-    public AgentPipeline(string name)
+    public SequentialPipeline(string name)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         Name = name;
     }
 
-    public AgentPipeline AddAgent(IAgent agent)
+    public SequentialPipeline Add(
+        IAgent agent)
     {
         ArgumentNullException.ThrowIfNull(agent);
 
@@ -28,27 +35,37 @@ public sealed class AgentPipeline : IAgentPipeline
         string input,
         CancellationToken cancellationToken = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(input);
+
+        if (_agents.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "Pipeline contains no agents.");
+        }
+
         var steps = new List<PipelineStepResult>();
 
-        var currentInput = input;
+        var current = input;
 
         foreach (var agent in _agents)
         {
-            var result = await agent.RunAsync(
-                currentInput,
+            var response = await agent.RunAsync(
+                current,
                 cancellationToken);
 
-            var output = result.Text ?? string.Empty;
+            var output = response.Text ?? string.Empty;
 
             steps.Add(new PipelineStepResult(
                 agent.Name,
+                agent.Model,
+                current,
                 output));
 
-            currentInput = output;
+            current = output;
         }
 
         return new PipelineResult(
-            currentInput,
+            current,
             steps);
     }
 }
