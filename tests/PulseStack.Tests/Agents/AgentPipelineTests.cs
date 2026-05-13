@@ -10,13 +10,13 @@ public class AgentPipelineTests
     [Fact]
     public async Task Pipeline_Should_Execute_All_Agents()
     {
-        var pipeline = new AgentPipeline("Test");
+        var pipeline = new SequentialPipeline("Test");
 
-        pipeline.AddAgent(new FakeAgent(
+        pipeline.Add(new FakeAgent(
             "Researcher",
             ["Research result"]));
 
-        pipeline.AddAgent(new FakeAgent(
+        pipeline.Add(new FakeAgent(
             "Writer",
             ["Final summary"]));
 

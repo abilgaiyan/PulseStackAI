@@ -8,12 +8,14 @@ internal sealed class FakeAgent : IAgent
     private readonly Queue<string> _responses;
 
     public string Name { get; }
+    public string Model { get; }
 
     public FakeAgent(
         string name,
         IEnumerable<string> responses)
     {
         Name = name;
+        Model = name;
         _responses = new Queue<string>(responses);
     }
 
