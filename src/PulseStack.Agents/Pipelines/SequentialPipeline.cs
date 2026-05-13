@@ -60,10 +60,10 @@ public sealed class SequentialPipeline
                 "Pipeline contains no agents.");
         }
 
-        var steps = new List<PipelineStepResult>();
-
         foreach (var agent in _agents)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var input = context.CurrentOutput;
 
             var response = await agent.RunAsync(
@@ -72,17 +72,22 @@ public sealed class SequentialPipeline
 
             var output = response.Text ?? string.Empty;
 
-            steps.Add(new PipelineStepResult(
+            var step = new PipelineStepResult(
                 agent.Name,
                 agent.Model,
                 input,
-                output));
+                output);
+
+            context.Steps.Add(step);
+
+            context.Items[$"agent:{agent.Name}:output"]
+                = output;
 
             context.CurrentOutput = output;
         }
 
         return new PipelineResult(
             context.CurrentOutput,
-            steps);
+            context.Steps.ToList());
     }
 }

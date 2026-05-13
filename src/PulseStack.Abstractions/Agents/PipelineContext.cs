@@ -11,4 +11,8 @@ public sealed class PipelineContext
     public IDictionary<string, object?> Items
         { get; } =
             new Dictionary<string, object?>();
+
+    public IList<PipelineStepResult> Steps
+        { get; } =
+            new List<PipelineStepResult>();            
 }
