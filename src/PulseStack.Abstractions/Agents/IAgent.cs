@@ -11,6 +11,10 @@ public interface IAgent
         string input,
         CancellationToken cancellationToken = default);
 
+    Task<ChatResponse> RunAsync(
+        PipelineContext context,
+        CancellationToken cancellationToken = default);        
+
     IAsyncEnumerable<string> StreamAsync(
         string input,
         CancellationToken cancellationToken = default);        

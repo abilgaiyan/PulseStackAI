@@ -1,3 +1,5 @@
+using PulseStack.Abstractions.Tools;
+
 namespace PulseStack.Abstractions.Agents;
 
 public sealed class PipelineContext
@@ -14,5 +16,9 @@ public sealed class PipelineContext
 
     public IList<PipelineStepResult> Steps
         { get; } =
-            new List<PipelineStepResult>();            
+            new List<PipelineStepResult>();    
+
+    public IList<ToolExecutionRecord> ToolResults
+        { get; } =
+            new List<ToolExecutionRecord>();                    
 }

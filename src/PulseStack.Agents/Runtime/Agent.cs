@@ -18,11 +18,13 @@ internal sealed class Agent : IAgent
     private readonly IToolRegistry? _tools;
     private readonly IConversationMemory? _memory;
 
-    public string Name { get; }
-    private readonly string? _model;
-    public string? Model => _model;
     private const int MaxToolIterations = 3;
 
+    public string Name { get; }
+
+    private readonly string? _model;
+
+    public string? Model => _model;
 
     public Agent(
         string name,
@@ -45,15 +47,37 @@ internal sealed class Agent : IAgent
         _model = model;
     }
 
-    public async Task<ChatResponse> RunAsync(
+    public Task<ChatResponse> RunAsync(
         string input,
         CancellationToken cancellationToken = default)
     {
-        var messages = BuildMessages(input);
+        ArgumentException.ThrowIfNullOrWhiteSpace(input);
+
+        var context = new PipelineContext
+        {
+            Input = input,
+            CurrentOutput = input
+        };
+
+        return RunAsync(
+            context,
+            cancellationToken);
+    }
+
+    public async Task<ChatResponse> RunAsync(
+        PipelineContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var messages = BuildMessages(
+            context,
+            context.CurrentOutput);
 
         var options = BuildChatOptions();
 
         return await ExecuteToolLoopAsync(
+            context,
             messages,
             options,
             cancellationToken);
@@ -64,7 +88,9 @@ internal sealed class Agent : IAgent
         [System.Runtime.CompilerServices.EnumeratorCancellation]
         CancellationToken cancellationToken = default)
     {
-        var messages = BuildMessages(input);
+        var messages = BuildMessages(
+            null,
+            input);
 
         var options = BuildChatOptions();
 
@@ -87,7 +113,10 @@ internal sealed class Agent : IAgent
     }
 
     // Message Construction
-    private List<ChatMessage> BuildMessages(string input)
+
+    private List<ChatMessage> BuildMessages(
+        PipelineContext? context,
+        string input)
     {
         var messages = new List<ChatMessage>();
 
@@ -95,9 +124,13 @@ internal sealed class Agent : IAgent
 
         AddToolInstructions(messages);
 
+        AddPipelineContext(context, messages);
+
         AddMemory(messages);
 
-        var userMessage = new ChatMessage(ChatRole.User, input);
+        var userMessage = new ChatMessage(
+            ChatRole.User,
+            input);
 
         messages.Add(userMessage);
 
@@ -106,7 +139,8 @@ internal sealed class Agent : IAgent
         return messages;
     }
 
-    private void AddSystemInstructions(List<ChatMessage> messages)
+    private void AddSystemInstructions(
+        List<ChatMessage> messages)
     {
         if (string.IsNullOrWhiteSpace(_instructions))
             return;
@@ -116,20 +150,66 @@ internal sealed class Agent : IAgent
             _instructions));
     }
 
-    private void AddToolInstructions(List<ChatMessage> messages)
+    private void AddToolInstructions(
+        List<ChatMessage> messages)
     {
         if (_tools is null)
             return;
 
-       var toolPrompt = ToolPromptBuilder.Build(
-                _tools.GetAll()
-                    .Where(t => t.IsEnabled)
-                    .ToList());
+        var toolPrompt = ToolPromptBuilder.Build(
+            _tools.GetAll()
+                .Where(t => t.IsEnabled)
+                .ToList());
 
-        messages.Add(new ChatMessage(ChatRole.System, toolPrompt));
+        messages.Add(new ChatMessage(
+            ChatRole.System,
+            toolPrompt));
     }
 
-    private void AddMemory(List<ChatMessage> messages)
+    private void AddPipelineContext(
+        PipelineContext? context,
+        List<ChatMessage> messages)
+    {
+        if (context is null)
+            return;
+
+        if (context.ToolResults.Count == 0)
+            return;
+
+        var builder = new StringBuilder();
+
+        builder.AppendLine(
+            "Previous tool execution results:");
+
+        foreach (var tool in context.ToolResults)
+        {
+            builder.AppendLine(
+                $"Tool: {tool.ToolName}");
+
+            builder.AppendLine(
+                $"Input: {tool.Input}");
+
+            if (tool.Result.Success)
+            {
+                builder.AppendLine(
+                    $"Output: {tool.Result.Output}");
+            }
+            else
+            {
+                builder.AppendLine(
+                    $"Error: {tool.Result.Error}");
+            }
+
+            builder.AppendLine();
+        }
+
+        messages.Add(new ChatMessage(
+            ChatRole.System,
+            builder.ToString()));
+    }
+
+    private void AddMemory(
+        List<ChatMessage> messages)
     {
         if (_memory is null)
             return;
@@ -138,7 +218,9 @@ internal sealed class Agent : IAgent
     }
 
     // Execution
+
     private async Task<ChatResponse> ExecuteToolLoopAsync(
+        PipelineContext context,
         List<ChatMessage> messages,
         ChatOptions options,
         CancellationToken cancellationToken)
@@ -146,6 +228,7 @@ internal sealed class Agent : IAgent
         for (int i = 0; i < MaxToolIterations; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
+
             var response = await _client.GetResponseAsync(
                 messages,
                 options,
@@ -158,6 +241,8 @@ internal sealed class Agent : IAgent
             // Final AI response
             if (toolCalls.Count == 0 || _tools is null)
             {
+                context.CurrentOutput = text;
+
                 PersistAssistantMessage(text);
 
                 return response;
@@ -175,7 +260,8 @@ internal sealed class Agent : IAgent
             // Execute ALL tools
             foreach (var toolCall in toolCalls)
             {
-                var tool = _tools.GetByName(toolCall.Tool);
+                var tool = _tools.GetByName(
+                    toolCall.Tool);
 
                 if (tool is null)
                 {
@@ -216,8 +302,15 @@ internal sealed class Agent : IAgent
                     result = new ToolExecutionResult(
                         Success: false,
                         Output: string.Empty,
-                        Error: $"Tool '{tool.Name}' failed: {ex.Message}");
+                        Error:
+                            $"Tool '{tool.Name}' failed: {ex.Message}");
                 }
+
+                context.ToolResults.Add(
+                    new ToolExecutionRecord(
+                        tool.Name,
+                        toolCall.Input,
+                        result));
 
                 var toolContent = result.Success
                     ? $"Tool '{tool.Name}' result:\n{result.Output}"
@@ -228,9 +321,10 @@ internal sealed class Agent : IAgent
                     toolContent);
 
                 messages.Add(toolMessage);
-    
+
                 _memory?.Add(toolMessage);
             }
+
             messages.Add(new ChatMessage(
                 ChatRole.User,
                 """
@@ -248,6 +342,9 @@ internal sealed class Agent : IAgent
             options,
             cancellationToken);
 
+        context.CurrentOutput =
+            fallback.Text ?? string.Empty;
+
         PersistAssistantMessage(
             fallback.Text ?? string.Empty);
 
@@ -255,19 +352,22 @@ internal sealed class Agent : IAgent
     }
 
     // Helpers
+
     private ChatOptions BuildChatOptions()
     {
         var options = new ChatOptions();
 
         if (_temperature.HasValue)
         {
-            options.Temperature = _temperature.Value;
+            options.Temperature =
+                _temperature.Value;
         }
 
         return options;
     }
 
-    private void PersistAssistantMessage(string text)
+    private void PersistAssistantMessage(
+        string text)
     {
         if (string.IsNullOrWhiteSpace(text))
             return;
@@ -277,9 +377,8 @@ internal sealed class Agent : IAgent
             text));
     }
 
-    
-    private static IReadOnlyCollection<ToolCall> ExtractToolCalls(
-        string text)
+    private static IReadOnlyCollection<ToolCall>
+        ExtractToolCalls(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
         {
@@ -297,12 +396,13 @@ internal sealed class Agent : IAgent
         {
             try
             {
-                var toolCall = JsonSerializer.Deserialize<ToolCall>(
-                    match.Value,
-                    new JsonSerializerOptions
-                    {
-                        PropertyNameCaseInsensitive = true
-                    });
+                var toolCall =
+                    JsonSerializer.Deserialize<ToolCall>(
+                        match.Value,
+                        new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        });
 
                 if (toolCall is not null)
                 {
@@ -316,5 +416,5 @@ internal sealed class Agent : IAgent
         }
 
         return results;
-    }  
+    }
 }
