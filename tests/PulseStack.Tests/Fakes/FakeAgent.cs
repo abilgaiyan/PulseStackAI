@@ -3,31 +3,50 @@ using PulseStack.Abstractions.Agents;
 
 namespace PulseStack.Tests.Fakes;
 
-internal sealed class FakeAgent : IAgent
+public sealed class FakeAgent : IAgent
 {
-    private readonly Queue<string> _responses;
-
-    public string Name { get; }
-    public string Model { get; }
+    private readonly string _response;
 
     public FakeAgent(
         string name,
-        IEnumerable<string> responses)
+        string response,
+        string? model = null)
     {
         Name = name;
-        Model = name;
-        _responses = new Queue<string>(responses);
+        _response = response;
+        Model = model;
     }
+
+    public string Name { get; }
+
+    public string? Model { get; }
 
     public Task<ChatResponse> RunAsync(
         string input,
         CancellationToken cancellationToken = default)
     {
-        var text = _responses.Dequeue();
+        var context = new PipelineContext
+        {
+            Input = input,
+            CurrentOutput = input
+        };
+
+        return RunAsync(
+            context,
+            cancellationToken);
+    }
+
+    public Task<ChatResponse> RunAsync(
+        PipelineContext context,
+        CancellationToken cancellationToken = default)
+    {
+        context.CurrentOutput = _response;
 
         return Task.FromResult(
             new ChatResponse(
-                new ChatMessage(ChatRole.Assistant, text)));
+                new ChatMessage(
+                    ChatRole.Assistant,
+                    _response)));
     }
 
     public async IAsyncEnumerable<string> StreamAsync(
@@ -35,9 +54,7 @@ internal sealed class FakeAgent : IAgent
         [System.Runtime.CompilerServices.EnumeratorCancellation]
         CancellationToken cancellationToken = default)
     {
-        var text = _responses.Dequeue();
-
-        yield return text;
+        yield return _response;
 
         await Task.CompletedTask;
     }

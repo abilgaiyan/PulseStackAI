@@ -17,6 +17,7 @@ public sealed class AgentBuilder
     private float? _temperature;
     private IToolRegistry? _tools;
     private IConversationMemory? _memory;
+    private readonly List<string> _fallbackModels = [];
 
     public AgentBuilder(
         string name,
@@ -72,6 +73,14 @@ public sealed class AgentBuilder
 
         return this;
     }
+
+    public AgentBuilder WithFallbackModels(
+        params string[] models)
+    {
+        _fallbackModels.AddRange(models);
+
+        return this;
+    }
     
     public IAgent Build()
     {
@@ -98,6 +107,6 @@ public sealed class AgentBuilder
             client = _factory.Create(_model);
         }
 
-        return new Agent(_name, client, _instructions, _temperature, _tools, _memory, _model);
+        return new Agent(_name, client, _instructions, _temperature, _tools, _memory, _model, _fallbackModels);
     }
 }

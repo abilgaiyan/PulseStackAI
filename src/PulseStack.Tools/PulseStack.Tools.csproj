@@ -1,8 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\PulseStack.Abstractions\PulseStack.Abstractions.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Http" />
     <PackageReference Include="Microsoft.Playwright" />
+  </ItemGroup>
+
+   <ItemGroup>
+    <ProjectReference Include="..\PulseStack.Abstractions\PulseStack.Abstractions.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

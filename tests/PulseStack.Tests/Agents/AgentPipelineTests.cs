@@ -14,11 +14,11 @@ public class AgentPipelineTests
 
         pipeline.Add(new FakeAgent(
             "Researcher",
-            ["Research result"]));
+            "Research result"));
 
         pipeline.Add(new FakeAgent(
             "Writer",
-            ["Final summary"]));
+            "Final summary"));
 
         var result = await pipeline.RunAsync("AI");
 

@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using PulseStack.Abstractions.Memory;
 using PulseStack.Abstractions.Tools;
 using PulseStack.Core.Memory;
+using PulseStack.Core.Resilience;
 using PulseStack.Core.Tools;
 
 namespace PulseStack.Core.DependencyInjection;
@@ -19,6 +20,8 @@ public static class ServiceCollectionExtensions
 
         // Required for HttpTool and future integrations
         services.AddHttpClient();
+
+        services.AddPulseStackResilience();
 
         // Build tool registry from registered tools
         services.AddSingleton<IToolRegistry>(sp =>

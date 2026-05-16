@@ -25,6 +25,8 @@ internal sealed class Agent : IAgent
     private readonly string? _model;
 
     public string? Model => _model;
+    private readonly IReadOnlyCollection<string>? _fallbackModels;
+    public IReadOnlyCollection<string>? FallbackModels => _fallbackModels;
 
     public Agent(
         string name,
@@ -33,7 +35,8 @@ internal sealed class Agent : IAgent
         float? temperature,
         IToolRegistry? tools,
         IConversationMemory? memory = null,
-        string? model = null)
+        string? model = null,
+        IReadOnlyCollection<string>? fallbackModels = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(client);
@@ -44,6 +47,7 @@ internal sealed class Agent : IAgent
         _temperature = temperature;
         _tools = tools;
         _memory = memory;
+        _fallbackModels = fallbackModels;
         _model = model;
     }
 

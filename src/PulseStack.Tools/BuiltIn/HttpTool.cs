@@ -1,3 +1,4 @@
+using System.Net.Http;
 using PulseStack.Abstractions.Tools;
 
 namespace PulseStack.Tools.BuiltIn;
@@ -6,9 +7,14 @@ public sealed class HttpTool : ITool
 {
     private readonly HttpClient _httpClient;
 
-    public HttpTool(HttpClient httpClient)
+    public HttpTool(
+        IHttpClientFactory httpClientFactory)
     {
-        _httpClient = httpClient;
+        ArgumentNullException.ThrowIfNull(
+            httpClientFactory);
+
+        _httpClient = httpClientFactory
+            .CreateClient("PulseStack");
     }
 
     public string Name => "http";
@@ -46,9 +52,12 @@ public sealed class HttpTool : ITool
 
             response.EnsureSuccessStatusCode();
 
+            var content = await response.Content
+                .ReadAsStringAsync(cancellationToken);
+
             return new ToolExecutionResult(
                 Success: true,
-                Output: await response.Content.ReadAsStringAsync(cancellationToken));
+                Output: content);
         }
         catch (Exception ex)
         {
