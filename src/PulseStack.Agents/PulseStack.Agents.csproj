@@ -5,7 +5,7 @@
     <ProjectReference Include="..\PulseStack.Core\PulseStack.Core.csproj" />
   </ItemGroup>
 
-  <PropertyGroup>
+   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>

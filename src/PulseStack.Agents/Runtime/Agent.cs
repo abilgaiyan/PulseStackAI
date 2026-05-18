@@ -7,12 +7,15 @@ using PulseStack.Abstractions.Memory;
 using PulseStack.Abstractions.Tools;
 using PulseStack.Agents.Models;
 using PulseStack.Agents.Tools;
+using PulseStack.Abstractions.Chat;
 
 namespace PulseStack.Agents.Runtime;
 
 internal sealed class Agent : IAgent
 {
-    private readonly IChatClient _client;
+    private readonly IChatClient? _client;
+
+    private readonly IChatClientFactory?  _clientFactory;
     private readonly string? _instructions;
     private readonly float? _temperature;
     private readonly IToolRegistry? _tools;
@@ -30,7 +33,7 @@ internal sealed class Agent : IAgent
 
     public Agent(
         string name,
-        IChatClient client,
+        IChatClient? client,
         string? instructions,
         float? temperature,
         IToolRegistry? tools,
@@ -47,10 +50,40 @@ internal sealed class Agent : IAgent
         _temperature = temperature;
         _tools = tools;
         _memory = memory;
-        _fallbackModels = fallbackModels;
+        _fallbackModels = fallbackModels ?? [];
         _model = model;
     }
 
+    public Agent(
+        string name,
+        IChatClientFactory? clientFactory,
+        string model,
+        string? instructions,
+        float? temperature,
+        IToolRegistry? tools,
+        IConversationMemory? memory = null,
+        IReadOnlyCollection<string>? fallbackModels = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(clientFactory);
+        ArgumentException.ThrowIfNullOrWhiteSpace(model);
+
+        Name = name;
+
+        _clientFactory = clientFactory;
+
+        _model = model;
+
+        _instructions = instructions;
+
+        _temperature = temperature;
+
+        _tools = tools;
+
+        _memory = memory;
+
+        _fallbackModels = fallbackModels ?? [];
+    }
     public Task<ChatResponse> RunAsync(
         string input,
         CancellationToken cancellationToken = default)
@@ -356,6 +389,33 @@ internal sealed class Agent : IAgent
     }
 
     // Helpers
+    private IChatClient ResolveClient(
+        string? model = null)
+    {
+        if (_client is not null)
+        {
+            return _client;
+        }
+
+        if (_clientFactory is null)
+        {
+            throw new InvalidOperationException(
+                "No chat client factory configured.");
+        }
+
+        var resolvedModel =
+            model ?? _model;
+
+        if (string.IsNullOrWhiteSpace(
+            resolvedModel))
+        {
+            throw new InvalidOperationException(
+                "No model configured.");
+        }
+
+        return _clientFactory.Create(
+            resolvedModel);
+    }
 
     private ChatOptions BuildChatOptions()
     {

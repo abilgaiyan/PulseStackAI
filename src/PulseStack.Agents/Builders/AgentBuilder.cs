@@ -77,36 +77,50 @@ public sealed class AgentBuilder
     public AgentBuilder WithFallbackModels(
         params string[] models)
     {
-        _fallbackModels.AddRange(models);
+        ArgumentNullException.ThrowIfNull(models);
+
+        _fallbackModels.AddRange(
+            models.Where(model =>
+                !string.IsNullOrWhiteSpace(model)));
 
         return this;
     }
     
     public IAgent Build()
     {
-        IChatClient client;
-
         if (_client is not null)
         {
-            client = _client;
+            return new Agent(
+                _name,
+                _client,
+                _instructions,
+                _temperature,
+                _tools,
+                _memory,
+                _model,
+                _fallbackModels);
         }
-        else
-        {
-            if (_factory is null)
-            {
-                throw new InvalidOperationException(
-                    "No chat client or factory configured.");
-            }
 
+        if (_factory is not null)
+        {
             if (string.IsNullOrWhiteSpace(_model))
             {
                 throw new InvalidOperationException(
                     "No model configured.");
             }
 
-            client = _factory.Create(_model);
+            return new Agent(
+                _name,
+                _factory,
+                _model,
+                _instructions,
+                _temperature,
+                _tools,
+                _memory,
+                _fallbackModels);
         }
 
-        return new Agent(_name, client, _instructions, _temperature, _tools, _memory, _model, _fallbackModels);
+        throw new InvalidOperationException(
+            "No chat client or factory configured.");
     }
 }

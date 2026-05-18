@@ -43,6 +43,9 @@ ScaffoldingReadMe.txt
 #.vs folder
 .vs/
 
+# C# Dev Kit / VS Code Language Server Cache
+*.lscache
+
 # Others
 ~$*
 *~
@@ -50,6 +53,8 @@ ScaffoldingReadMe.txt
 *.docm  
 
 CodeCoverage/
+testme*/
+docs/
 
 # MSBuild Binary and Structured Log
 *.binlog
