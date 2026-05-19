@@ -15,6 +15,17 @@ public sealed class DateTimeTool : ITool
     public string Category => "Utility";
 
     public bool IsEnabled => true;
+    public ToolDescriptor Descriptor => new ToolDescriptor
+    {
+        Name = Name,
+        Description = Description,
+        ActionType = ToolActionType.Read,
+        RequiredRoles = [],
+        RequiredPermissions = [],
+        AllowedScopes = [],
+        IsDestructive = false,
+        RequiresConfirmation = false
+    };
 
     public Task<IToolExecutionResult> ExecuteAsync(
         ToolExecutionContext context,

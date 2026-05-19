@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using PulseStack.Abstractions.Tools;
 using PulseStack.Abstractions.Chat;
 using PulseStack.Agents.Builders;
 using PulseStack.Agents.Pipelines;
@@ -23,10 +24,14 @@ await using var provider =
 var factory = provider
     .GetRequiredService<IChatClientFactory>();
 
+var toolexecuter = provider
+    .GetRequiredService<IToolExecutor>();    
+
 // Planner
 var planner = new AgentBuilder(
         "Planner",
-        factory)
+        factory,
+        toolexecuter)
     .WithModel("meta-llama/llama-3.3-70b-instruct")
     .WithInstructions("""
         You are a planning agent.
@@ -40,7 +45,8 @@ var planner = new AgentBuilder(
 // Writer
 var writer = new AgentBuilder(
         "Writer",
-        factory)
+        factory,
+        toolexecuter)
     .WithModel("deepseek/deepseek-chat-v3-0324")
     .WithInstructions("""
         You are a professional technical writer.

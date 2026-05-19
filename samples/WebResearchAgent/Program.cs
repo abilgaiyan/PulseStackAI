@@ -38,9 +38,13 @@ var client = serviceProvider
 var toolRegistry = serviceProvider
     .GetRequiredService<IToolRegistry>();
 
+var toolExecutor = serviceProvider
+    .GetRequiredService<IToolExecutor>();    
+
 var agent = new AgentBuilder(
         "WebResearcher",
-        client)
+        client,
+        toolExecutor)
     .WithInstructions("""
         You are a web research assistant.
 

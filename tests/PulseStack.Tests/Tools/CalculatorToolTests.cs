@@ -1,5 +1,7 @@
 using FluentAssertions;
 using PulseStack.Abstractions.Tools;
+using PulseStack.Core.Tools;
+using PulseStack.Core.Security; 
 using PulseStack.Tools.BuiltIn;
 using Xunit;
 
@@ -12,9 +14,12 @@ public class CalculatorToolTests
     {
         // Arrange
         var tool = new CalculatorTool();
-
+       var authorization = new AllowAllToolAuthorizationService();
+        var executor =  new ToolExecutor(authorization);
+        
         // Act
-        var result = await tool.ExecuteAsync(
+        var result = await executor.ExecuteAsync(
+            tool,
             new ToolExecutionContext
             {
                 Input = "5 * 5"
@@ -23,7 +28,7 @@ public class CalculatorToolTests
         // Assert
         result.IsSuccess.Should().BeTrue();
 
-        result.Value.Should().Be("25");
+        result.Value.Should().Be(25d);
 
         result.ErrorMessage.Should().BeNull();
     }
@@ -33,13 +38,17 @@ public class CalculatorToolTests
     {
         // Arrange
         var tool = new CalculatorTool();
+        var authorization = new AllowAllToolAuthorizationService();
+        var executor =  new ToolExecutor(authorization);
 
         // Act
-        var result = await tool.ExecuteAsync(
+        var result = await executor.ExecuteAsync(
+            tool,
             new ToolExecutionContext
             {
                 Input = "hello"
             });
+
 
         // Assert
         result.IsSuccess.Should().BeFalse();
@@ -47,6 +56,6 @@ public class CalculatorToolTests
         result.Value.Should().BeNull();
 
         result.ErrorMessage.Should()
-            .Be("Invalid expression.");
+            .Contain("Invalid expression.");
     }
 }

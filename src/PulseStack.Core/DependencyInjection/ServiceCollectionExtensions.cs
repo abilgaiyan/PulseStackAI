@@ -2,9 +2,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using PulseStack.Abstractions.Memory;
 using PulseStack.Abstractions.Tools;
+using PulseStack.Abstractions.Security;
 using PulseStack.Core.Memory;
 using PulseStack.Core.Resilience;
 using PulseStack.Core.Tools;
+using PulseStack.Core.Security;
 
 namespace PulseStack.Core.DependencyInjection;
 
@@ -14,6 +16,9 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
+
+        services.TryAddSingleton<IToolAuthorizationService, AllowAllToolAuthorizationService>();
+        services.TryAddScoped<IToolExecutor, ToolExecutor>();
 
         // Core framework services
         services.AddScoped<IConversationMemory, ConversationMemory>();

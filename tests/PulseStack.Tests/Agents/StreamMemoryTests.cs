@@ -3,6 +3,8 @@ using FluentAssertions;
 using Microsoft.Extensions.AI;
 using PulseStack.Agents.Builders;
 using PulseStack.Core.Memory;
+using PulseStack.Core.Security;
+using PulseStack.Core.Tools;
 using PulseStack.Tests.Fakes;
 
 namespace PulseStack.Tests.Agents;
@@ -17,8 +19,11 @@ public class StreamMemoryTests
 
         var client = new FakeChatClient(
             ["Hello ", "Ajay"]);
-
-        var agent = new AgentBuilder("Streamer", client)
+            
+        var authorization = new AllowAllToolAuthorizationService();
+        var executor =  new ToolExecutor(authorization);
+        
+        var agent = new AgentBuilder("Streamer", client, executor   )
             .WithMemory(memory)
             .Build();
 

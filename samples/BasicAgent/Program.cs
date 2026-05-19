@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using PulseStack.Abstractions.Tools;
 using PulseStack.Agents.Builders;
 using PulseStack.Core.DependencyInjection;
 using PulseStack.Core.Tools;
@@ -39,9 +40,13 @@ var registry = new ToolRegistry()
 var client = serviceProvider
     .GetRequiredService<IChatClient>();
 
+var toolExecutor = serviceProvider
+    .GetRequiredService<IToolExecutor>();    
+
 var agent = new AgentBuilder(
         "UtilityAssistant",
-        client)
+        client,
+        toolExecutor)
     .WithInstructions("""
         You are a helpful AI assistant.
 

@@ -10,24 +10,32 @@ public sealed class HttpTool : ITool
     public HttpTool(
         IHttpClientFactory httpClientFactory)
     {
-        ArgumentNullException.ThrowIfNull(
-            httpClientFactory);
+        ArgumentNullException.ThrowIfNull(httpClientFactory);
 
-        _httpClient = httpClientFactory
-            .CreateClient("PulseStack");
+        _httpClient = httpClientFactory.CreateClient("PulseStack");
     }
 
     public string Name => "http";
 
-    public string Description =>
-        "Fetches content from HTTP endpoints.";
+    public string Description => "Fetches content from HTTP endpoints.";
 
     public string Category => "Web";
 
     public bool IsEnabled => true;
 
-    public IReadOnlyCollection<string> Tags =>
-        ["http", "web", "api"];
+    public IReadOnlyCollection<string> Tags => ["http", "web", "api"];
+
+    public ToolDescriptor Descriptor => new ToolDescriptor
+    {
+        Name = Name,
+        Description = Description,
+        ActionType = ToolActionType.Read,
+        RequiredRoles = [],
+        RequiredPermissions = [],
+        AllowedScopes = [],
+        IsDestructive = false,
+        RequiresConfirmation = false
+    };
 
     public async Task<IToolExecutionResult> ExecuteAsync(
         ToolExecutionContext context,

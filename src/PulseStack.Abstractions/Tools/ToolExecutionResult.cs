@@ -30,4 +30,12 @@ public class ToolExecutionResult
             IsSuccess = false,
             ErrorMessage = error
         };
+
+    public static ToolExecutionResult Forbidden(
+        string error)
+        => new()
+        {
+            IsSuccess = false,
+            ErrorMessage = error
+        };        
 }

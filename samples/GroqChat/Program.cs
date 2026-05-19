@@ -62,6 +62,8 @@ services.AddPulseStack()
 // Register tools
 services.AddTool<CalculatorTool>();
 services.AddTool<DateTimeTool>();
+services.AddTool<HttpTool>();
+
 
 await using var serviceGroqProvider =
     services.BuildServiceProvider();
@@ -71,10 +73,14 @@ var clientGroq = serviceGroqProvider
 
 var toolRegistry = serviceGroqProvider
     .GetRequiredService<IToolRegistry>();
+    
+var toolExecutor = serviceGroqProvider
+    .GetRequiredService<IToolExecutor>();
 
 var agent = new AgentBuilder(
         "GroqAssistant",
-        clientGroq)
+        clientGroq,
+        toolExecutor)
     .WithInstructions("""
         You are a helpful AI assistant.
 
@@ -85,6 +91,7 @@ var agent = new AgentBuilder(
         Available tools include:
         - calculator
         - datetime
+        - http  
         """)
     .WithTools(toolRegistry)
     .Build();

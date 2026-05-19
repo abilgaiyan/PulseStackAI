@@ -11,6 +11,7 @@ public sealed class AgentBuilder
 {
     private readonly string _name;
     private readonly IChatClient? _client;
+    private readonly IToolExecutor _toolExecutor;
     private readonly IChatClientFactory? _factory;
     private string? _model;
     private string? _instructions;
@@ -21,23 +22,29 @@ public sealed class AgentBuilder
 
     public AgentBuilder(
         string name,
-        IChatClient client)
+        IChatClient client,
+        IToolExecutor toolExecutor)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(client);
+        ArgumentNullException.ThrowIfNull(toolExecutor);
 
         _name = name;
+        _toolExecutor = toolExecutor;
         _client = client;
     }
 
     public AgentBuilder(
         string name,
-        IChatClientFactory factory)
+        IChatClientFactory factory,
+        IToolExecutor toolExecutor)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(toolExecutor);
         ArgumentNullException.ThrowIfNull(factory);
 
         _name = name;
+        _toolExecutor = toolExecutor;
         _factory = factory;
     }
 
@@ -93,6 +100,7 @@ public sealed class AgentBuilder
             return new Agent(
                 _name,
                 _client,
+                _toolExecutor,
                 _instructions,
                 _temperature,
                 _tools,
@@ -112,6 +120,7 @@ public sealed class AgentBuilder
             return new Agent(
                 _name,
                 _factory,
+                _toolExecutor,
                 _model,
                 _instructions,
                 _temperature,

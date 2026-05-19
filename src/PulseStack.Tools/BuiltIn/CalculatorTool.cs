@@ -17,6 +17,18 @@ public sealed class CalculatorTool : ITool
     public IReadOnlyCollection<string> Tags =>
         ["utility", "math"];
 
+        public ToolDescriptor Descriptor => new ToolDescriptor  
+        {  
+            Name = Name,  
+            Description = Description,  
+            ActionType = ToolActionType.Read,  
+            RequiredRoles = [],  
+            RequiredPermissions = [],  
+            AllowedScopes = [],  
+            IsDestructive = false,  
+            RequiresConfirmation = false  
+        };        
+
    public async Task<IToolExecutionResult> ExecuteAsync(
         ToolExecutionContext context,
         CancellationToken cancellationToken = default)
@@ -38,8 +50,8 @@ public sealed class CalculatorTool : ITool
         }
         catch (Exception ex)
         {
-            return ToolExecutionResult<string>.Failure(
-                ex.Message);
+           return ToolExecutionResult.Failure(
+                $"Invalid expression. :{ex.Message}");
         }
     }
 

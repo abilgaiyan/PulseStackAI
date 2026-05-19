@@ -1,6 +1,7 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using PulseStack.Abstractions.Tools;
 using PulseStack.Agents.Builders;
 using PulseStack.Core.DependencyInjection;
 using PulseStack.Providers.OpenAI.DependencyInjection;
@@ -22,7 +23,9 @@ await using var sp = services.BuildServiceProvider();
 
 var client = sp.GetRequiredService<IChatClient>();
 
-var agent = new AgentBuilder("Tutor", client)
+var toolExecutor = sp.GetRequiredService<IToolExecutor>();
+
+var agent = new AgentBuilder("Tutor", client, toolExecutor)
     .WithInstructions("You are a helpful programming tutor. Be concise.")
     .WithTemperature(0.3f)
     .Build();

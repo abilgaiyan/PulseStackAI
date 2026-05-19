@@ -30,10 +30,12 @@ internal sealed class Agent : IAgent
     public string? Model => _model;
     private readonly IReadOnlyCollection<string>? _fallbackModels;
     public IReadOnlyCollection<string>? FallbackModels => _fallbackModels;
+    private readonly IToolExecutor _toolExecutor;
 
     public Agent(
         string name,
         IChatClient? client,
+        IToolExecutor toolExecutor,
         string? instructions,
         float? temperature,
         IToolRegistry? tools,
@@ -46,17 +48,20 @@ internal sealed class Agent : IAgent
 
         Name = name;
         _client = client;
+        _toolExecutor = toolExecutor ?? throw new ArgumentNullException(nameof(toolExecutor));
         _instructions = instructions;
         _temperature = temperature;
         _tools = tools;
         _memory = memory;
         _fallbackModels = fallbackModels ?? [];
         _model = model;
+       
     }
 
     public Agent(
         string name,
         IChatClientFactory? clientFactory,
+        IToolExecutor toolExecutor,
         string model,
         string? instructions,
         float? temperature,
@@ -72,6 +77,8 @@ internal sealed class Agent : IAgent
 
         _clientFactory = clientFactory;
 
+        _toolExecutor = toolExecutor ?? throw new ArgumentNullException(nameof(toolExecutor));
+
         _model = model;
 
         _instructions = instructions;
@@ -83,6 +90,7 @@ internal sealed class Agent : IAgent
         _memory = memory;
 
         _fallbackModels = fallbackModels ?? [];
+       
     }
     public Task<ChatResponse> RunAsync(
         string input,
@@ -327,7 +335,8 @@ internal sealed class Agent : IAgent
                         PipelineContext = context
                     };
 
-                    result = await tool.ExecuteAsync(
+                    result = await _toolExecutor.ExecuteAsync(
+                        tool,
                         toolContext,
                         cancellationToken);
                 }

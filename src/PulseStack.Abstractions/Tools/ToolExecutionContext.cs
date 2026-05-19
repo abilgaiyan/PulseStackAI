@@ -1,4 +1,5 @@
 using PulseStack.Abstractions.Agents;
+using PulseStack.Abstractions.Security;
 
 namespace PulseStack.Abstractions.Tools;
 public sealed class ToolExecutionContext
@@ -17,4 +18,5 @@ public sealed class ToolExecutionContext
 
     public IDictionary<string, object> Properties { get; }
         = new Dictionary<string, object>();
+    public SecurityContext? SecurityContext { get; init; }
 }

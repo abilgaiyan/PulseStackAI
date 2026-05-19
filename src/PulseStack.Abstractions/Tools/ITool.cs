@@ -9,6 +9,7 @@ public interface ITool
     string Category { get; }
     bool IsEnabled => true;
     IReadOnlyCollection<string> Tags { get; }
+    ToolDescriptor Descriptor { get; }
 
     Task<IToolExecutionResult> ExecuteAsync(
         ToolExecutionContext context,

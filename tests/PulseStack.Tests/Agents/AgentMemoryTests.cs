@@ -3,6 +3,8 @@ using FluentAssertions;
 using PulseStack.Agents.Builders;
 using PulseStack.Core.Memory;
 using PulseStack.Tests.Fakes;
+using PulseStack.Core.Security;
+using PulseStack.Core.Tools;    
 
 namespace PulseStack.Tests.Agents;
 
@@ -20,7 +22,10 @@ public class AgentMemoryTests
             "Your name is Ajay."
         ]);
 
-        var agent = new AgentBuilder("Assistant", client)
+        var authorization = new AllowAllToolAuthorizationService();
+        var executor =  new ToolExecutor(authorization);
+        
+        var agent = new AgentBuilder("Assistant", client, executor)
             .WithMemory(memory)
             .Build();
 

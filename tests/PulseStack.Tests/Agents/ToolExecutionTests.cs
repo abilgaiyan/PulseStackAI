@@ -2,6 +2,7 @@ using Xunit;
 using FluentAssertions;
 using PulseStack.Agents.Builders;
 using PulseStack.Core.Tools;
+using PulseStack.Core.Security;
 using PulseStack.Tools.BuiltIn;
 using PulseStack.Tests.Fakes;
 
@@ -27,7 +28,10 @@ public class ToolExecutionTests
             "The result is 25."
         ]);
 
-        var agent = new AgentBuilder("Assistant", client)
+        var authorization = new AllowAllToolAuthorizationService();
+        var executor =  new ToolExecutor(authorization);
+
+        var agent = new AgentBuilder("Assistant", client, executor)
             .WithTools(registry)
             .Build();
 

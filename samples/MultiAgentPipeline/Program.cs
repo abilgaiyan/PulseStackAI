@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using PulseStack.Abstractions.Agents;
+using PulseStack.Abstractions.Tools;
 using PulseStack.Agents.Builders;
 using PulseStack.Agents.Pipelines;
 using PulseStack.Core.DependencyInjection;
@@ -24,8 +24,11 @@ await using var sp = services.BuildServiceProvider();
 
 var client = sp.GetRequiredService<IChatClient>();
 
+var toolRegistry = sp.GetRequiredService<IToolRegistry>();
+var toolExecutor = sp.GetRequiredService<IToolExecutor>();
+
 // Research Agent
-var researcher = new AgentBuilder("Researcher", client)
+var researcher = new AgentBuilder("Researcher", client, toolExecutor)
     .WithInstructions("""
         Research the topic and provide key findings.
         Keep response concise.
@@ -33,7 +36,7 @@ var researcher = new AgentBuilder("Researcher", client)
     .Build();
 
 // Writer Agent
-var writer = new AgentBuilder("Writer", client)
+var writer = new AgentBuilder("Writer", client, toolExecutor)
     .WithInstructions("""
         Convert the research into a concise executive summary.
         """)
