@@ -29,25 +29,29 @@ public sealed class HttpTool : ITool
     public IReadOnlyCollection<string> Tags =>
         ["http", "web", "api"];
 
-    public async Task<ToolExecutionResult> ExecuteAsync(
-        string input,
+    public async Task<IToolExecutionResult> ExecuteAsync(
+        ToolExecutionContext context,
         CancellationToken cancellationToken = default)
     {
+        var input = context.Input?.ToString();
+
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return ToolExecutionResult<string>.Failure("Input is required.");
+        }
+
         if (!Uri.TryCreate(
             input,
             UriKind.Absolute,
             out var uri))
         {
-            return new ToolExecutionResult(
-                Success: false,
-                Output: string.Empty,
-                Error: "Invalid URL.");
+            return ToolExecutionResult<string>.Failure("Invalid URL.");
         }
 
         try
         {
-            var response = await _httpClient.GetAsync(
-                uri,
+            var response = await SendRequestAsync(
+                new HttpRequestMessage(HttpMethod.Get, uri),
                 cancellationToken);
 
             response.EnsureSuccessStatusCode();
@@ -55,16 +59,19 @@ public sealed class HttpTool : ITool
             var content = await response.Content
                 .ReadAsStringAsync(cancellationToken);
 
-            return new ToolExecutionResult(
-                Success: true,
-                Output: content);
+            return ToolExecutionResult<string>.Success(content);
         }
         catch (Exception ex)
         {
-            return new ToolExecutionResult(
-                Success: false,
-                Output: string.Empty,
-                Error: $"HTTP request failed: {ex.Message}");
+            return ToolExecutionResult<string>.Failure($"HTTP request failed: {ex.Message}");
         }
+    }
+    private async Task<HttpResponseMessage> SendRequestAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        return await _httpClient.SendAsync(
+            request,
+            cancellationToken);
     }
 }

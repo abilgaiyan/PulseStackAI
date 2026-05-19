@@ -16,13 +16,16 @@ public sealed class DateTimeTool : ITool
 
     public bool IsEnabled => true;
 
-    public Task<ToolExecutionResult> ExecuteAsync(
-        string input,
+    public Task<IToolExecutionResult> ExecuteAsync(
+        ToolExecutionContext context,
         CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(
-            new ToolExecutionResult(
-                Success: true,
-                Output: DateTimeOffset.UtcNow.ToString("u")));
+        return Task.FromResult<IToolExecutionResult>(
+            ToolExecutionResult<string>.Success(GetCurrentTime()));
+    }
+
+    private static string GetCurrentTime()
+    {
+        return DateTimeOffset.UtcNow.ToString("O");
     }
 }

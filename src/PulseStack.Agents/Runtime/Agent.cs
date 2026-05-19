@@ -132,8 +132,9 @@ internal sealed class Agent : IAgent
         var options = BuildChatOptions();
 
         var responseBuilder = new StringBuilder();
-
-        await foreach (var update in _client.GetStreamingResponseAsync(
+        
+        var client = ResolveClient();
+        await foreach (var update in client.GetStreamingResponseAsync(
             messages,
             options,
             cancellationToken))
@@ -215,27 +216,15 @@ internal sealed class Agent : IAgent
 
         var builder = new StringBuilder();
 
-        builder.AppendLine(
-            "Previous tool execution results:");
+        builder.AppendLine("Previous tool execution results:");
 
         foreach (var tool in context.ToolResults)
         {
-            builder.AppendLine(
-                $"Tool: {tool.ToolName}");
+            builder.AppendLine($"Tool: {tool.ToolName}");
 
-            builder.AppendLine(
-                $"Input: {tool.Input}");
+            builder.AppendLine($"Input: {tool.Input}");
 
-            if (tool.Result.Success)
-            {
-                builder.AppendLine(
-                    $"Output: {tool.Result.Output}");
-            }
-            else
-            {
-                builder.AppendLine(
-                    $"Error: {tool.Result.Error}");
-            }
+            builder.AppendLine($"Result: {FormatToolResult(tool.Result)}");
 
             builder.AppendLine();
         }
@@ -262,11 +251,12 @@ internal sealed class Agent : IAgent
         ChatOptions options,
         CancellationToken cancellationToken)
     {
-        for (int i = 0; i < MaxToolIterations; i++)
-        {
+         var client = ResolveClient();
+         for (int i = 0; i < MaxToolIterations; i++)
+         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var response = await _client.GetResponseAsync(
+            var response = await client.GetResponseAsync(
                 messages,
                 options,
                 cancellationToken);
@@ -326,44 +316,39 @@ internal sealed class Agent : IAgent
                     continue;
                 }
 
-                ToolExecutionResult result;
+                IToolExecutionResult result;
 
                 try
                 {
+                    var toolContext = new ToolExecutionContext
+                    {
+                        ToolName = tool.Name,
+                        Input = toolCall.Input,
+                        PipelineContext = context
+                    };
+
                     result = await tool.ExecuteAsync(
-                        toolCall.Input,
+                        toolContext,
                         cancellationToken);
                 }
                 catch (Exception ex)
                 {
-                    result = new ToolExecutionResult(
-                        Success: false,
-                        Output: string.Empty,
-                        Error:
-                            $"Tool '{tool.Name}' failed: {ex.Message}");
+                    result = ToolExecutionResult.Failure($"Tool '{tool.Name}' failed: {ex.Message}");
                 }
 
-                context.ToolResults.Add(
-                    new ToolExecutionRecord(
-                        tool.Name,
-                        toolCall.Input,
-                        result));
-
-                var toolContent = result.Success
-                    ? $"Tool '{tool.Name}' result:\n{result.Output}"
-                    : $"Tool '{tool.Name}' failed:\n{result.Error}";
-
-                var toolMessage = new ChatMessage(
-                    ChatRole.Tool,
-                    toolContent);
+                var formatted = FormatToolResult(result);
+                var toolContent = result.IsSuccess
+                    ? $"Tool '{tool.Name}' result:\n{formatted}"
+                    : $"Tool '{tool.Name}' failed:\n{formatted}";
+                
+                var toolMessage = new ChatMessage(ChatRole.Tool, toolContent);
 
                 messages.Add(toolMessage);
 
                 _memory?.Add(toolMessage);
             }
 
-            messages.Add(new ChatMessage(
-                ChatRole.User,
+            messages.Add(new ChatMessage(ChatRole.User,
                 """
                 Use the tool execution results above.
 
@@ -374,16 +359,14 @@ internal sealed class Agent : IAgent
         }
 
         // Fallback response
-        var fallback = await _client.GetResponseAsync(
+        var fallback = await client.GetResponseAsync(
             messages,
             options,
             cancellationToken);
 
-        context.CurrentOutput =
-            fallback.Text ?? string.Empty;
+        context.CurrentOutput = fallback.Text ?? string.Empty;
 
-        PersistAssistantMessage(
-            fallback.Text ?? string.Empty);
+        PersistAssistantMessage(fallback.Text ?? string.Empty);
 
         return fallback;
     }
@@ -480,5 +463,32 @@ internal sealed class Agent : IAgent
         }
 
         return results;
+    }
+
+    private static string FormatToolResult(
+        IToolExecutionResult result)
+    {
+        if (!result.IsSuccess)
+        {
+            return result.ErrorMessage
+                ?? "Unknown tool failure.";
+        }
+
+        if (result.Value is null)
+        {
+            return "Tool executed successfully.";
+        }
+
+        if (result.Value is string text)
+        {
+            return text;
+        }
+
+        return JsonSerializer.Serialize(
+            result.Value,
+            new JsonSerializerOptions
+            {
+                WriteIndented = true
+            });
     }
 }

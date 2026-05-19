@@ -17,31 +17,36 @@ public sealed class CalculatorTool : ITool
     public IReadOnlyCollection<string> Tags =>
         ["utility", "math"];
 
-    public Task<ToolExecutionResult> ExecuteAsync(
-        string input,
+   public async Task<IToolExecutionResult> ExecuteAsync(
+        ToolExecutionContext context,
         CancellationToken cancellationToken = default)
     {
+        var expression = context.Input?.ToString();
+
+        if (string.IsNullOrWhiteSpace(expression))
+        {
+            return ToolExecutionResult<string>.Failure(
+                "Expression is required.");
+        }
+
         try
         {
-            // TODO:
-            // Replace DataTable.Compute with a dedicated math parser
-            // for safer and more predictable evaluation.
+            var result = EvaluateExpression(expression);
 
-            var result = new DataTable()
-                .Compute(input, null);
-
-            return Task.FromResult(
-                new ToolExecutionResult(
-                    Success: true,
-                    Output: result?.ToString() ?? "0"));
+            return ToolExecutionResult<double>.Success(
+                result);
         }
-        catch
+        catch (Exception ex)
         {
-            return Task.FromResult(
-                new ToolExecutionResult(
-                    Success: false,
-                    Output: string.Empty,
-                    Error: "Invalid expression."));
+            return ToolExecutionResult<string>.Failure(
+                ex.Message);
         }
     }
+
+    private static double EvaluateExpression(
+        string expression)
+    {
+        return Convert.ToDouble(
+            new DataTable().Compute(expression, null));
+    }    
 }

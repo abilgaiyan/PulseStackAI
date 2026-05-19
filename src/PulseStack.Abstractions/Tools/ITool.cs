@@ -1,5 +1,5 @@
-namespace PulseStack.Abstractions.Tools;
 
+namespace PulseStack.Abstractions.Tools;
 public interface ITool
 {
     string Name { get; }
@@ -7,12 +7,10 @@ public interface ITool
     string Description { get; }
 
     string Category { get; }
-
     bool IsEnabled => true;
-
     IReadOnlyCollection<string> Tags { get; }
 
-    Task<ToolExecutionResult> ExecuteAsync(
-        string input,
+    Task<IToolExecutionResult> ExecuteAsync(
+        ToolExecutionContext context,
         CancellationToken cancellationToken = default);
 }

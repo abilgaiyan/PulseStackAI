@@ -1,4 +1,5 @@
 using FluentAssertions;
+using PulseStack.Abstractions.Tools;
 using PulseStack.Tools.BuiltIn;
 using Xunit;
 
@@ -13,14 +14,18 @@ public class CalculatorToolTests
         var tool = new CalculatorTool();
 
         // Act
-        var result = await tool.ExecuteAsync("5 * 5");
+        var result = await tool.ExecuteAsync(
+            new ToolExecutionContext
+            {
+                Input = "5 * 5"
+            });
 
         // Assert
-        result.Success.Should().BeTrue();
+        result.IsSuccess.Should().BeTrue();
 
-        result.Output.Should().Be("25");
+        result.Value.Should().Be("25");
 
-        result.Error.Should().BeNull();
+        result.ErrorMessage.Should().BeNull();
     }
 
     [Fact]
@@ -30,13 +35,18 @@ public class CalculatorToolTests
         var tool = new CalculatorTool();
 
         // Act
-        var result = await tool.ExecuteAsync("hello");
+        var result = await tool.ExecuteAsync(
+            new ToolExecutionContext
+            {
+                Input = "hello"
+            });
 
         // Assert
-        result.Success.Should().BeFalse();
+        result.IsSuccess.Should().BeFalse();
 
-        result.Output.Should().BeEmpty();
+        result.Value.Should().BeNull();
 
-        result.Error.Should().Be("Invalid expression.");
+        result.ErrorMessage.Should()
+            .Be("Invalid expression.");
     }
 }
