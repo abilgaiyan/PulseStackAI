@@ -1,13 +1,12 @@
 using System.Text;
-using System.Text.Json;
-using System.Text.RegularExpressions;
 using Microsoft.Extensions.AI;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Chat;
 using PulseStack.Abstractions.Memory;
 using PulseStack.Abstractions.Tools;
-using PulseStack.Agents.Models;
 using PulseStack.Agents.Tools;
+using PulseStack.Agents.Runtime.Tools;
+using RuntimeToolExecutor = PulseStack.Agents.Runtime.Tools.ToolExecutor;
 
 namespace PulseStack.Agents.Runtime;
 
@@ -17,12 +16,13 @@ public sealed class AgentRuntime : IAgentRuntime
 
     private readonly IChatClient? _client;
     private readonly IChatClientFactory? _clientFactory;
-    private readonly IToolExecutor _toolExecutor;
+    private readonly ToolExecutionLoop _toolExecutionLoop;
     private readonly string? _instructions;
     private readonly float? _temperature;
     private readonly IToolRegistry? _tools;
     private readonly IConversationMemory? _memory;
     private readonly string? _model;
+    private readonly IAgent? _agent;
 
     public AgentRuntime(
         IChatClient client,
@@ -31,15 +31,19 @@ public sealed class AgentRuntime : IAgentRuntime
         float? temperature,
         IToolRegistry? tools,
         IConversationMemory? memory = null,
-        string? model = null)
+        string? model = null,
+        IAgent? agent = null)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
-        _toolExecutor = toolExecutor ?? throw new ArgumentNullException(nameof(toolExecutor));
         _instructions = instructions;
         _temperature = temperature;
         _tools = tools;
         _memory = memory;
         _model = model;
+        _agent = agent;
+        _toolExecutionLoop = new ToolExecutionLoop(
+            tools,
+            new RuntimeToolExecutor(toolExecutor));
     }
 
     public AgentRuntime(
@@ -49,10 +53,10 @@ public sealed class AgentRuntime : IAgentRuntime
         string? instructions,
         float? temperature,
         IToolRegistry? tools,
-        IConversationMemory? memory = null)
+        IConversationMemory? memory = null,
+        IAgent? agent = null)
     {
         _clientFactory = clientFactory ?? throw new ArgumentNullException(nameof(clientFactory));
-        _toolExecutor = toolExecutor ?? throw new ArgumentNullException(nameof(toolExecutor));
         _model = string.IsNullOrWhiteSpace(model)
             ? throw new ArgumentException("Model is required.", nameof(model))
             : model;
@@ -60,6 +64,10 @@ public sealed class AgentRuntime : IAgentRuntime
         _temperature = temperature;
         _tools = tools;
         _memory = memory;
+        _agent = agent;
+        _toolExecutionLoop = new ToolExecutionLoop(
+            tools,
+            new RuntimeToolExecutor(toolExecutor));
     }
 
     public async Task<ChatResponse> RunAsync(
@@ -72,13 +80,17 @@ public sealed class AgentRuntime : IAgentRuntime
             context,
             context.CurrentOutput);
 
+        var executionContext = new AgentExecutionContext(
+            context,
+            messages,
+            cancellationToken,
+            _agent);
+
         var options = BuildChatOptions();
 
         return await ExecuteToolLoopAsync(
-            context,
-            messages,
-            options,
-            cancellationToken);
+            executionContext,
+            options);
     }
 
     public async IAsyncEnumerable<string> StreamAsync(
@@ -183,7 +195,7 @@ public sealed class AgentRuntime : IAgentRuntime
 
             builder.AppendLine($"Input: {tool.Input}");
 
-            builder.AppendLine($"Result: {FormatToolResult(tool.Result)}");
+            builder.AppendLine($"Result: {RuntimeToolExecutor.FormatResult(tool.Result)}");
 
             builder.AppendLine();
         }
@@ -203,28 +215,28 @@ public sealed class AgentRuntime : IAgentRuntime
     }
 
     private async Task<ChatResponse> ExecuteToolLoopAsync(
-        PipelineContext context,
-        List<ChatMessage> messages,
-        ChatOptions options,
-        CancellationToken cancellationToken)
+        AgentExecutionContext executionContext,
+        ChatOptions options)
     {
         var client = ResolveClient();
         for (int i = 0; i < MaxToolIterations; i++)
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            executionContext.CancellationToken.ThrowIfCancellationRequested();
 
             var response = await client.GetResponseAsync(
-                messages,
+                executionContext.Messages,
                 options,
-                cancellationToken);
+                executionContext.CancellationToken);
 
             var text = response.Text ?? string.Empty;
 
-            var toolCalls = ExtractToolCalls(text);
+            var toolExecution = await _toolExecutionLoop.ExecuteAsync(
+                text,
+                executionContext);
 
-            if (toolCalls.Count == 0 || _tools is null)
+            if (!toolExecution.HasToolCalls)
             {
-                context.CurrentOutput = text;
+                executionContext.PipelineContext.CurrentOutput = text;
 
                 PersistAssistantMessage(text);
 
@@ -235,75 +247,18 @@ public sealed class AgentRuntime : IAgentRuntime
                 ChatRole.Assistant,
                 text);
 
-            messages.Add(assistantMessage);
+            executionContext.Messages.Add(assistantMessage);
 
             _memory?.Add(assistantMessage);
 
-            foreach (var toolCall in toolCalls)
+            foreach (var toolMessage in toolExecution.Messages)
             {
-                var tool = _tools.GetByName(
-                    toolCall.Tool);
-
-                if (tool is null)
-                {
-                    var errorMessage = new ChatMessage(
-                        ChatRole.Tool,
-                        $"Tool '{toolCall.Tool}' not found.");
-
-                    messages.Add(errorMessage);
-
-                    _memory?.Add(errorMessage);
-
-                    continue;
-                }
-
-                if (!tool.IsEnabled)
-                {
-                    var disabledMessage = new ChatMessage(
-                        ChatRole.Tool,
-                        $"Tool '{tool.Name}' is disabled.");
-
-                    messages.Add(disabledMessage);
-
-                    _memory?.Add(disabledMessage);
-
-                    continue;
-                }
-
-                IToolExecutionResult result;
-
-                try
-                {
-                    var toolContext = new ToolExecutionContext
-                    {
-                        ToolName = tool.Name,
-                        Input = toolCall.Input,
-                        PipelineContext = context
-                    };
-
-                    result = await _toolExecutor.ExecuteAsync(
-                        tool,
-                        toolContext,
-                        cancellationToken);
-                }
-                catch (Exception ex)
-                {
-                    result = ToolExecutionResult.Failure($"Tool '{tool.Name}' failed: {ex.Message}");
-                }
-
-                var formatted = FormatToolResult(result);
-                var toolContent = result.IsSuccess
-                    ? $"Tool '{tool.Name}' result:\n{formatted}"
-                    : $"Tool '{tool.Name}' failed:\n{formatted}";
-
-                var toolMessage = new ChatMessage(ChatRole.Tool, toolContent);
-
-                messages.Add(toolMessage);
+                executionContext.Messages.Add(toolMessage);
 
                 _memory?.Add(toolMessage);
             }
 
-            messages.Add(new ChatMessage(ChatRole.User,
+            executionContext.Messages.Add(new ChatMessage(ChatRole.User,
                 """
                 Use the tool execution results above.
 
@@ -314,11 +269,11 @@ public sealed class AgentRuntime : IAgentRuntime
         }
 
         var fallback = await client.GetResponseAsync(
-            messages,
+            executionContext.Messages,
             options,
-            cancellationToken);
+            executionContext.CancellationToken);
 
-        context.CurrentOutput = fallback.Text ?? string.Empty;
+        executionContext.PipelineContext.CurrentOutput = fallback.Text ?? string.Empty;
 
         PersistAssistantMessage(fallback.Text ?? string.Empty);
 
@@ -377,71 +332,4 @@ public sealed class AgentRuntime : IAgentRuntime
             text));
     }
 
-    private static IReadOnlyCollection<ToolCall>
-        ExtractToolCalls(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            return [];
-        }
-
-        var matches = Regex.Matches(
-            text,
-            @"\{[\s\S]*?""tool""[\s\S]*?""input""[\s\S]*?\}",
-            RegexOptions.IgnoreCase);
-
-        var results = new List<ToolCall>();
-
-        foreach (Match match in matches)
-        {
-            try
-            {
-                var toolCall =
-                    JsonSerializer.Deserialize<ToolCall>(
-                        match.Value,
-                        new JsonSerializerOptions
-                        {
-                            PropertyNameCaseInsensitive = true
-                        });
-
-                if (toolCall is not null)
-                {
-                    results.Add(toolCall);
-                }
-            }
-            catch
-            {
-                // Ignore invalid tool JSON
-            }
-        }
-
-        return results;
-    }
-
-    private static string FormatToolResult(
-        IToolExecutionResult result)
-    {
-        if (!result.IsSuccess)
-        {
-            return result.ErrorMessage
-                ?? "Unknown tool failure.";
-        }
-
-        if (result.Value is null)
-        {
-            return "Tool executed successfully.";
-        }
-
-        if (result.Value is string text)
-        {
-            return text;
-        }
-
-        return JsonSerializer.Serialize(
-            result.Value,
-            new JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
-    }
 }

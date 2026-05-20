@@ -40,7 +40,8 @@ internal sealed class Agent : IAgent
             temperature,
             tools,
             memory,
-            model);
+            model,
+            this);
     }
 
     public Agent(
@@ -68,7 +69,8 @@ internal sealed class Agent : IAgent
             instructions,
             temperature,
             tools,
-            memory);
+            memory,
+            this);
     }
 
     public Task<ChatResponse> RunAsync(
