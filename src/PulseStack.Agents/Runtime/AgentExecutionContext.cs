@@ -1,6 +1,7 @@
 using Microsoft.Extensions.AI;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Agents.Runtime.Context;
+using PulseStack.Agents.Runtime.Diagnostics;
 
 namespace PulseStack.Agents.Runtime;
 
@@ -16,7 +17,8 @@ internal sealed class AgentExecutionContext
         Guid? executionId = null,
         Guid? branchId = null,
         DateTimeOffset? startedAt = null,
-        IDictionary<string, object?>? metadata = null)
+        IDictionary<string, object?>? metadata = null,
+        IRuntimeEventDispatcher? eventDispatcher = null)
     {
         PipelineContext = pipelineContext ?? throw new ArgumentNullException(nameof(pipelineContext));
         Messages = messages ?? throw new ArgumentNullException(nameof(messages));
@@ -30,6 +32,7 @@ internal sealed class AgentExecutionContext
         Metadata = metadata is null
             ? new Dictionary<string, object?>()
             : new Dictionary<string, object?>(metadata);
+        EventDispatcher = eventDispatcher ?? new RuntimeEventDispatcher();
     }
 
     public IAgent? Agent { get; }
@@ -41,6 +44,8 @@ internal sealed class AgentExecutionContext
     public DateTimeOffset StartedAt { get; }
 
     public IDictionary<string, object?> Metadata { get; }
+
+    public IRuntimeEventDispatcher EventDispatcher { get; }
 
     public PipelineContext PipelineContext { get; }
 
@@ -67,6 +72,7 @@ internal sealed class AgentExecutionContext
             PipelineContextCloner,
             ExecutionId,
             Guid.NewGuid(),
-            metadata: Metadata);
+            metadata: Metadata,
+            eventDispatcher: EventDispatcher);
     }
 }

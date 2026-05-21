@@ -1,6 +1,7 @@
 using Microsoft.Extensions.AI;
 using PulseStack.Abstractions.Tools;
 using PulseStack.Agents.Models;
+using PulseStack.Agents.Runtime.Diagnostics.Events;
 
 namespace PulseStack.Agents.Runtime.Tools;
 
@@ -33,11 +34,33 @@ public sealed class ToolExecutor : IToolExecutor
         IToolRegistry tools,
         AgentExecutionContext context)
     {
+        context.EventDispatcher.Dispatch(
+            new ToolExecutingEvent(
+                context.ExecutionId,
+                DateTimeOffset.UtcNow,
+                toolCall.Tool,
+                toolCall.Input,
+                context.Agent?.Name,
+                context.BranchId,
+                SnapshotMetadata(context.Metadata)));
+
         var tool = tools.GetByName(
             toolCall.Tool);
 
         if (tool is null)
         {
+            context.EventDispatcher.Dispatch(
+                new ToolExecutedEvent(
+                    context.ExecutionId,
+                    DateTimeOffset.UtcNow,
+                    toolCall.Tool,
+                    toolCall.Input,
+                    context.Agent?.Name,
+                    context.BranchId,
+                    false,
+                    $"Tool '{toolCall.Tool}' not found.",
+                    SnapshotMetadata(context.Metadata)));
+
             return new ChatMessage(
                 ChatRole.Tool,
                 $"Tool '{toolCall.Tool}' not found.");
@@ -45,6 +68,18 @@ public sealed class ToolExecutor : IToolExecutor
 
         if (!tool.IsEnabled)
         {
+            context.EventDispatcher.Dispatch(
+                new ToolExecutedEvent(
+                    context.ExecutionId,
+                    DateTimeOffset.UtcNow,
+                    tool.Name,
+                    toolCall.Input,
+                    context.Agent?.Name,
+                    context.BranchId,
+                    false,
+                    $"Tool '{tool.Name}' is disabled.",
+                    SnapshotMetadata(context.Metadata)));
+
             return new ChatMessage(
                 ChatRole.Tool,
                 $"Tool '{tool.Name}' is disabled.");
@@ -71,6 +106,18 @@ public sealed class ToolExecutor : IToolExecutor
         {
             result = ToolExecutionResult.Failure($"Tool '{tool.Name}' failed: {ex.Message}");
         }
+
+        context.EventDispatcher.Dispatch(
+            new ToolExecutedEvent(
+                context.ExecutionId,
+                DateTimeOffset.UtcNow,
+                tool.Name,
+                toolCall.Input,
+                context.Agent?.Name,
+                context.BranchId,
+                result.IsSuccess,
+                result.ErrorMessage,
+                SnapshotMetadata(context.Metadata)));
 
         var formatted = FormatResult(result);
         var toolContent = result.IsSuccess
@@ -108,4 +155,8 @@ public sealed class ToolExecutor : IToolExecutor
                 WriteIndented = true
             });
     }
+
+    private static IReadOnlyDictionary<string, object?> SnapshotMetadata(
+        IDictionary<string, object?> metadata)
+        => new Dictionary<string, object?>(metadata);
 }

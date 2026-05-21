@@ -3,6 +3,8 @@ using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Tools;
 using PulseStack.Agents.Runtime;
 using PulseStack.Agents.Runtime.Context;
+using PulseStack.Agents.Runtime.Diagnostics;
+using PulseStack.Agents.Runtime.Diagnostics.Events;
 
 namespace PulseStack.Agents.Pipelines;
 
@@ -14,14 +16,25 @@ public sealed class ParallelPipeline
     : IAgentPipeline
 {
     private readonly List<IAgent> _agents = [];
+    private readonly IRuntimeEventDispatcher _eventDispatcher;
 
     public string Name { get; }
 
     public ParallelPipeline(string name)
+        : this(
+            name,
+            new RuntimeEventDispatcher())
+    {
+    }
+
+    internal ParallelPipeline(
+        string name,
+        IRuntimeEventDispatcher eventDispatcher)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         Name = name;
+        _eventDispatcher = eventDispatcher ?? throw new ArgumentNullException(nameof(eventDispatcher));
     }
 
     public ParallelPipeline Add(
@@ -66,7 +79,21 @@ public sealed class ParallelPipeline
         var baseExecutionContext = new AgentExecutionContext(
             context,
             new List<ChatMessage>(),
-            cancellationToken);
+            cancellationToken,
+            eventDispatcher: _eventDispatcher);
+
+        context.Items[PipelineContextKeys.RuntimeExecutionId] =
+            baseExecutionContext.ExecutionId;
+        context.Items[PipelineContextKeys.RuntimeEventDispatcher] =
+            _eventDispatcher;
+
+        _eventDispatcher.Dispatch(
+            new PipelineStartedEvent(
+                baseExecutionContext.ExecutionId,
+                DateTimeOffset.UtcNow,
+                Name,
+                _agents.Count,
+                SnapshotMetadata(context.Items)));
 
         var baseStepCount = context.Steps.Count;
         var baseToolResultCount = context.ToolResults.Count;
@@ -117,6 +144,16 @@ public sealed class ParallelPipeline
             Environment.NewLine,
             outputs);
 
+        _eventDispatcher.Dispatch(
+            new PipelineCompletedEvent(
+                baseExecutionContext.ExecutionId,
+                DateTimeOffset.UtcNow,
+                Name,
+                _agents.Count,
+                results.Count(r => r.Error is null),
+                results.Count(r => r.Error is not null),
+                SnapshotMetadata(context.Items)));
+
         return new PipelineResult(
             context.CurrentOutput,
             context.Steps.ToList());
@@ -131,6 +168,13 @@ public sealed class ParallelPipeline
         CancellationToken cancellationToken)
     {
         var branch = baseExecutionContext.CreateBranch();
+        branch.PipelineContext.Items[PipelineContextKeys.RuntimeExecutionId] =
+            branch.ExecutionId;
+        branch.PipelineContext.Items[PipelineContextKeys.RuntimeBranchId] =
+            branch.BranchId;
+        branch.PipelineContext.Items[PipelineContextKeys.RuntimeEventDispatcher] =
+            branch.EventDispatcher;
+
         var input = branch.PipelineContext.CurrentOutput;
 
         try
@@ -218,5 +262,23 @@ public sealed class ParallelPipeline
                 [],
                 [],
                 error);
+    }
+
+    private static IReadOnlyDictionary<string, object?> SnapshotMetadata(
+        IDictionary<string, object?> metadata)
+    {
+        var snapshot = new Dictionary<string, object?>();
+
+        foreach (var item in metadata)
+        {
+            if (item.Key == PipelineContextKeys.RuntimeEventDispatcher)
+            {
+                continue;
+            }
+
+            snapshot[item.Key] = item.Value;
+        }
+
+        return snapshot;
     }
 }

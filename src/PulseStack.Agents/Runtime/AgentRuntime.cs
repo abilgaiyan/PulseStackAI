@@ -5,6 +5,9 @@ using PulseStack.Abstractions.Chat;
 using PulseStack.Abstractions.Memory;
 using PulseStack.Abstractions.Tools;
 using PulseStack.Agents.Tools;
+using PulseStack.Agents.Runtime.Context;
+using PulseStack.Agents.Runtime.Diagnostics;
+using PulseStack.Agents.Runtime.Diagnostics.Events;
 using PulseStack.Agents.Runtime.Tools;
 using RuntimeToolExecutor = PulseStack.Agents.Runtime.Tools.ToolExecutor;
 
@@ -23,6 +26,7 @@ public sealed class AgentRuntime : IAgentRuntime
     private readonly IConversationMemory? _memory;
     private readonly string? _model;
     private readonly IAgent? _agent;
+    private readonly IRuntimeEventDispatcher _eventDispatcher;
 
     public AgentRuntime(
         IChatClient client,
@@ -33,6 +37,29 @@ public sealed class AgentRuntime : IAgentRuntime
         IConversationMemory? memory = null,
         string? model = null,
         IAgent? agent = null)
+        : this(
+            client,
+            toolExecutor,
+            instructions,
+            temperature,
+            tools,
+            memory,
+            model,
+            agent,
+            new RuntimeEventDispatcher())
+    {
+    }
+
+    internal AgentRuntime(
+        IChatClient client,
+        IToolExecutor toolExecutor,
+        string? instructions,
+        float? temperature,
+        IToolRegistry? tools,
+        IConversationMemory? memory,
+        string? model,
+        IAgent? agent,
+        IRuntimeEventDispatcher eventDispatcher)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
         _instructions = instructions;
@@ -41,6 +68,7 @@ public sealed class AgentRuntime : IAgentRuntime
         _memory = memory;
         _model = model;
         _agent = agent;
+        _eventDispatcher = eventDispatcher ?? throw new ArgumentNullException(nameof(eventDispatcher));
         _toolExecutionLoop = new ToolExecutionLoop(
             tools,
             new RuntimeToolExecutor(toolExecutor));
@@ -55,6 +83,29 @@ public sealed class AgentRuntime : IAgentRuntime
         IToolRegistry? tools,
         IConversationMemory? memory = null,
         IAgent? agent = null)
+        : this(
+            clientFactory,
+            toolExecutor,
+            model,
+            instructions,
+            temperature,
+            tools,
+            memory,
+            agent,
+            new RuntimeEventDispatcher())
+    {
+    }
+
+    internal AgentRuntime(
+        IChatClientFactory clientFactory,
+        IToolExecutor toolExecutor,
+        string model,
+        string? instructions,
+        float? temperature,
+        IToolRegistry? tools,
+        IConversationMemory? memory,
+        IAgent? agent,
+        IRuntimeEventDispatcher eventDispatcher)
     {
         _clientFactory = clientFactory ?? throw new ArgumentNullException(nameof(clientFactory));
         _model = string.IsNullOrWhiteSpace(model)
@@ -65,6 +116,7 @@ public sealed class AgentRuntime : IAgentRuntime
         _tools = tools;
         _memory = memory;
         _agent = agent;
+        _eventDispatcher = eventDispatcher ?? throw new ArgumentNullException(nameof(eventDispatcher));
         _toolExecutionLoop = new ToolExecutionLoop(
             tools,
             new RuntimeToolExecutor(toolExecutor));
@@ -80,17 +132,64 @@ public sealed class AgentRuntime : IAgentRuntime
             context,
             context.CurrentOutput);
 
+        var eventDispatcher =
+            ResolveEventDispatcher(context);
+
         var executionContext = new AgentExecutionContext(
             context,
             messages,
             cancellationToken,
-            _agent);
+            _agent,
+            executionId: ResolveExecutionId(context),
+            branchId: ResolveBranchId(context),
+            metadata: SnapshotPipelineMetadata(context.Items),
+            eventDispatcher: eventDispatcher);
 
         var options = BuildChatOptions();
 
-        return await ExecuteToolLoopAsync(
-            executionContext,
-            options);
+        executionContext.EventDispatcher.Dispatch(
+            new AgentStartedEvent(
+                executionContext.ExecutionId,
+                DateTimeOffset.UtcNow,
+                _agent?.Name,
+                _model,
+                executionContext.BranchId,
+                SnapshotMetadata(executionContext.Metadata)));
+
+        try
+        {
+            var response = await ExecuteToolLoopAsync(
+                executionContext,
+                options);
+
+            executionContext.EventDispatcher.Dispatch(
+                new AgentCompletedEvent(
+                    executionContext.ExecutionId,
+                    DateTimeOffset.UtcNow,
+                    _agent?.Name,
+                    _model,
+                    executionContext.BranchId,
+                    true,
+                    null,
+                    SnapshotMetadata(executionContext.Metadata)));
+
+            return response;
+        }
+        catch (Exception ex)
+        {
+            executionContext.EventDispatcher.Dispatch(
+                new AgentCompletedEvent(
+                    executionContext.ExecutionId,
+                    DateTimeOffset.UtcNow,
+                    _agent?.Name,
+                    _model,
+                    executionContext.BranchId,
+                    false,
+                    ex.Message,
+                    SnapshotMetadata(executionContext.Metadata)));
+
+            throw;
+        }
     }
 
     public async IAsyncEnumerable<string> StreamAsync(
@@ -330,6 +429,70 @@ public sealed class AgentRuntime : IAgentRuntime
         _memory?.Add(new ChatMessage(
             ChatRole.Assistant,
             text));
+    }
+
+    private static IReadOnlyDictionary<string, object?> SnapshotMetadata(
+        IDictionary<string, object?> metadata)
+        => new Dictionary<string, object?>(metadata);
+
+    private static IDictionary<string, object?> SnapshotPipelineMetadata(
+        IDictionary<string, object?> metadata)
+    {
+        var snapshot = new Dictionary<string, object?>();
+
+        foreach (var item in metadata)
+        {
+            if (item.Key == PipelineContextKeys.RuntimeEventDispatcher)
+            {
+                continue;
+            }
+
+            snapshot[item.Key] = item.Value;
+        }
+
+        return snapshot;
+    }
+
+    private IRuntimeEventDispatcher ResolveEventDispatcher(
+        PipelineContext context)
+    {
+        if (context.Items.TryGetValue(
+                PipelineContextKeys.RuntimeEventDispatcher,
+                out var dispatcher)
+            && dispatcher is IRuntimeEventDispatcher runtimeEventDispatcher)
+        {
+            return runtimeEventDispatcher;
+        }
+
+        return _eventDispatcher;
+    }
+
+    private static Guid? ResolveExecutionId(
+        PipelineContext context)
+    {
+        if (context.Items.TryGetValue(
+                PipelineContextKeys.RuntimeExecutionId,
+                out var executionId)
+            && executionId is Guid value)
+        {
+            return value;
+        }
+
+        return null;
+    }
+
+    private static Guid? ResolveBranchId(
+        PipelineContext context)
+    {
+        if (context.Items.TryGetValue(
+                PipelineContextKeys.RuntimeBranchId,
+                out var branchId)
+            && branchId is Guid value)
+        {
+            return value;
+        }
+
+        return null;
     }
 
 }
