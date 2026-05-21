@@ -1,4 +1,5 @@
 using PulseStack.Abstractions.Agents;
+using PulseStack.Agents.Runtime.Context;
 
 namespace PulseStack.Agents.Pipelines;
 
@@ -80,7 +81,7 @@ public sealed class SequentialPipeline
 
             context.Steps.Add(step);
 
-            context.Items[$"agent:{agent.Name}:output"]
+            context.Items[PipelineContextKeys.AgentOutput(agent.Name)]
                 = output;
 
             context.CurrentOutput = output;

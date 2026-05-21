@@ -3,6 +3,7 @@ using Microsoft.Extensions.AI;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Tools;
 using PulseStack.Agents.Pipelines;
+using PulseStack.Agents.Runtime.Context;
 using Xunit;
 
 namespace PulseStack.Tests.Agents;
@@ -116,8 +117,12 @@ public class ParallelPipelineTests
         context.ToolResults.Select(t => t.ToolName)
             .Should()
             .Equal("calculator", "clock");
-        context.Items["agent:First:output"].Should().Be("one");
-        context.Items["agent:Second:output"].Should().Be("two");
+        context.Items[PipelineContextKeys.AgentOutput("First")]
+            .Should()
+            .Be("one");
+        context.Items[PipelineContextKeys.AgentOutput("Second")]
+            .Should()
+            .Be("two");
     }
 
     [Fact]
@@ -143,7 +148,8 @@ public class ParallelPipelineTests
             .Which.AgentName.Should().Be("First");
         context.ToolResults.Should().ContainSingle()
             .Which.ToolName.Should().Be("calculator");
-        context.Items.Should().ContainKey("agent:Broken:error");
+        context.Items.Should().ContainKey(
+            PipelineContextKeys.AgentError("Broken"));
     }
 
     private sealed class BlockingAgent : TestAgent

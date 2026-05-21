@@ -12,7 +12,11 @@ internal sealed class AgentExecutionContext
         CancellationToken cancellationToken,
         IAgent? agent = null,
         IServiceProvider? services = null,
-        IPipelineContextCloner? pipelineContextCloner = null)
+        IPipelineContextCloner? pipelineContextCloner = null,
+        Guid? executionId = null,
+        Guid? branchId = null,
+        DateTimeOffset? startedAt = null,
+        IDictionary<string, object?>? metadata = null)
     {
         PipelineContext = pipelineContext ?? throw new ArgumentNullException(nameof(pipelineContext));
         Messages = messages ?? throw new ArgumentNullException(nameof(messages));
@@ -20,9 +24,23 @@ internal sealed class AgentExecutionContext
         Agent = agent;
         Services = services;
         PipelineContextCloner = pipelineContextCloner ?? new PipelineContextCloner();
+        ExecutionId = executionId ?? Guid.NewGuid();
+        BranchId = branchId;
+        StartedAt = startedAt ?? DateTimeOffset.UtcNow;
+        Metadata = metadata is null
+            ? new Dictionary<string, object?>()
+            : new Dictionary<string, object?>(metadata);
     }
 
     public IAgent? Agent { get; }
+
+    public Guid ExecutionId { get; }
+
+    public Guid? BranchId { get; }
+
+    public DateTimeOffset StartedAt { get; }
+
+    public IDictionary<string, object?> Metadata { get; }
 
     public PipelineContext PipelineContext { get; }
 
@@ -46,6 +64,9 @@ internal sealed class AgentExecutionContext
             CancellationToken,
             Agent,
             Services,
-            PipelineContextCloner);
+            PipelineContextCloner,
+            ExecutionId,
+            Guid.NewGuid(),
+            metadata: Metadata);
     }
 }

@@ -2,6 +2,7 @@ using Microsoft.Extensions.AI;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Tools;
 using PulseStack.Agents.Runtime;
+using PulseStack.Agents.Runtime.Context;
 
 namespace PulseStack.Agents.Pipelines;
 
@@ -86,7 +87,7 @@ public sealed class ParallelPipeline
         {
             if (result.Error is not null)
             {
-                context.Items[$"agent:{result.Agent.Name}:error"] =
+                context.Items[PipelineContextKeys.AgentError(result.Agent.Name)] =
                     result.Error.Message;
 
                 continue;
@@ -102,7 +103,7 @@ public sealed class ParallelPipeline
                 context.ToolResults.Add(toolResult);
             }
 
-            context.Items[$"agent:{result.Agent.Name}:output"] =
+            context.Items[PipelineContextKeys.AgentOutput(result.Agent.Name)] =
                 result.Output;
         }
 
