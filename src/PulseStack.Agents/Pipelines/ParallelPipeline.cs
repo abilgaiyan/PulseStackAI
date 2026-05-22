@@ -5,15 +5,17 @@ using PulseStack.Agents.Runtime.Diagnostics;
 namespace PulseStack.Agents.Pipelines;
 
 /// <summary>
-/// Executes agents concurrently against isolated
-/// branched execution contexts.
+/// Executes agents concurrently using the
+/// centralized orchestration runtime.
 /// </summary>
 public sealed class ParallelPipeline
     : IAgentPipeline
 {
     private readonly List<IAgent> _agents = [];
+
     private readonly PipelineRuntime _runtime;
-    private readonly IPipelineExecutionStrategy _strategy;
+
+    private readonly ParallelPipelineExecutionStrategy _strategy;
 
     public string Name { get; }
 
@@ -27,23 +29,16 @@ public sealed class ParallelPipeline
     internal ParallelPipeline(
         string name,
         IRuntimeEventDispatcher eventDispatcher)
-        : this(
-            name,
-            new PipelineRuntime(eventDispatcher),
-            new ParallelPipelineExecutionStrategy())
-    {
-    }
-
-    internal ParallelPipeline(
-        string name,
-        PipelineRuntime runtime,
-        IPipelineExecutionStrategy strategy)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         Name = name;
-        _runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
-        _strategy = strategy ?? throw new ArgumentNullException(nameof(strategy));
+
+        _runtime =
+            new PipelineRuntime(eventDispatcher);
+
+        _strategy =
+            new ParallelPipelineExecutionStrategy();
     }
 
     public ParallelPipeline Add(
@@ -79,15 +74,16 @@ public sealed class ParallelPipeline
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        var result = await _runtime.ExecuteAsync(
-            Name,
-            _agents,
-            context,
-            _strategy,
-            cancellationToken);
+        var result =
+            await _runtime.ExecuteAsync(
+                Name,
+                _agents,
+                context,
+                _strategy,
+                cancellationToken: cancellationToken);
 
         return new PipelineResult(
             result.FinalOutput,
-            result.Steps);
+            result.Steps.ToList());
     }
 }

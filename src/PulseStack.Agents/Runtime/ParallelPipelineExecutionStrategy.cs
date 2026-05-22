@@ -1,24 +1,25 @@
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Tools;
 using PulseStack.Agents.Runtime.Context;
+using PulseStack.Agents.Runtime.Errors;
 
 namespace PulseStack.Agents.Runtime;
 
 internal sealed class ParallelPipelineExecutionStrategy
     : IPipelineExecutionStrategy
 {
-    public async Task<(
-        string FinalOutput,
-        IReadOnlyList<PipelineStepResult> Steps,
-        IReadOnlyList<string> Errors)> ExecuteAsync(
-            string pipelineName,
-            IReadOnlyList<IAgent> agents,
-            PipelineContext context,
-            AgentExecutionContext executionContext,
-            CancellationToken cancellationToken)
+    public async Task<PipelineExecutionState> ExecuteAsync(
+        string pipelineName,
+        IReadOnlyList<IAgent> agents,
+        PipelineContext context,
+        AgentExecutionContext executionContext,
+        CancellationToken cancellationToken = default)
     {
-        var baseStepCount = context.Steps.Count;
-        var baseToolResultCount = context.ToolResults.Count;
+        var baseStepCount =
+            context.Steps.Count;
+
+        var baseToolResultCount =
+            context.ToolResults.Count;
 
         var tasks = agents
             .Select((agent, index) => RunBranchAsync(
@@ -30,14 +31,32 @@ internal sealed class ParallelPipelineExecutionStrategy
                 cancellationToken))
             .ToArray();
 
-        var results = await Task.WhenAll(tasks);
+        var results =
+            await Task.WhenAll(tasks);
+
+        var errors =
+            new List<PipelineExecutionError>();
 
         foreach (var result in results.OrderBy(r => r.Index))
         {
             if (result.Error is not null)
             {
-                context.Items[PipelineContextKeys.AgentError(result.Agent.Name)] =
-                    result.Error.Message;
+                context.Items[
+                    PipelineContextKeys.AgentError(
+                        result.Agent.Name)] =
+                            result.Error.Message;
+
+                errors.Add(
+                    new PipelineExecutionError
+                    {
+                        Code = "parallel_agent_execution_failed",
+
+                        Message = result.Error.Message,
+
+                        AgentName = result.Agent.Name,
+
+                        Exception = result.Error
+                    });
 
                 continue;
             }
@@ -52,8 +71,10 @@ internal sealed class ParallelPipelineExecutionStrategy
                 context.ToolResults.Add(toolResult);
             }
 
-            context.Items[PipelineContextKeys.AgentOutput(result.Agent.Name)] =
-                result.Output;
+            context.Items[
+                PipelineContextKeys.AgentOutput(
+                    result.Agent.Name)] =
+                        result.Output;
         }
 
         var outputs = results
@@ -62,20 +83,23 @@ internal sealed class ParallelPipelineExecutionStrategy
             .Select(r => r.Output)
             .ToArray();
 
-        context.CurrentOutput = string.Join(
-            Environment.NewLine,
-            outputs);
+        context.CurrentOutput =
+            string.Join(
+                Environment.NewLine,
+                outputs);
 
-        var errors = results
-            .OrderBy(r => r.Index)
-            .Where(r => r.Error is not null)
-            .Select(r => r.Error!.Message)
-            .ToList();
+        return new PipelineExecutionState
+        {
+            FinalOutput =
+                context.CurrentOutput
+                ?? string.Empty,
 
-        return (
-            context.CurrentOutput,
-            context.Steps.ToList(),
-            errors);
+            Steps =
+                context.Steps.ToList(),
+
+            Errors =
+                errors
+        };
     }
 
     private static async Task<BranchResult> RunBranchAsync(
@@ -86,29 +110,38 @@ internal sealed class ParallelPipelineExecutionStrategy
         int baseToolResultCount,
         CancellationToken cancellationToken)
     {
-        var branch = executionContext.CreateBranch();
+        var branch =
+            executionContext.CreateBranch();
 
-        branch.PipelineContext.Items[PipelineContextKeys.RuntimeExecutionId] =
-            branch.ExecutionId;
-        branch.PipelineContext.Items[PipelineContextKeys.RuntimeBranchId] =
-            branch.BranchId;
-        branch.PipelineContext.Items[PipelineContextKeys.RuntimeEventDispatcher] =
-            branch.EventDispatcher;
+        branch.PipelineContext.Items[
+            PipelineContextKeys.RuntimeExecutionId] =
+                branch.ExecutionId;
 
-        var input = branch.PipelineContext.CurrentOutput;
+        branch.PipelineContext.Items[
+            PipelineContextKeys.RuntimeBranchId] =
+                branch.BranchId;
+
+        branch.PipelineContext.Items[
+            PipelineContextKeys.RuntimeEventDispatcher] =
+                branch.EventDispatcher;
+
+        var input =
+            branch.PipelineContext.CurrentOutput;
 
         try
         {
-            var response = await agent.RunAsync(
-                branch.PipelineContext,
-                cancellationToken);
+            var response =
+                await agent.RunAsync(
+                    branch.PipelineContext,
+                    cancellationToken);
 
             var output =
                 response.Text
                 ?? branch.PipelineContext.CurrentOutput
                 ?? string.Empty;
 
-            branch.PipelineContext.CurrentOutput = output;
+            branch.PipelineContext.CurrentOutput =
+                output;
 
             branch.PipelineContext.Steps.Add(
                 new PipelineStepResult(
@@ -122,13 +155,6 @@ internal sealed class ParallelPipelineExecutionStrategy
                 agent,
                 output,
                 branch.PipelineContext.Steps
-                // TODO:
-                // Current implementation derives branch-local
-                // execution records using collection deltas.
-                //
-                // Future orchestration runtimes may introduce
-                // explicit branch tracking for nested and
-                // recursive execution flows.
                     .Skip(baseStepCount)
                     .ToList(),
                 branch.PipelineContext.ToolResults

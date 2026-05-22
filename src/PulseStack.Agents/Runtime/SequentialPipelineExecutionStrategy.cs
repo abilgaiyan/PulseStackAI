@@ -1,50 +1,86 @@
 using PulseStack.Abstractions.Agents;
 using PulseStack.Agents.Runtime.Context;
+using PulseStack.Agents.Runtime.Errors;
 
 namespace PulseStack.Agents.Runtime;
 
 internal sealed class SequentialPipelineExecutionStrategy
     : IPipelineExecutionStrategy
 {
-    public async Task<(
-        string FinalOutput,
-        IReadOnlyList<PipelineStepResult> Steps,
-        IReadOnlyList<string> Errors)> ExecuteAsync(
-            string pipelineName,
-            IReadOnlyList<IAgent> agents,
-            PipelineContext context,
-            AgentExecutionContext executionContext,
-            CancellationToken cancellationToken)
+    public async Task<PipelineExecutionState> ExecuteAsync(
+        string pipelineName,
+        IReadOnlyList<IAgent> agents,
+        PipelineContext context,
+        AgentExecutionContext executionContext,
+        CancellationToken cancellationToken = default)
     {
+        var errors =
+            new List<PipelineExecutionError>();
+
         foreach (var agent in agents)
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            var input =
+                context.CurrentOutput;
 
-            var input = context.CurrentOutput;
+            try
+            {
+                var response =
+                    await agent.RunAsync(
+                        context,
+                        cancellationToken);
 
-            var response = await agent.RunAsync(
-                input,
-                cancellationToken);
+                var output =
+                    response.Text
+                    ?? context.CurrentOutput
+                    ?? string.Empty;
 
-            var output = response.Text ?? string.Empty;
+                context.CurrentOutput =
+                    output;
 
-            var step = new PipelineStepResult(
-                agent.Name,
-                agent.Model,
-                input,
-                output);
+                context.Steps.Add(
+                    new PipelineStepResult(
+                        agent.Name,
+                        agent.Model,
+                        input,
+                        output));
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                errors.Add(
+                    new PipelineExecutionError
+                    {
+                        Code = "sequential_agent_execution_failed",
 
-            context.Steps.Add(step);
+                        Message = ex.Message,
 
-            context.Items[PipelineContextKeys.AgentOutput(agent.Name)]
-                = output;
+                        AgentName = agent.Name,
 
-            context.CurrentOutput = output;
+                        Exception = ex
+                    });
+
+                context.Items[
+                    PipelineContextKeys.AgentError(
+                        agent.Name)] =
+                            ex.Message;
+            }
         }
 
-        return (
-            context.CurrentOutput,
-            context.Steps.ToList(),
-            []);
+        return new PipelineExecutionState
+        {
+            FinalOutput =
+                context.CurrentOutput
+                ?? string.Empty,
+
+            Steps =
+                context.Steps.ToList(),
+
+            Errors =
+                errors
+        };
     }
 }

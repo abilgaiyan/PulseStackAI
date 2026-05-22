@@ -15,33 +15,51 @@ public class PipelineRuntimeTests
     public async Task ExecuteAsync_Should_Return_Execution_Snapshot()
     {
         var dispatcher = new RuntimeEventDispatcher();
-        var runtime = new PipelineRuntime(dispatcher);
-        var context = new PipelineContext
-        {
-            Input = "input",
-            CurrentOutput = "input"
-        };
+
+        var runtime =
+            new PipelineRuntime(dispatcher);
+
+        var context =
+            new PipelineContext
+            {
+                Input = "input",
+                CurrentOutput = "input"
+            };
+
         var agents = new IAgent[]
         {
             new StaticAgent("First", "one"),
             new StaticAgent("Second", "two")
         };
 
-        var result = await runtime.ExecuteAsync(
-            "Sequential",
-            agents,
-            context,
-            new SequentialPipelineExecutionStrategy());
+        var result =
+            await runtime.ExecuteAsync(
+                "Sequential",
+                agents,
+                context,
+                new SequentialPipelineExecutionStrategy(),
+                cancellationToken: CancellationToken.None);
 
         result.Success.Should().BeTrue();
+
         result.ExecutionId.Should().NotBeEmpty();
+
         result.FinalOutput.Should().Be("two");
-        result.Steps.Select(s => s.AgentName)
+
+        result.Steps
+            .Select(s => s.AgentName)
             .Should()
             .Equal("First", "Second");
+
         result.Errors.Should().BeEmpty();
-        result.StartedAt.Should().BeOnOrBefore(result.CompletedAt);
-        result.Duration.Should().Be(result.CompletedAt - result.StartedAt);
+
+        result.StartedAt
+            .Should()
+            .BeOnOrBefore(result.CompletedAt);
+
+        result.Duration
+            .Should()
+            .Be(result.CompletedAt - result.StartedAt);
     }
 
     [Fact]

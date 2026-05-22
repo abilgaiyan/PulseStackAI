@@ -12,7 +12,9 @@ public sealed class SequentialPipeline
     : IAgentPipeline
 {
     private readonly List<IAgent> _agents = [];
+
     private readonly PipelineRuntime _runtime;
+
     private readonly IPipelineExecutionStrategy _strategy;
 
     public string Name { get; }
@@ -33,8 +35,14 @@ public sealed class SequentialPipeline
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         Name = name;
-        _runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
-        _strategy = strategy ?? throw new ArgumentNullException(nameof(strategy));
+
+        _runtime =
+            runtime
+            ?? throw new ArgumentNullException(nameof(runtime));
+
+        _strategy =
+            strategy
+            ?? throw new ArgumentNullException(nameof(strategy));
     }
 
     public SequentialPipeline Add(
@@ -70,12 +78,13 @@ public sealed class SequentialPipeline
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        var result = await _runtime.ExecuteAsync(
-            Name,
-            _agents,
-            context,
-            _strategy,
-            cancellationToken);
+        var result =
+            await _runtime.ExecuteAsync(
+                Name,
+                _agents,
+                context,
+                _strategy,
+                cancellationToken: cancellationToken);
 
         return new PipelineResult(
             result.FinalOutput,
