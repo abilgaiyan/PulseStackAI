@@ -6,6 +6,7 @@ Built on top of `Microsoft.Extensions.AI`, PulseStackAI provides a clean, extens
 
 ---
 
+
 # Why PulseStackAI?
 
 PulseStackAI helps developers build production-ready AI systems without dealing with provider complexity, fragmented SDKs, or orchestration boilerplate.
@@ -20,6 +21,26 @@ Use it to create:
 * AI-powered automation systems
 
 ---
+
+# Framework Goal
+
+PulseStackAI is designed to let developers focus on business orchestration rather than AI infrastructure.
+
+The framework should abstract away:
+
+* provider complexity
+* orchestration coordination
+* runtime execution concerns
+* retries and resilience
+* shared state management
+* tool execution infrastructure
+* execution diagnostics
+
+while exposing clean, explicit orchestration primitives.
+
+The goal is to allow developers to compose reliable AI workflows using deterministic runtime infrastructure.
+
+----
 
 # Current Features (v0.2)
 

@@ -1,5 +1,5 @@
 using PulseStack.Abstractions.Agents;
-using PulseStack.Agents.Runtime.Context;
+using PulseStack.Agents.Runtime;
 
 namespace PulseStack.Agents.Pipelines;
 
@@ -12,14 +12,29 @@ public sealed class SequentialPipeline
     : IAgentPipeline
 {
     private readonly List<IAgent> _agents = [];
+    private readonly PipelineRuntime _runtime;
+    private readonly IPipelineExecutionStrategy _strategy;
 
     public string Name { get; }
 
     public SequentialPipeline(string name)
+        : this(
+            name,
+            new PipelineRuntime(),
+            new SequentialPipelineExecutionStrategy())
+    {
+    }
+
+    internal SequentialPipeline(
+        string name,
+        PipelineRuntime runtime,
+        IPipelineExecutionStrategy strategy)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         Name = name;
+        _runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
+        _strategy = strategy ?? throw new ArgumentNullException(nameof(strategy));
     }
 
     public SequentialPipeline Add(
@@ -55,40 +70,15 @@ public sealed class SequentialPipeline
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        if (_agents.Count == 0)
-        {
-            throw new InvalidOperationException(
-                "Pipeline contains no agents.");
-        }
-
-        foreach (var agent in _agents)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var input = context.CurrentOutput;
-
-            var response = await agent.RunAsync(
-                input,
-                cancellationToken);
-
-            var output = response.Text ?? string.Empty;
-
-            var step = new PipelineStepResult(
-                agent.Name,
-                agent.Model,
-                input,
-                output);
-
-            context.Steps.Add(step);
-
-            context.Items[PipelineContextKeys.AgentOutput(agent.Name)]
-                = output;
-
-            context.CurrentOutput = output;
-        }
+        var result = await _runtime.ExecuteAsync(
+            Name,
+            _agents,
+            context,
+            _strategy,
+            cancellationToken);
 
         return new PipelineResult(
-            context.CurrentOutput,
-            context.Steps.ToList());
+            result.FinalOutput,
+            result.Steps);
     }
 }
