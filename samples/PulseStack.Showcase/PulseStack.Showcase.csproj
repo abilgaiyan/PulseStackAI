@@ -7,17 +7,21 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
+<ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Reference your core libraries -->
     <ProjectReference Include="..\..\src\PulseStack.Core\PulseStack.Core.csproj" />
+    <ProjectReference Include="..\..\src\PulseStack.Abstractions\PulseStack.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\PulseStack.Agents\PulseStack.Agents.csproj" />
-    <ProjectReference Include="..\..\src\PulseStack.Providers.OpenAI\PulseStack.Providers.OpenAI.csproj" />
+    <ProjectReference Include="..\..\src\PulseStack.Providers.Groq\PulseStack.Providers.Groq.csproj" />
     <ProjectReference Include="..\..\src\PulseStack.Providers.OpenRouter\PulseStack.Providers.OpenRouter.csproj" />
+    <ProjectReference Include="..\..\src\PulseStack.Tools\PulseStack.Tools.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -25,4 +29,6 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+  
+
 </Project>

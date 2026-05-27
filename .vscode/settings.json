@@ -1,0 +1,8 @@
+{
+  "mcp.servers": {
+    "browser": {
+      "command": "npx",
+      "args": ["@railsblueprint/blueprint-mcp@latest"]
+    }
+  }
+}

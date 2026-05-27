@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PulseStackAI Architecture & Engineering Blueprint</title>
+    <style>
+        body { font-family: 'Arial', sans-serif; line-height: 1.25; color: #1a1a1a; max-width: 900px; margin: 0 auto; padding: 40px 20px; background-color: #ffffff; }
+        h1 { color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; font-size: 28px; margin-bottom: 24px; }
+        h2 { color: #1e3a8a; font-size: 20px; margin-top: 32px; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; }
+        h3 { color: #2563eb; font-size: 16px; margin-top: 20px; margin-bottom: 8px; }
+        p { margin-bottom: 16px; text-align: justify; }
+        ul, ol { margin-bottom: 16px; padding-left: 24px; }
+        li { margin-bottom: 6px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 16px; margin-bottom: 24px; }
+        th { background-color: #f8fafc; color: #334155; font-weight: bold; border: 1px solid #cbd5e1; padding: 10px; text-align: left; }
+        td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; vertical-align: top; }
+        tr:nth-child(even) { background-color: #fdfdfd; }
+        pre { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px; font-family: 'Consolas', 'Courier New', monospace; font-size: 13px; line-height: 1.4; overflow-x: auto; margin-bottom: 24px; color: #0f172a; }
+        .text-center { text-align: center; }
+        .badge { background-color: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h1>PulseStackAI — Technical Architecture Blueprint</h1>
+    <p><strong>Framework Status:</strong> <span class="badge">In-Progress / Core Operational</span> &nbsp;&nbsp;|&nbsp;&nbsp; <strong>Target:</strong> Enterprise Agent Governance & Resilient Workflow Orchestration</p>
+    
+    <p>PulseStackAI is a decoupled, highly composable, and fault-tolerant orchestration runtime engineered in .NET. It bridges advanced large language models (LLMs) with enterprise-grade business workflows. Designed to enforce deterministic tool routing, comprehensive state safety, and strict runtime governance, the framework isolates business logic from underlying AI provider APIs. This architecture eliminates vendor lock-in while providing absolute telemetry and operational control over autonomous workflows.</p>
+
+    <h2>1. High-Level System Architecture & Layered Assembly</h2>
+    <p>The framework is divided into modular assemblies, adhering strictly to clean architecture and SOLID principles. Each layer has a distinct boundary of concern to enable pluggable extensions without modifying core routing behaviors.</p>
+    
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 25%;">Assembly / Layer</th>
+                <th style="width: 35%;">Key Core Components</th>
+                <th style="width: 40%;">Architectural Purpose & Design Responsibility</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Applications</strong></td>
+                <td>Custom API Endpoints, Worker Services, Background Consumers</td>
+                <td>The consumption layer where business-specific implementations instantiate execution pipelines to fulfill distinct end-user or background system requirements.</td>
+            </tr>
+            <tr>
+                <td><strong>PulseStack.Agents</strong></td>
+                <td>Agent Runtime, Pipeline Runtime, SequentialPipeline, Shared PipelineContext</td>
+                <td>The active orchestration engine. Manages state serialization, sequential step progression, data flow topologies, and the live lifecycle monitoring of running agents.</td>
+            </tr>
+            <tr>
+                <td><strong>PulseStack.Core</strong></td>
+                <td>Dependency Injection, Tool Registry, Short/Long-term Memory, Resilience Infrastructure</td>
+                <td>Provides the physical infrastructure engine. Configures automated service resolutions, manages runtime tool schemas, handles state hydration, and wraps network dependencies inside strict execution policy wrappers.</td>
+            </tr>
+            <tr>
+                <td><strong>PulseStack.Abstractions</strong></td>
+                <td>IAgent, IAgentPipeline, ITool, IChatClientFactory</td>
+                <td>The core foundation layout. Pure interface types and abstract definitions containing zero operational dependencies. Guarantees complete contract decoupling across the library ecosystem.</td>
+            </tr>
+            <tr>
+                <td><strong>Provider Layer</strong></td>
+                <td>OpenRouter, Groq, Gemini, Ollama Adapters</td>
+                <td>Translates internal framework abstractions into distinct vendor payload wire formats, handling custom token schemas and platform-specific feature handling seamlessly.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <p>Below is the data schema representation outlining how dependencies flow downward from consuming applications down to the edge AI Model endpoints:</p>
+
+<pre>
+[ Applications Layer ]
+         │
+         ▼
+[ PulseStack.Agents ] ────► (Agent Runtime, SequentialPipeline, PipelineContext)
+         │
+         ▼
+[ PulseStack.Core ] ──────► (Dependency Injection, Tool Registry, Resilience Engine)
+         │
+         ▼
+[ PulseStack.Abstractions ]► (IAgent, IAgentPipeline, ITool, IChatClientFactory)
+         │
+         ▼
+[ Provider Layer ] ───────► (OpenRouter, Groq, Gemini, Ollama SDK Adapters)
+         │
+         ▼
+[ AI Model Remote APIs ] ─► (Cloud & Local Multi-LLM Execution Endpoints)
+</pre>
+
+    <h2>2. Runtime Execution Flow & State Governance</h2>
+    <p>Execution inside PulseStackAI is governed deterministically through pipelines. Unlike fragile, unstructured agent behaviors, data tracking follows a strict pipeline cycle where information transitions safely across monitored phases.</p>
+
+    <h3>The Step-by-Step Runtime Lifecycle:</h3>
+    <ol>
+        <li><strong>User Input Ingestion:</strong> The application layer captures an incoming request block and invokes the core runtime using <code>Pipeline.RunAsync()</code>.</li>
+        <li><strong>Pipeline Initialisation:</strong> The <code>SequentialPipeline</code> instantiates, allocating an isolated, thread-safe memory registry known as the <code>PipelineContext</code>.</li>
+        <li><strong>State Hydration:</strong> Inputs, ambient metadata, session scopes, and initial execution arguments are written directly to the state context.</li>
+        <li><strong>Agent Invocation Loop:</strong> The Agent Runtime consumes the current context snapshot and constructs an optimized semantic prompt array for the decoupled provider adapter.</li>
+        <li><strong>LLM Inference Response Routing:</strong> The selected model evaluates the context and returns one of two payload variants:
+            <ul>
+                <li><strong>Standard Response:</strong> Final text generation occurs, writing content to <code>PipelineContext.CurrentOutput</code> and finishing the step.</li>
+                <li><strong>Tool Call Exception:</strong> The agent pauses generation, returning metadata identifying a requested backend utility function execution requirement.</li>
+            </ul>
+        </li>
+        <li><strong>Secure Tool Registry Routing:</strong> The framework captures the tool call intent, cross-references it inside the centralized <code>Tool Registry</code> to enforce authorization rules, and executes the designated backend function locally.</li>
+        <li><strong>Context Result Aggregation:</strong> The output of the local processing block (<code>ToolExecutionResult</code>) is dynamically appended into <code>PipelineContext.ToolResults</code>, updating the context loop back to the agent for further inference.</li>
+    </ol>
+
+    <h2>3. The Shared PipelineContext Contract</h2>
+    <p>To avoid messy variable tracking, state management uses a unified, serializable object graph. This structure allows engineers to audit, store, or resume multi-step agent actions at any stage of execution.</p>
+
+<pre>
+public class PipelineContext
+{
+    public string Input { get; set; }                 // Raw input query or task payload
+    public string CurrentOutput { get; set; }          // Active textual result from the current step
+    public Dictionary&lt;string, object&gt; Items { get; }  // Thread-safe ambient state data store
+    public List&lt;PipelineStep&gt; Steps { get; }          // Historical log of tracking step outcomes
+    public List&lt;ToolResult&gt; ToolResults { get; }      // Trackable log of all tools executed in this cycle
+}
+</pre>
+
+    <h2>4. Resilience & Enterprise Fault-Tolerant Infrastructure</h2>
+    <p>Network calls to external LLMs can frequently fail due to rate limits, timeouts, or transient network drops. PulseStackAI prevents pipeline failures by wrapping its core communication channels inside native .NET resilience guardrails via <code>Microsoft.Extensions.Http.Resilience</code>.</p>
+
+<pre>
+[ Agent Runtime Engine ]
+           │
+           ▼
+[ IChatClientFactory Layer ]
+           │
+           ▼
+[ IHttpClientFactory ] ──► Extends [ Microsoft.Extensions.Http.Resilience ]
+                                       ├──► Retry Policy (Exponential Backoff)
+                                       ├──► Timeout Management (Per-request limit)
+                                       ├──► Circuit Breaker (Self-healing isolation)
+                                       └──► Rate Limiting (Concurrences throttling)
+                                               │
+                                               ▼
+                                   [ Vendor Provider APIs ]
+</pre>
+
+    <ul>
+        <li><strong>Retry Policy:</strong> Implements progressive exponential backoff loops to absorb brief network drops without throwing system-wide exceptions.</li>
+        <li><strong>Circuit Breaker:</strong> Monitors consecutive remote connection errors, automatically routing traffic away from failing endpoints or providers to keep the application stable.</li>
+        <li><strong>Rate Limiting:</strong> Controls active concurrent connections to external APIs, keeping the system safely within corporate subscription tiers and API allowances.</li>
+    </ul>
+
+    <h2>5. Next-Generation Roadmap: Asynchronous Graph Orchestration</h2>
+    <p>PulseStackAI is actively shifting from linear processing stages toward complex, non-linear processing structures. This update introduces multi-agent networks capable of routing tasks and validating data asynchronously.</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 30%;">Node Type</th>
+                <th style="width: 35%;">Runtime Operational Role</th>
+                <th style="width: 35%;">Context Execution Output</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Planner Agent</strong></td>
+                <td>Analyzes incoming unstructured tasks and maps out an optimized execution graph.</td>
+                <td>Generates a directed task list tracking step dependencies.</td>
+            </tr>
+            <tr>
+                <td><strong>Research Agent</strong></td>
+                <td>Browses external data sources and pulls real-time information into the workflow.</td>
+                <td>Writes raw verified findings into the shared runtime context.</td>
+            </tr>
+            <tr>
+                <td><strong>Tool Agent</strong></td>
+                <td>Executes system tools, runs database transactions, and manages backend storage scripts.</td>
+                <td>Appends raw structured execution outcomes back to the state tracker.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <p>The upcoming architecture features a completely decentralized core state layer, supported by native OpenTelemetry tracing and distributed logging frameworks. This setup guarantees absolute transparency and operational control for high-scale, enterprise-ready AI deployments.</p>
+
+</body>
+</html>

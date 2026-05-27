@@ -47,6 +47,7 @@ ScaffoldingReadMe.txt
 *.lscache
 
 # Others
+*archive*
 ~$*
 *~
 *.docx
