@@ -19,10 +19,10 @@ public sealed class SequentialPipeline
     private readonly PipelineRuntime _runtime;
 
     private readonly IPipelineExecutionStrategy _strategy;
-
     public string Name { get; }
+    private PipelineExecutionPolicy _policy = new();
 
-    public SequentialPipeline(string name)
+    public SequentialPipeline(string name) 
         : this(
             name,
             new PipelineRuntime(),
@@ -50,13 +50,10 @@ public sealed class SequentialPipeline
 
         Name = name;
 
-        _runtime =
-            runtime
-            ?? throw new ArgumentNullException(nameof(runtime));
+        _runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
 
-        _strategy =
-            strategy
-            ?? throw new ArgumentNullException(nameof(strategy));
+        _strategy = strategy ?? throw new ArgumentNullException(nameof(strategy));
+
     }
 
     public SequentialPipeline Add(
@@ -68,7 +65,15 @@ public sealed class SequentialPipeline
 
         return this;
     }
+    public SequentialPipeline WithPolicy(
+        PipelineExecutionPolicy policy)
+    {
+        ArgumentNullException.ThrowIfNull(policy);
 
+        _policy = policy;
+
+        return this;
+    }
     public async Task<PipelineResult> RunAsync(
         string input,
         CancellationToken cancellationToken = default)
@@ -126,6 +131,7 @@ public sealed class SequentialPipeline
                 _agents,
                 context,
                 _strategy,
+                _policy,
                 cancellationToken: cancellationToken);
 
         return result;

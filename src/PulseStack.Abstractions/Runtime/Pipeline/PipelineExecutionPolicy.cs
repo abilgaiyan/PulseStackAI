@@ -1,5 +1,9 @@
-namespace PulseStack.Agents.Runtime.Policies;
+namespace PulseStack.Abstractions.Runtime.Pipeline;
 
+/// <summary>
+/// Defines orchestration execution behavior
+/// for a pipeline runtime.
+/// </summary>
 public sealed class PipelineExecutionPolicy
 {
     /// <summary>

@@ -21,6 +21,8 @@ public sealed class ParallelPipeline
 
     public string Name { get; }
 
+    private PipelineExecutionPolicy _policy = new(); 
+
     public ParallelPipeline(string name)
         : this(
             name,
@@ -61,7 +63,16 @@ public sealed class ParallelPipeline
 
         return this;
     }
+    
+    public ParallelPipeline WithPolicy(
+        PipelineExecutionPolicy policy)
+    {
+        ArgumentNullException.ThrowIfNull(policy);
 
+        _policy = policy;
+
+        return this;
+    }
     public async Task<PipelineResult> RunAsync(
         string input,
         CancellationToken cancellationToken = default)
