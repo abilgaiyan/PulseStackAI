@@ -40,8 +40,8 @@ internal static class ExecutionSummaryPrinter
 
         foreach (var step in result.Steps)
         {
-            Console.WriteLine(
-                $"- {step.AgentName}");
+            var symbol = step.Success  ? "✓" : "✗";
+            Console.WriteLine($"{symbol} {step.AgentName,-20} {step.Duration.TotalMilliseconds,8:N0} ms");
         }
 
         if (result.Errors.Count > 0)

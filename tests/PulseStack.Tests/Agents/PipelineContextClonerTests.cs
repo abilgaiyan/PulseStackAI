@@ -17,7 +17,11 @@ public class PipelineContextClonerTests
             "Agent",
             "model",
             "input",
-            "output");
+            "output",
+            Success: true,
+            DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow.AddSeconds(1));
+            
         var toolResult = new ToolExecutionRecord(
             "calculator",
             "1 + 1",

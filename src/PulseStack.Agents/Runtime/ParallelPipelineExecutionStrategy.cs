@@ -110,45 +110,35 @@ internal sealed class ParallelPipelineExecutionStrategy
         int baseToolResultCount,
         CancellationToken cancellationToken)
     {
-        var branch =
-            executionContext.CreateBranch();
+        var branch = executionContext.CreateBranch();
 
-        branch.PipelineContext.Items[
-            PipelineContextKeys.RuntimeExecutionId] =
-                branch.ExecutionId;
+        branch.PipelineContext.Items[PipelineContextKeys.RuntimeExecutionId] = branch.ExecutionId;
 
-        branch.PipelineContext.Items[
-            PipelineContextKeys.RuntimeBranchId] =
-                branch.BranchId;
+        branch.PipelineContext.Items[PipelineContextKeys.RuntimeBranchId] = branch.BranchId;
 
-        branch.PipelineContext.Items[
-            PipelineContextKeys.RuntimeEventDispatcher] =
-                branch.EventDispatcher;
+        branch.PipelineContext.Items[PipelineContextKeys.RuntimeEventDispatcher] = branch.EventDispatcher;
 
-        var input =
-            branch.PipelineContext.CurrentOutput;
+        var input = branch.PipelineContext.CurrentOutput;
+        var startedAt = DateTimeOffset.UtcNow;    
 
         try
         {
-            var response =
-                await agent.RunAsync(
-                    branch.PipelineContext,
-                    cancellationToken);
+            var response = await agent.RunAsync(branch.PipelineContext, cancellationToken);
 
-            var output =
-                response.Text
-                ?? branch.PipelineContext.CurrentOutput
-                ?? string.Empty;
+            var output = response.Text ?? branch.PipelineContext.CurrentOutput ?? string.Empty;
 
-            branch.PipelineContext.CurrentOutput =
-                output;
-
+            branch.PipelineContext.CurrentOutput = output;
+            var completedAt = DateTimeOffset.UtcNow; 
+            
             branch.PipelineContext.Steps.Add(
                 new PipelineStepResult(
                     agent.Name,
                     agent.Model,
                     input,
-                    output));
+                    output,
+                    Success: true,
+                    startedAt,
+                    completedAt));
 
             return BranchResult.Success(
                 index,
@@ -161,17 +151,34 @@ internal sealed class ParallelPipelineExecutionStrategy
                     .Skip(baseToolResultCount)
                     .ToList());
         }
-        catch (OperationCanceledException)
-            when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
         }
         catch (Exception ex)
         {
-            return BranchResult.Failure(
-                index,
-                agent,
-                ex);
+            var completedAt = DateTimeOffset.UtcNow;
+            
+             branch.PipelineContext.Steps.Add(
+                new PipelineStepResult(
+                    agent.Name,
+                    agent.Model,
+                    input,
+                    null,
+                    Success: false,
+                    startedAt,
+                    completedAt));
+
+             return BranchResult.Failure(
+                        index,
+                        agent,
+                        branch.PipelineContext.Steps
+                            .Skip(baseStepCount)
+                            .ToList(),
+                        branch.PipelineContext.ToolResults
+                            .Skip(baseToolResultCount)
+                            .ToList(),
+                        ex);
         }
     }
 
@@ -200,13 +207,17 @@ internal sealed class ParallelPipelineExecutionStrategy
         public static BranchResult Failure(
             int index,
             IAgent agent,
+            IReadOnlyList<PipelineStepResult> steps,
+            IReadOnlyList<ToolExecutionRecord> toolResults,
             Exception error)
             => new(
                 index,
                 agent,
                 string.Empty,
-                [],
-                [],
+                steps,
+                toolResults,
                 error);
     }
 }
+
+               

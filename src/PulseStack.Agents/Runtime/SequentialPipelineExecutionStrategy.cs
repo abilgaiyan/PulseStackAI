@@ -21,13 +21,16 @@ internal sealed class SequentialPipelineExecutionStrategy
         {
             var input =
                 context.CurrentOutput;
+            var startedAt = DateTimeOffset.UtcNow;    
 
             try
             {
-                var response =
+               
+                var response = 
                     await agent.RunAsync(
                         context,
                         cancellationToken);
+                var completedAt = DateTimeOffset.UtcNow;                        
 
                 var output =
                     response.Text
@@ -42,15 +45,28 @@ internal sealed class SequentialPipelineExecutionStrategy
                         agent.Name,
                         agent.Model,
                         input,
-                        output));
+                        output,
+                        Success: true,
+                        startedAt,
+                        completedAt));
             }
-            catch (OperationCanceledException)
-                when (cancellationToken.IsCancellationRequested)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 throw;
             }
             catch (Exception ex)
             {
+                var completedAt = DateTimeOffset.UtcNow;
+                context.Steps.Add(
+                    new PipelineStepResult(
+                        agent.Name,
+                        agent.Model,
+                        input,
+                        null,
+                        Success: false,
+                        startedAt,
+                        completedAt));
+
                 errors.Add(
                     new PipelineExecutionError
                     {
