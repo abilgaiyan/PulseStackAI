@@ -54,7 +54,7 @@ internal static class SequentialPipelineScenario
             .Add(summarizer);
 
         var result =
-            await pipeline.RunAsync(
+            await pipeline.RunDetailedAsync(
                 """
                 Explain why orchestration runtimes matter
                 for enterprise AI systems.

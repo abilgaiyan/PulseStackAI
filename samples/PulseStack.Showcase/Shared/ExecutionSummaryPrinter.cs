@@ -1,11 +1,11 @@
-using PulseStack.Abstractions.Agents;
+using PulseStack.Abstractions.Runtime.Pipeline;
 
 namespace PulseStack.Showcase.Shared;
 
 internal static class ExecutionSummaryPrinter
 {
     public static void Print(
-        PipelineResult result)
+        PipelineExecutionResult result)
     {
         Console.WriteLine();
 
@@ -16,7 +16,19 @@ internal static class ExecutionSummaryPrinter
             "-----------------");
 
         Console.WriteLine(
-            $"Steps : {result.Steps.Count}");
+            $"ExecutionId : {result.ExecutionId}");
+
+        Console.WriteLine(
+            $"Status      : {result.Status}");
+
+        Console.WriteLine(
+            $"Duration    : {result.Duration.TotalMilliseconds:n0} ms");
+
+        Console.WriteLine(
+            $"Steps       : {result.Steps.Count}");
+
+        Console.WriteLine(
+            $"Errors      : {result.Errors.Count}");
 
         Console.WriteLine();
 
@@ -29,7 +41,24 @@ internal static class ExecutionSummaryPrinter
         foreach (var step in result.Steps)
         {
             Console.WriteLine(
-                $"✓ {step.AgentName}");
+                $"- {step.AgentName}");
+        }
+
+        if (result.Errors.Count > 0)
+        {
+            Console.WriteLine();
+
+            Console.WriteLine(
+                "Errors");
+
+            Console.WriteLine(
+                "------");
+
+            foreach (var error in result.Errors)
+            {
+                Console.WriteLine(
+                    $"- {error.Code} : {error.Message}");
+            }
         }
 
         Console.WriteLine();

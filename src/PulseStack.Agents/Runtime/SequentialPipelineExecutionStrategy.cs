@@ -1,6 +1,6 @@
 using PulseStack.Abstractions.Agents;
+using PulseStack.Abstractions.Runtime.Pipeline;
 using PulseStack.Agents.Runtime.Context;
-using PulseStack.Agents.Runtime.Errors;
 
 namespace PulseStack.Agents.Runtime;
 

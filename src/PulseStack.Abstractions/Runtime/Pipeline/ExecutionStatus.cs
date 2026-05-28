@@ -1,4 +1,4 @@
-namespace PulseStack.Agents.Runtime.Execution;
+namespace PulseStack.Abstractions.Runtime.Pipeline;
 
 public enum ExecutionStatus
 {

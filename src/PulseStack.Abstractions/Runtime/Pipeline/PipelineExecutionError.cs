@@ -1,4 +1,4 @@
-namespace PulseStack.Agents.Runtime.Errors;
+namespace PulseStack.Abstractions.Runtime.Pipeline;
 
 public sealed class PipelineExecutionError
 {

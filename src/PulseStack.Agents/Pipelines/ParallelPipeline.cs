@@ -1,4 +1,5 @@
 using PulseStack.Abstractions.Agents;
+using PulseStack.Abstractions.Runtime.Pipeline;
 using PulseStack.Agents.Runtime;
 using PulseStack.Agents.Runtime.Diagnostics;
 using PulseStack.Agents.Runtime.Observability;
@@ -61,7 +62,35 @@ public sealed class ParallelPipeline
         return this;
     }
 
-    public Task<PipelineResult> RunAsync(
+    public async Task<PipelineResult> RunAsync(
+        string input,
+        CancellationToken cancellationToken = default)
+    {
+        var detailed =
+            await RunDetailedAsync(
+                input,
+                cancellationToken);
+
+        return new PipelineResult(
+            detailed.FinalOutput,
+            detailed.Steps.ToList());
+    }
+
+    public async Task<PipelineResult> RunAsync(
+        PipelineContext context,
+        CancellationToken cancellationToken = default)
+    {
+        var detailed =
+            await RunDetailedAsync(
+                context,
+                cancellationToken);
+
+        return new PipelineResult(
+            detailed.FinalOutput,
+            detailed.Steps.ToList());
+    }
+
+    public Task<PipelineExecutionResult> RunDetailedAsync(
         string input,
         CancellationToken cancellationToken = default)
     {
@@ -73,27 +102,25 @@ public sealed class ParallelPipeline
             CurrentOutput = input
         };
 
-        return RunAsync(
+        return RunDetailedAsync(
             context,
             cancellationToken);
     }
 
-    public async Task<PipelineResult> RunAsync(
+    public Task<PipelineExecutionResult> RunDetailedAsync(
         PipelineContext context,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(context);
 
         var result =
-            await _runtime.ExecuteAsync(
+            _runtime.ExecuteAsync(
                 Name,
                 _agents,
                 context,
                 _strategy,
                 cancellationToken: cancellationToken);
 
-        return new PipelineResult(
-            result.FinalOutput,
-            result.Steps.ToList());
+        return result;
     }
 }

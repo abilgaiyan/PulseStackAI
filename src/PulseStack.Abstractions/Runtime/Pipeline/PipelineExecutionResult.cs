@@ -1,8 +1,6 @@
 using PulseStack.Abstractions.Agents;
-using PulseStack.Agents.Runtime.Errors;
-using PulseStack.Agents.Runtime.Execution;
 
-namespace PulseStack.Agents.Runtime;
+namespace PulseStack.Abstractions.Runtime.Pipeline;
 
 public sealed class PipelineExecutionResult
 {

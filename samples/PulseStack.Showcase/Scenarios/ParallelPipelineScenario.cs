@@ -54,7 +54,7 @@ internal static class ParallelPipelineScenario
             .Add(architect);
 
         var result =
-            await pipeline.RunAsync(
+            await pipeline.RunDetailedAsync(
                 """
                 Enterprise ERP modernization project.
                 """);
