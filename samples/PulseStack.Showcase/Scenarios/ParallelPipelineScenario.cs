@@ -59,6 +59,6 @@ internal static class ParallelPipelineScenario
                 Enterprise ERP modernization project.
                 """);
 
-        Console.WriteLine(result.FinalOutput);
+        ExecutionSummaryPrinter.Print(result);
     }
 }

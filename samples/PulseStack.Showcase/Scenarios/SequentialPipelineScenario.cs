@@ -60,6 +60,6 @@ internal static class SequentialPipelineScenario
                 for enterprise AI systems.
                 """);
 
-        Console.WriteLine(result.FinalOutput);
+        ExecutionSummaryPrinter.Print(result);
     }
 }
