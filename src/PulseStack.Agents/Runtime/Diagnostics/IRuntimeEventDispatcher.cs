@@ -1,6 +1,6 @@
 namespace PulseStack.Agents.Runtime.Diagnostics;
 
-internal interface IRuntimeEventDispatcher
+public interface IRuntimeEventDispatcher
 {
     void Dispatch(
         IRuntimeEvent runtimeEvent);

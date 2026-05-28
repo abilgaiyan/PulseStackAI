@@ -1,6 +1,7 @@
 using PulseStack.Abstractions.Agents;
 using PulseStack.Agents.Runtime;
 using PulseStack.Agents.Runtime.Diagnostics;
+using PulseStack.Agents.Runtime.Observability;
 
 namespace PulseStack.Agents.Pipelines;
 
@@ -23,6 +24,15 @@ public sealed class ParallelPipeline
         : this(
             name,
             new RuntimeEventDispatcher())
+    {
+    }
+
+    public ParallelPipeline(
+        string name,
+        IRuntimeObserver observer)
+        : this(
+            name,
+            new RuntimeEventDispatcher(observer))
     {
     }
 

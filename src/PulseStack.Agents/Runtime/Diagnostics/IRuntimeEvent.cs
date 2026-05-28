@@ -1,6 +1,6 @@
 namespace PulseStack.Agents.Runtime.Diagnostics;
 
-internal interface IRuntimeEvent
+public interface IRuntimeEvent
 {
     Guid ExecutionId { get; }
 

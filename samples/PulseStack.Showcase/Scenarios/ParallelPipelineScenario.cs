@@ -4,6 +4,7 @@ using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Tools;
 using PulseStack.Agents.Builders;
 using PulseStack.Agents.Pipelines;
+using PulseStack.Agents.Runtime.Observability;
 using PulseStack.Showcase.Shared;
 
 namespace PulseStack.Showcase.Scenarios;
@@ -21,6 +22,9 @@ internal static class ParallelPipelineScenario
 
         var toolExecutor =
             services.GetRequiredService<IToolExecutor>();
+
+        var runtimeObserver =
+            services.GetRequiredService<CompositeRuntimeObserver>();
 
         var analyst =
             new AgentBuilder(
@@ -44,7 +48,8 @@ internal static class ParallelPipelineScenario
 
         var pipeline =
             new ParallelPipeline(
-                "ParallelAnalysis")
+                "ParallelAnalysis",
+                runtimeObserver)
             .Add(analyst)
             .Add(architect);
 

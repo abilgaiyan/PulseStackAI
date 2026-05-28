@@ -2,7 +2,7 @@ using PulseStack.Agents.Runtime.Diagnostics;
 
 namespace PulseStack.Agents.Runtime.Diagnostics.Events;
 
-internal sealed record ToolExecutedEvent(
+public sealed record ToolExecutedEvent(
     Guid ExecutionId,
     DateTimeOffset Timestamp,
     string ToolName,

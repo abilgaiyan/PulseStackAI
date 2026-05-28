@@ -2,7 +2,7 @@ using PulseStack.Agents.Runtime.Diagnostics;
 
 namespace PulseStack.Agents.Runtime.Diagnostics.Events;
 
-internal sealed record PipelineStartedEvent(
+public sealed record PipelineStartedEvent(
     Guid ExecutionId,
     DateTimeOffset Timestamp,
     string PipelineName,

@@ -2,7 +2,7 @@ using PulseStack.Agents.Runtime.Diagnostics;
 
 namespace PulseStack.Agents.Runtime.Diagnostics.Events;
 
-internal sealed record AgentCompletedEvent(
+public sealed record AgentCompletedEvent(
     Guid ExecutionId,
     DateTimeOffset Timestamp,
     string? AgentName,

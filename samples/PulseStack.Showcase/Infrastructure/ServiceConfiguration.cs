@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using PulseStack.Agents.Runtime.Observability;
 using PulseStack.Core.DependencyInjection;
 using PulseStack.Providers.OpenRouter.DependencyInjection;
 
@@ -24,6 +25,7 @@ internal static class ServiceConfiguration
         //             "OPENROUTER_API_KEY")!,
         //         model: "openai/gpt-4o-mini");
         services.AddPulseStack()
+            .AddConsoleRuntimeObserver()
             .UseOpenRouter(
                 apiKey: apiKey!,
                 model: "openai/gpt-4o-mini");

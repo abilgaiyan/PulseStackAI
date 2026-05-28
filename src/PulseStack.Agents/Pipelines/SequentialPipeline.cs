@@ -1,5 +1,7 @@
 using PulseStack.Abstractions.Agents;
 using PulseStack.Agents.Runtime;
+using PulseStack.Agents.Runtime.Diagnostics;
+using PulseStack.Agents.Runtime.Observability;
 
 namespace PulseStack.Agents.Pipelines;
 
@@ -23,6 +25,17 @@ public sealed class SequentialPipeline
         : this(
             name,
             new PipelineRuntime(),
+            new SequentialPipelineExecutionStrategy())
+    {
+    }
+
+    public SequentialPipeline(
+        string name,
+        IRuntimeObserver observer)
+        : this(
+            name,
+            new PipelineRuntime(
+                new RuntimeEventDispatcher(observer)),
             new SequentialPipelineExecutionStrategy())
     {
     }
