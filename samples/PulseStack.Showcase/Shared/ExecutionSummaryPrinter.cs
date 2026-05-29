@@ -44,6 +44,37 @@ internal static class ExecutionSummaryPrinter
             Console.WriteLine($"{symbol} {step.AgentName,-20} {step.Duration.TotalMilliseconds,8:N0} ms   Retries : {step.RetryCount}");
         }
 
+        Console.WriteLine();
+
+        Console.WriteLine(
+            "Execution Usage");
+
+        Console.WriteLine(
+            "---------------");
+
+        if (result.TotalUsage.TotalTokens > 0)
+        {
+            Console.WriteLine(
+                $"Provider           : {result.TotalUsage.Provider}");
+
+            Console.WriteLine(
+                $"Model              : {result.TotalUsage.Model}");
+
+            Console.WriteLine(
+                $"Prompt Tokens      : {result.TotalUsage.PromptTokens}");
+
+            Console.WriteLine(
+                $"Completion Tokens  : {result.TotalUsage.CompletionTokens}");
+
+            Console.WriteLine(
+                $"Total Tokens       : {result.TotalUsage.TotalTokens}");
+        }
+        else
+        {
+            Console.WriteLine(
+                "Usage information not available.");
+        }
+
         if (result.Errors.Count > 0)
         {
             Console.WriteLine();

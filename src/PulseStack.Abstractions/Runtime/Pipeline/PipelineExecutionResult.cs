@@ -1,4 +1,5 @@
 using PulseStack.Abstractions.Agents;
+using PulseStack.Abstractions.Runtime.Usage;
 
 namespace PulseStack.Abstractions.Runtime.Pipeline;
 
@@ -17,6 +18,9 @@ public sealed class PipelineExecutionResult
 
     public IReadOnlyList<PipelineExecutionError> Errors { get; init; }
         = [];
+
+    public AIUsage TotalUsage { get; init; }
+        = new();
 
     public DateTimeOffset StartedAt { get; init; }
 

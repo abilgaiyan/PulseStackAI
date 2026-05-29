@@ -1,7 +1,9 @@
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Runtime.Usage;
 using PulseStack.Agents.Runtime.Context;
 using PulseStack.Agents.Runtime.Diagnostics;
+using PulseStack.Agents.Runtime.Usage;
 
 namespace PulseStack.Agents.Runtime;
 
@@ -32,6 +34,9 @@ internal sealed class SequentialPipelineExecutionStrategy
         var errors =
             new List<PipelineExecutionError>();
 
+        var usages =
+            new List<AIUsage?>();
+
         foreach (var agent in agents)
         {
             var input =
@@ -58,6 +63,8 @@ internal sealed class SequentialPipelineExecutionStrategy
 
             if (result.Success)
             {
+                usages.Add(result.Usage);
+
                 continue;
             }
 
@@ -103,7 +110,11 @@ internal sealed class SequentialPipelineExecutionStrategy
                 context.Steps.ToList(),
 
             Errors =
-                errors
+                errors,
+
+            TotalUsage =
+                new UsageAggregator()
+                    .Aggregate(usages)
         };
     }
 }

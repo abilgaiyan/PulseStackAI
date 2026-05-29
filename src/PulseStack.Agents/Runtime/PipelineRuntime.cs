@@ -123,6 +123,9 @@ internal sealed class PipelineRuntime
                     Errors =
                         state.Errors,
 
+                    TotalUsage =
+                        state.TotalUsage,
+
                     StartedAt =
                         startedAt,
 

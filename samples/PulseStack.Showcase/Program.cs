@@ -19,6 +19,8 @@ await TimeoutScenario.RunAsync(services);
 
 await OpenTelemetryScenario.RunAsync(services);
 
+await UsageAndCostScenario.RunAsync();
+
 await RuntimeGovernanceScenario.RunAsync(services);
 
 await ToolCallingScenario.RunAsync(services);

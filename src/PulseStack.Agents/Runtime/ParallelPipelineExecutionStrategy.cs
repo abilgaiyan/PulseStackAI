@@ -1,8 +1,10 @@
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Runtime.Usage;
 using PulseStack.Abstractions.Tools;
 using PulseStack.Agents.Runtime.Context;
 using PulseStack.Agents.Runtime.Diagnostics;
+using PulseStack.Agents.Runtime.Usage;
 
 namespace PulseStack.Agents.Runtime;
 
@@ -54,6 +56,9 @@ internal sealed class ParallelPipelineExecutionStrategy
         var errors =
             new List<PipelineExecutionError>();
 
+        var usages =
+            new List<AIUsage?>();
+
         foreach (var result in results.OrderBy(r => r.Index))
         {
             foreach (var step in result.Steps)
@@ -92,6 +97,8 @@ internal sealed class ParallelPipelineExecutionStrategy
                 PipelineContextKeys.AgentOutput(
                     result.Agent.Name)] =
                         result.Output;
+
+            usages.Add(result.Usage);
         }
 
         var outputs = results
@@ -115,7 +122,11 @@ internal sealed class ParallelPipelineExecutionStrategy
                 context.Steps.ToList(),
 
             Errors =
-                errors
+                errors,
+
+            TotalUsage =
+                new UsageAggregator()
+                    .Aggregate(usages)
         };
     }
 
@@ -171,6 +182,7 @@ internal sealed class ParallelPipelineExecutionStrategy
                 index,
                 agent,
                 result.Output,
+                result.Usage,
                 branch.PipelineContext.Steps
                     .Skip(baseStepCount)
                     .ToList(),
@@ -204,10 +216,13 @@ internal sealed class ParallelPipelineExecutionStrategy
         IReadOnlyList<ToolExecutionRecord> ToolResults,
         Exception? Error)
     {
+        public AIUsage? Usage { get; init; }
+
         public static BranchResult Success(
             int index,
             IAgent agent,
             string output,
+            AIUsage? usage,
             IReadOnlyList<PipelineStepResult> steps,
             IReadOnlyList<ToolExecutionRecord> toolResults)
             => new(
@@ -216,7 +231,10 @@ internal sealed class ParallelPipelineExecutionStrategy
                 output,
                 steps,
                 toolResults,
-                null);
+                null)
+            {
+                Usage = usage
+            };
 
         public static BranchResult Failure(
             int index,

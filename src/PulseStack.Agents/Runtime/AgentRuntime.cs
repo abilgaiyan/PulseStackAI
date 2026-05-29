@@ -4,6 +4,7 @@ using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Chat;
 using PulseStack.Abstractions.Memory;
 using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Runtime.Usage;
 using PulseStack.Abstractions.Tools;
 using PulseStack.Agents.Tools;
 using PulseStack.Agents.Runtime.Context;
@@ -267,6 +268,11 @@ public sealed class AgentRuntime : IAgentRuntime
                 context.CurrentOutput =
                     output;
 
+                var usage =
+                    ExtractUsage(
+                        response,
+                        agent);
+
                 var completedAt =
                     DateTimeOffset.UtcNow;
 
@@ -286,6 +292,7 @@ public sealed class AgentRuntime : IAgentRuntime
                     Success = true,
                     Output = output,
                     RetryCount = retryCount,
+                    Usage = usage,
                     StartedAt = startedAt,
                     CompletedAt = completedAt
                 };
@@ -616,6 +623,22 @@ public sealed class AgentRuntime : IAgentRuntime
                     PipelineContextKeys.RuntimeAgentLifecycleManaged);
             }
         }
+    }
+
+    private static AIUsage? ExtractUsage(
+        ChatResponse response,
+        IAgent agent)
+    {
+        ArgumentNullException.ThrowIfNull(response);
+        ArgumentNullException.ThrowIfNull(agent);
+
+        // TODO:
+        // Extract provider usage from supported provider responses.
+        // OpenAI, Anthropic, Groq, Gemini, and OpenRouter expose
+        // token accounting through different metadata shapes.
+        // Keep this provider-agnostic until response metadata
+        // contracts are stabilized.
+        return null;
     }
 
     private static bool IsAgentLifecycleManaged(
