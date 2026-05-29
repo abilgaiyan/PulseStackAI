@@ -17,4 +17,17 @@ public static class RuntimeObserverServiceCollectionExtensions
 
         return services;
     }
+
+    public static IServiceCollection AddOpenTelemetryRuntimeObserver(
+        this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IRuntimeObserver, OpenTelemetryRuntimeObserver>());
+
+        services.TryAddSingleton<CompositeRuntimeObserver>();
+
+        return services;
+    }
 }

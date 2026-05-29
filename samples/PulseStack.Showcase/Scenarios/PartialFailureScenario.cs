@@ -26,7 +26,7 @@ internal static class PartialFailureScenario
             services.GetRequiredService<IToolExecutor>();
 
         var observer =
-            services.GetRequiredService<IRuntimeObserver>();
+            services.GetRequiredService<CompositeRuntimeObserver>();
 
         var researcher =
             new AgentBuilder(

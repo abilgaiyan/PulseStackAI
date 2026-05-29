@@ -17,7 +17,7 @@ internal static class RetryScenario
             "Retry Pipeline");
 
         var observer =
-            services.GetRequiredService<IRuntimeObserver>();
+            services.GetRequiredService<CompositeRuntimeObserver>();
 
         var pipeline =
             new SequentialPipeline(

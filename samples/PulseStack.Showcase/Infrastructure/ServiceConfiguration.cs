@@ -25,6 +25,7 @@ internal static class ServiceConfiguration
         //             "OPENROUTER_API_KEY")!,
         //         model: "openai/gpt-4o-mini");
         services.AddPulseStack()
+            .AddOpenTelemetryRuntimeObserver()
             .AddConsoleRuntimeObserver()
             .UseOpenRouter(
                 apiKey: apiKey!,
