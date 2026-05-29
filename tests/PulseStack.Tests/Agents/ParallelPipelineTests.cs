@@ -144,8 +144,11 @@ public class ParallelPipelineTests
         var result = await pipeline.RunAsync(context);
 
         result.FinalOutput.Should().Be("one");
-        result.Steps.Should().ContainSingle()
-            .Which.AgentName.Should().Be("First");
+        result.Steps.Select(s => s.AgentName)
+            .Should()
+            .Equal("First", "Broken");
+        result.Steps.Single(s => s.AgentName == "Broken")
+            .Success.Should().BeFalse();
         context.ToolResults.Should().ContainSingle()
             .Which.ToolName.Should().Be("calculator");
         context.Items.Should().ContainKey(

@@ -79,38 +79,13 @@ internal sealed class PipelineRuntime
 
         try
         {
-            PipelineExecutionState? state = null;
-
-            var attempt = 0;
-
-            while (true)
-            {
-                try
-                {
-                    attempt++;
-
-                    state = await strategy.ExecuteAsync(
-                        pipelineName,
-                        agents,
-                        context,
-                        executionContext,
-                        effectiveCancellationToken);
-
-                    break;
-                }
-                catch when (attempt <= policy.MaxRetries)
-                {
-                    // TODO:
-                    // Future runtime diagnostics may capture
-                    // retry metadata and retry lineage.
-                }
-            }
-
-            if (state is null)
-            {
-                throw new InvalidOperationException(
-                    "Pipeline execution produced no execution state.");
-            }
+            var state = await strategy.ExecuteAsync(
+                pipelineName,
+                agents,
+                context,
+                executionContext,
+                policy,
+                effectiveCancellationToken);
 
             var completedAt =
                 DateTimeOffset.UtcNow;

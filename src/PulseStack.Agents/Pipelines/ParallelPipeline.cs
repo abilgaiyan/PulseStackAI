@@ -130,6 +130,7 @@ public sealed class ParallelPipeline
                 _agents,
                 context,
                 _strategy,
+                _policy,
                 cancellationToken: cancellationToken);
 
         return result;

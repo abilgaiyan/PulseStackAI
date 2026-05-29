@@ -3,6 +3,7 @@ using Microsoft.Extensions.AI;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Chat;
 using PulseStack.Abstractions.Memory;
+using PulseStack.Abstractions.Runtime.Pipeline;
 using PulseStack.Abstractions.Tools;
 using PulseStack.Agents.Tools;
 using PulseStack.Agents.Runtime.Context;
@@ -19,7 +20,7 @@ public sealed class AgentRuntime : IAgentRuntime
 
     private readonly IChatClient? _client;
     private readonly IChatClientFactory? _clientFactory;
-    private readonly ToolExecutionLoop _toolExecutionLoop;
+    private readonly ToolExecutionLoop? _toolExecutionLoop;
     private readonly string? _instructions;
     private readonly float? _temperature;
     private readonly IToolRegistry? _tools;
@@ -27,6 +28,12 @@ public sealed class AgentRuntime : IAgentRuntime
     private readonly string? _model;
     private readonly IAgent? _agent;
     private readonly IRuntimeEventDispatcher _eventDispatcher;
+
+    internal AgentRuntime(
+        IRuntimeEventDispatcher eventDispatcher)
+    {
+        _eventDispatcher = eventDispatcher ?? throw new ArgumentNullException(nameof(eventDispatcher));
+    }
 
     public AgentRuntime(
         IChatClient client,
@@ -128,6 +135,27 @@ public sealed class AgentRuntime : IAgentRuntime
     {
         ArgumentNullException.ThrowIfNull(context);
 
+        if (IsAgentLifecycleManaged(context))
+        {
+            var managedEventDispatcher =
+                ResolveEventDispatcher(context);
+
+            var managedExecutionContext = new AgentExecutionContext(
+                context,
+                new List<ChatMessage>(),
+                cancellationToken,
+                _agent,
+                executionId: ResolveExecutionId(context),
+                branchId: ResolveBranchId(context),
+                metadata: SnapshotPipelineMetadata(context.Items),
+                eventDispatcher: managedEventDispatcher);
+
+            return await RunCoreAsync(
+                context,
+                managedExecutionContext,
+                cancellationToken);
+        }
+
         var messages = BuildMessages(
             context,
             context.CurrentOutput);
@@ -190,6 +218,168 @@ public sealed class AgentRuntime : IAgentRuntime
 
             throw;
         }
+    }
+
+    internal async Task<AgentExecutionResult> ExecuteAsync(
+        IAgent agent,
+        PipelineContext context,
+        AgentExecutionContext executionContext,
+        PipelineExecutionPolicy policy,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(agent);
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(executionContext);
+        ArgumentNullException.ThrowIfNull(policy);
+
+        var startedAt =
+            DateTimeOffset.UtcNow;
+
+        var retryCount = 0;
+
+        executionContext.EventDispatcher.Dispatch(
+            new AgentStartedEvent(
+                executionContext.ExecutionId,
+                startedAt,
+                agent.Name,
+                agent.Model,
+                executionContext.BranchId,
+                SnapshotPipelineMetadata(context.Items)));
+
+        while (true)
+        {
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var response =
+                    await ExecuteAgentAsync(
+                        agent,
+                        context,
+                        executionContext,
+                        cancellationToken);
+
+                var output =
+                    response.Text
+                    ?? context.CurrentOutput
+                    ?? string.Empty;
+
+                context.CurrentOutput =
+                    output;
+
+                var completedAt =
+                    DateTimeOffset.UtcNow;
+
+                executionContext.EventDispatcher.Dispatch(
+                    new AgentCompletedEvent(
+                        executionContext.ExecutionId,
+                        completedAt,
+                        agent.Name,
+                        agent.Model,
+                        executionContext.BranchId,
+                        true,
+                        null,
+                        SnapshotPipelineMetadata(context.Items)));
+
+                return new AgentExecutionResult
+                {
+                    Success = true,
+                    Output = output,
+                    RetryCount = retryCount,
+                    StartedAt = startedAt,
+                    CompletedAt = completedAt
+                };
+            }
+            catch (OperationCanceledException ex)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                var completedAt =
+                    DateTimeOffset.UtcNow;
+
+                executionContext.EventDispatcher.Dispatch(
+                    new AgentCompletedEvent(
+                        executionContext.ExecutionId,
+                        completedAt,
+                        agent.Name,
+                        agent.Model,
+                        executionContext.BranchId,
+                        false,
+                        ex.Message,
+                        SnapshotPipelineMetadata(context.Items)));
+
+                throw;
+            }
+            catch (Exception ex)
+            {
+                if (retryCount < policy.MaxRetries)
+                {
+                    retryCount++;
+
+                    executionContext.EventDispatcher.Dispatch(
+                        new AgentRetryEvent(
+                            executionContext.ExecutionId,
+                            DateTimeOffset.UtcNow,
+                            agent.Name,
+                            retryCount,
+                            ex.Message));
+
+                    continue;
+                }
+
+                var completedAt =
+                    DateTimeOffset.UtcNow;
+
+                executionContext.EventDispatcher.Dispatch(
+                    new AgentCompletedEvent(
+                        executionContext.ExecutionId,
+                        completedAt,
+                        agent.Name,
+                        agent.Model,
+                        executionContext.BranchId,
+                        false,
+                        ex.Message,
+                        SnapshotPipelineMetadata(context.Items)));
+
+                return new AgentExecutionResult
+                {
+                    Success = false,
+                    Output = context.CurrentOutput ?? string.Empty,
+                    RetryCount = retryCount,
+                    Exception = ex,
+                    StartedAt = startedAt,
+                    CompletedAt = completedAt
+                };
+            }
+        }
+    }
+
+    internal async Task<ChatResponse> RunCoreAsync(
+        PipelineContext context,
+        AgentExecutionContext executionContext,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(executionContext);
+
+        var messages = BuildMessages(
+            context,
+            context.CurrentOutput);
+
+        var agentExecutionContext = new AgentExecutionContext(
+            context,
+            messages,
+            cancellationToken,
+            _agent,
+            executionId: executionContext.ExecutionId,
+            branchId: executionContext.BranchId,
+            metadata: SnapshotPipelineMetadata(context.Items),
+            eventDispatcher: executionContext.EventDispatcher);
+
+        var options = BuildChatOptions();
+
+        return await ExecuteToolLoopAsync(
+            agentExecutionContext,
+            options);
     }
 
     public async IAsyncEnumerable<string> StreamAsync(
@@ -317,6 +507,12 @@ public sealed class AgentRuntime : IAgentRuntime
         AgentExecutionContext executionContext,
         ChatOptions options)
     {
+        if (_toolExecutionLoop is null)
+        {
+            throw new InvalidOperationException(
+                "This runtime instance is not configured for direct agent execution.");
+        }
+
         var client = ResolveClient();
         for (int i = 0; i < MaxToolIterations; i++)
         {
@@ -379,6 +575,56 @@ public sealed class AgentRuntime : IAgentRuntime
         return fallback;
     }
 
+    private static async Task<ChatResponse> ExecuteAgentAsync(
+        IAgent agent,
+        PipelineContext context,
+        AgentExecutionContext executionContext,
+        CancellationToken cancellationToken)
+    {
+        if (agent is Agent runtimeAgent)
+        {
+            return await runtimeAgent.RunCoreAsync(
+                context,
+                executionContext,
+                cancellationToken);
+        }
+
+        var hadLifecycleMarker =
+            context.Items.TryGetValue(
+                PipelineContextKeys.RuntimeAgentLifecycleManaged,
+                out var previousLifecycleMarker);
+
+        context.Items[PipelineContextKeys.RuntimeAgentLifecycleManaged] =
+            true;
+
+        try
+        {
+            return await agent.RunAsync(
+                context,
+                cancellationToken);
+        }
+        finally
+        {
+            if (hadLifecycleMarker)
+            {
+                context.Items[PipelineContextKeys.RuntimeAgentLifecycleManaged] =
+                    previousLifecycleMarker;
+            }
+            else
+            {
+                context.Items.Remove(
+                    PipelineContextKeys.RuntimeAgentLifecycleManaged);
+            }
+        }
+    }
+
+    private static bool IsAgentLifecycleManaged(
+        PipelineContext context)
+        => context.Items.TryGetValue(
+                PipelineContextKeys.RuntimeAgentLifecycleManaged,
+                out var lifecycleManaged)
+            && lifecycleManaged is true;
+
     private IChatClient ResolveClient(
         string? model = null)
     {
@@ -435,7 +681,7 @@ public sealed class AgentRuntime : IAgentRuntime
         IDictionary<string, object?> metadata)
         => new Dictionary<string, object?>(metadata);
 
-    private static IDictionary<string, object?> SnapshotPipelineMetadata(
+    private static Dictionary<string, object?> SnapshotPipelineMetadata(
         IDictionary<string, object?> metadata)
     {
         var snapshot = new Dictionary<string, object?>();
@@ -443,6 +689,11 @@ public sealed class AgentRuntime : IAgentRuntime
         foreach (var item in metadata)
         {
             if (item.Key == PipelineContextKeys.RuntimeEventDispatcher)
+            {
+                continue;
+            }
+
+            if (item.Key == PipelineContextKeys.RuntimeAgentLifecycleManaged)
             {
                 continue;
             }

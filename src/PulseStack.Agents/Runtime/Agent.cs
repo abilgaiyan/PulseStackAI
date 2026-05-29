@@ -8,7 +8,7 @@ namespace PulseStack.Agents.Runtime;
 
 internal sealed class Agent : IAgent
 {
-    private readonly IAgentRuntime _runtime;
+    private readonly AgentRuntime _runtime;
     private readonly IReadOnlyCollection<string>? _fallbackModels;
     private readonly string? _model;
 
@@ -98,6 +98,20 @@ internal sealed class Agent : IAgent
 
         return _runtime.RunAsync(
             context,
+            cancellationToken);
+    }
+
+    internal Task<ChatResponse> RunCoreAsync(
+        PipelineContext context,
+        AgentExecutionContext executionContext,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(executionContext);
+
+        return _runtime.RunCoreAsync(
+            context,
+            executionContext,
             cancellationToken);
     }
 

@@ -8,6 +8,8 @@ internal static class PipelineContextKeys
 
     public const string RuntimeEventDispatcher = "runtime:event-dispatcher";
 
+    public const string RuntimeAgentLifecycleManaged = "runtime:agent-lifecycle-managed";
+
     public static string AgentOutput(
         string agentName)
         => $"agent:{agentName}:output";

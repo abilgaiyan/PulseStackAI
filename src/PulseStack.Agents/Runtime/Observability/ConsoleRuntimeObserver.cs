@@ -55,6 +55,15 @@ public sealed class ConsoleRuntimeObserver
                 WriteLine("Success", toolExecuted.IsSuccess);
                 WriteOptionalLine("Error", toolExecuted.ErrorMessage);
                 break;
+
+            case AgentRetryEvent retry:
+                Console.WriteLine();
+                Console.WriteLine("[Agent Retry]");
+                Console.WriteLine($"Agent : {retry.AgentName}");
+                Console.WriteLine($"Attempt : {retry.Attempt}");
+                Console.WriteLine($"Reason : {retry.Error}");
+                break;    
+                            
         }
 
         return Task.CompletedTask;

@@ -90,6 +90,8 @@ public class PipelineRuntimeTests
             .Should()
             .Equal(
                 typeof(PipelineStartedEvent),
+                typeof(AgentStartedEvent),
+                typeof(AgentCompletedEvent),
                 typeof(PipelineCompletedEvent));
 
         dispatcher.Events.Select(e => e.ExecutionId)

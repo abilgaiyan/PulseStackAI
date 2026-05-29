@@ -1,17 +1,32 @@
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
 using PulseStack.Agents.Runtime.Context;
+using PulseStack.Agents.Runtime.Diagnostics;
 
 namespace PulseStack.Agents.Runtime;
 
 internal sealed class SequentialPipelineExecutionStrategy
     : IPipelineExecutionStrategy
 {
+    private readonly AgentRuntime _agentRuntime;
+
+    public SequentialPipelineExecutionStrategy()
+        : this(new AgentRuntime(new RuntimeEventDispatcher()))
+    {
+    }
+
+    internal SequentialPipelineExecutionStrategy(
+        AgentRuntime agentRuntime)
+    {
+        _agentRuntime = agentRuntime ?? throw new ArgumentNullException(nameof(agentRuntime));
+    }
+
     public async Task<PipelineExecutionState> ExecuteAsync(
         string pipelineName,
         IReadOnlyList<IAgent> agents,
         PipelineContext context,
         AgentExecutionContext executionContext,
+        PipelineExecutionPolicy policy,
         CancellationToken cancellationToken = default)
     {
         var errors =
@@ -21,68 +36,60 @@ internal sealed class SequentialPipelineExecutionStrategy
         {
             var input =
                 context.CurrentOutput;
-            var startedAt = DateTimeOffset.UtcNow;    
 
-            try
+            var result =
+                await _agentRuntime.ExecuteAsync(
+                    agent,
+                    context,
+                    executionContext,
+                    policy,
+                    cancellationToken);
+
+            context.Steps.Add(
+                new PipelineStepResult(
+                    agent.Name,
+                    agent.Model,
+                    input,
+                    result.Success ? result.Output : null,
+                    result.Success,
+                    result.StartedAt,
+                    result.CompletedAt,
+                    result.RetryCount));
+
+            if (result.Success)
             {
-               
-                var response = 
-                    await agent.RunAsync(
-                        context,
-                        cancellationToken);
-                var completedAt = DateTimeOffset.UtcNow;                        
-
-                var output =
-                    response.Text
-                    ?? context.CurrentOutput
-                    ?? string.Empty;
-
-                context.CurrentOutput =
-                    output;
-
-                context.Steps.Add(
-                    new PipelineStepResult(
-                        agent.Name,
-                        agent.Model,
-                        input,
-                        output,
-                        Success: true,
-                        startedAt,
-                        completedAt));
+                continue;
             }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                var completedAt = DateTimeOffset.UtcNow;
-                context.Steps.Add(
-                    new PipelineStepResult(
+
+            var exception =
+                result.Exception
+                ?? new InvalidOperationException(
+                    "Agent execution failed.");
+
+            errors.Add(
+                new PipelineExecutionError
+                {
+                    Code =
+                        "sequential_agent_execution_failed",
+
+                    Message =
+                        exception.Message,
+
+                    AgentName =
                         agent.Name,
-                        agent.Model,
-                        input,
-                        null,
-                        Success: false,
-                        startedAt,
-                        completedAt));
 
-                errors.Add(
-                    new PipelineExecutionError
-                    {
-                        Code = "sequential_agent_execution_failed",
+                    Exception =
+                        exception
+                });
 
-                        Message = ex.Message,
+            context.Items[
+                PipelineContextKeys.AgentError(
+                    agent.Name)] =
+                        exception.Message;
 
-                        AgentName = agent.Name,
-
-                        Exception = ex
-                    });
-
-                context.Items[
-                    PipelineContextKeys.AgentError(
-                        agent.Name)] =
-                            ex.Message;
+            if (!policy.ContinueOnAgentFailure)
+            {
+                throw exception;
             }
         }
 

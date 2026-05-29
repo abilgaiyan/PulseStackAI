@@ -7,7 +7,8 @@ public sealed record PipelineStepResult(
     string? Output,
     bool Success,
     DateTimeOffset StartedAt,
-    DateTimeOffset CompletedAt)
+    DateTimeOffset CompletedAt,
+    int? RetryCount = 0)
 {
     public TimeSpan Duration =>
         CompletedAt - StartedAt;
