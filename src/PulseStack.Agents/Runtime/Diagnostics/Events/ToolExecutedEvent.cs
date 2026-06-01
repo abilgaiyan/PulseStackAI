@@ -11,5 +11,7 @@ public sealed record ToolExecutedEvent(
     Guid? BranchId,
     bool IsSuccess,
     string? ErrorMessage,
-    IReadOnlyDictionary<string, object?> Metadata)
+    IReadOnlyDictionary<string, object?> Metadata,
+    string Category = "",
+    TimeSpan? Duration = null)
     : IRuntimeEvent;

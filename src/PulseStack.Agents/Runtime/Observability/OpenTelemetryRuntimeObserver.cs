@@ -211,6 +211,7 @@ public sealed class OpenTelemetryRuntimeObserver
             new ActivityTagsCollection
             {
                 ["tool.name"] = runtimeEvent.ToolName,
+                ["tool.category"] = runtimeEvent.Category,
                 ["agent.name"] = runtimeEvent.AgentName,
                 ["execution.id"] = runtimeEvent.ExecutionId.ToString(),
                 ["branch.id"] = runtimeEvent.BranchId?.ToString()
@@ -240,12 +241,26 @@ public sealed class OpenTelemetryRuntimeObserver
             runtimeEvent.ToolName);
 
         scope.Activity?.SetTag(
+            "tool.category",
+            runtimeEvent.Category);
+
+        scope.Activity?.SetTag(
+            "tool.success",
+            runtimeEvent.IsSuccess);
+
+        scope.Activity?.SetTag(
+            "tool.duration.ms",
+            runtimeEvent.Duration?.TotalMilliseconds
+            ?? DurationMilliseconds(scope.StartedAt, runtimeEvent.Timestamp));
+
+        scope.Activity?.SetTag(
             "success",
             runtimeEvent.IsSuccess);
 
         scope.Activity?.SetTag(
             "duration.ms",
-            DurationMilliseconds(scope.StartedAt, runtimeEvent.Timestamp));
+            runtimeEvent.Duration?.TotalMilliseconds
+            ?? DurationMilliseconds(scope.StartedAt, runtimeEvent.Timestamp));
 
         if (!runtimeEvent.IsSuccess)
         {

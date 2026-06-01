@@ -75,6 +75,26 @@ internal static class ExecutionSummaryPrinter
                 "Usage information not available.");
         }
 
+        Console.WriteLine();
+
+        Console.WriteLine(
+            "Tool Summary");
+
+        Console.WriteLine(
+            "------------");
+
+        Console.WriteLine(
+            $"Total Invocations : {result.ToolSummary.TotalInvocations}");
+
+        Console.WriteLine(
+            $"Successful        : {result.ToolSummary.SuccessfulExecutions}");
+
+        Console.WriteLine(
+            $"Failed            : {result.ToolSummary.FailedExecutions}");
+
+        Console.WriteLine(
+            $"Total Duration    : {result.ToolSummary.TotalDuration.TotalMilliseconds:n0} ms");
+
         if (result.Errors.Count > 0)
         {
             Console.WriteLine();

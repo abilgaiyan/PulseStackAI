@@ -21,6 +21,9 @@ public sealed class ToolExecutor : IToolExecutor
         ArgumentNullException.ThrowIfNull(tool);
         ArgumentNullException.ThrowIfNull(context);
 
+        var startedAt =
+            DateTimeOffset.UtcNow;
+
         var authorized = await _authorization.AuthorizeAsync(
             tool.Descriptor,
             context,
@@ -28,12 +31,82 @@ public sealed class ToolExecutor : IToolExecutor
 
         if (!authorized)
         {
-            return ToolExecutionResult.Forbidden(
-                $"Access denied for tool '{tool.Name}'.");
+            return WithMetadata(
+                ToolExecutionResult.Forbidden(
+                    $"Access denied for tool '{tool.Name}'."),
+                tool,
+                context,
+                startedAt,
+                DateTimeOffset.UtcNow);
         }
 
-        return await tool.ExecuteAsync(
+        var result = await tool.ExecuteAsync(
             context,
             cancellationToken);
+
+        return WithMetadata(
+            result,
+            tool,
+            context,
+            startedAt,
+            DateTimeOffset.UtcNow);
+    }
+
+    private static IToolExecutionResult WithMetadata(
+        IToolExecutionResult result,
+        ITool tool,
+        ToolExecutionContext context,
+        DateTimeOffset startedAt,
+        DateTimeOffset completedAt)
+    {
+        var metadata =
+            new ToolExecutionMetadata
+            {
+                ExecutionId =
+                    context.ExecutionId,
+
+                StartedAt =
+                    startedAt,
+
+                CompletedAt =
+                    completedAt,
+
+                Duration =
+                    completedAt - startedAt,
+
+                Success =
+                    result.IsSuccess,
+
+                ToolName =
+                    tool.Name,
+
+                Category =
+                    tool.Category
+            };
+
+        if (result is ToolExecutionResult toolExecutionResult)
+        {
+            toolExecutionResult.Metadata = metadata;
+
+            return toolExecutionResult;
+        }
+
+        return new ToolExecutionResult
+        {
+            IsSuccess =
+                result.IsSuccess,
+
+            ErrorMessage =
+                result.ErrorMessage,
+
+            Value =
+                result.Value,
+
+            Metadata =
+                metadata,
+
+            Artifacts =
+                result.Artifacts
+        };
     }
 }

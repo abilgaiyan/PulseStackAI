@@ -4,6 +4,7 @@ using PulseStack.Abstractions.Runtime.Pipeline;
 using PulseStack.Agents.Runtime.Context;
 using PulseStack.Agents.Runtime.Diagnostics;
 using PulseStack.Agents.Runtime.Diagnostics.Events;
+using PulseStack.Agents.Runtime.Tools;
 
 namespace PulseStack.Agents.Runtime;
 
@@ -126,6 +127,10 @@ internal sealed class PipelineRuntime
                     TotalUsage =
                         state.TotalUsage,
 
+                    ToolSummary =
+                        new ToolExecutionAggregator()
+                            .Aggregate(context.ToolResults),
+
                     StartedAt =
                         startedAt,
 
@@ -180,6 +185,10 @@ internal sealed class PipelineRuntime
                     }
                 ],
 
+                ToolSummary =
+                    new ToolExecutionAggregator()
+                        .Aggregate(context.ToolResults),
+
                 StartedAt =
                     startedAt,
 
@@ -222,6 +231,10 @@ internal sealed class PipelineRuntime
                         Exception = ex
                     }
                 ],
+
+                ToolSummary =
+                    new ToolExecutionAggregator()
+                        .Aggregate(context.ToolResults),
 
                 StartedAt =
                     startedAt,

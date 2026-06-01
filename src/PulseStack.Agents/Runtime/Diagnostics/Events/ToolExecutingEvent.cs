@@ -9,5 +9,6 @@ public sealed record ToolExecutingEvent(
     string Input,
     string? AgentName,
     Guid? BranchId,
-    IReadOnlyDictionary<string, object?> Metadata)
+    IReadOnlyDictionary<string, object?> Metadata,
+    string Category = "")
     : IRuntimeEvent;

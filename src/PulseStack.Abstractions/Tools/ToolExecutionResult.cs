@@ -9,7 +9,7 @@ public class ToolExecutionResult
 
     public object? Value { get; init; }
 
-    public ToolExecutionMetadata Metadata { get; init; }
+    public ToolExecutionMetadata Metadata { get; set; }
         = new();
 
     public IReadOnlyCollection<IToolArtifact> Artifacts { get; init; }

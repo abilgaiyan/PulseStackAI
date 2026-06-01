@@ -2,11 +2,10 @@ namespace PulseStack.Abstractions.Tools;
 
 public sealed class ToolExecutionMetadata
 {
+    private readonly TimeSpan? _duration;
+
     public Guid ExecutionId { get; init; }
         = Guid.NewGuid();
-
-    public string ToolName { get; init; }
-        = string.Empty;
 
     public DateTimeOffset StartedAt { get; init; }
         = DateTimeOffset.UtcNow;
@@ -15,5 +14,16 @@ public sealed class ToolExecutionMetadata
         = DateTimeOffset.UtcNow;
 
     public TimeSpan Duration
-        => CompletedAt - StartedAt;
+    {
+        get => _duration ?? CompletedAt - StartedAt;
+        init => _duration = value;
+    }
+
+    public bool Success { get; init; }
+
+    public string ToolName { get; init; }
+        = string.Empty;
+
+    public string Category { get; init; }
+        = string.Empty;
 }

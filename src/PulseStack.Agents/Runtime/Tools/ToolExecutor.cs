@@ -78,7 +78,8 @@ public sealed class ToolExecutor : IToolExecutor
                     context.BranchId,
                     false,
                     $"Tool '{tool.Name}' is disabled.",
-                    SnapshotMetadata(context.Metadata)));
+                    SnapshotMetadata(context.Metadata),
+                    tool.Category));
 
             return new ChatMessage(
                 ChatRole.Tool,
@@ -104,8 +105,19 @@ public sealed class ToolExecutor : IToolExecutor
         }
         catch (Exception ex)
         {
-            result = ToolExecutionResult.Failure($"Tool '{tool.Name}' failed: {ex.Message}");
+            result = CreateRuntimeFailure(
+                tool,
+                ex.Message);
         }
+
+        var resultRecord =
+            ToToolExecutionResult(result);
+
+        context.PipelineContext.ToolResults.Add(
+            new PulseStack.Abstractions.Tools.ToolExecutionRecord(
+                tool.Name,
+                toolCall.Input,
+                resultRecord));
 
         context.EventDispatcher.Dispatch(
             new ToolExecutedEvent(
@@ -117,7 +129,9 @@ public sealed class ToolExecutor : IToolExecutor
                 context.BranchId,
                 result.IsSuccess,
                 result.ErrorMessage,
-                SnapshotMetadata(context.Metadata)));
+                SnapshotMetadata(context.Metadata),
+                result.Metadata.Category,
+                result.Metadata.Duration));
 
         var formatted = FormatResult(result);
         var toolContent = result.IsSuccess
@@ -127,6 +141,56 @@ public sealed class ToolExecutor : IToolExecutor
         return new ChatMessage(
             ChatRole.Tool,
             toolContent);
+    }
+
+    private static ToolExecutionResult CreateRuntimeFailure(
+        ITool tool,
+        string errorMessage)
+    {
+        var completedAt =
+            DateTimeOffset.UtcNow;
+
+        return new ToolExecutionResult
+        {
+            IsSuccess = false,
+            ErrorMessage = $"Tool '{tool.Name}' failed: {errorMessage}",
+            Metadata = new ToolExecutionMetadata
+            {
+                StartedAt = completedAt,
+                CompletedAt = completedAt,
+                Duration = TimeSpan.Zero,
+                Success = false,
+                ToolName = tool.Name,
+                Category = tool.Category
+            }
+        };
+    }
+
+    private static ToolExecutionResult ToToolExecutionResult(
+        IToolExecutionResult result)
+    {
+        if (result is ToolExecutionResult toolExecutionResult)
+        {
+            return toolExecutionResult;
+        }
+
+        return new ToolExecutionResult
+        {
+            IsSuccess =
+                result.IsSuccess,
+
+            ErrorMessage =
+                result.ErrorMessage,
+
+            Value =
+                result.Value,
+
+            Metadata =
+                result.Metadata,
+
+            Artifacts =
+                result.Artifacts
+        };
     }
 
     internal static string FormatResult(

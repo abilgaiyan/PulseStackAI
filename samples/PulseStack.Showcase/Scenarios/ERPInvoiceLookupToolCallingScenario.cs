@@ -74,6 +74,12 @@ internal static class ERPInvoiceLookupToolCallingScenario
             "-------------");
 
         Console.WriteLine(
-            $"Tags : {string.Join(", ", tool.Tags)}");
+            $"Duration : {result.Metadata.Duration.TotalMilliseconds:n0} ms");
+
+        Console.WriteLine(
+            $"Success  : {result.Metadata.Success}");
+
+        Console.WriteLine(
+            $"Tags     : {string.Join(", ", tool.Tags)}");
     }
 }

@@ -172,7 +172,9 @@ public class RuntimeObservabilityTests
                 branchId,
                 true,
                 null,
-                new Dictionary<string, object?>()));
+                new Dictionary<string, object?>(),
+                "ERP",
+                TimeSpan.FromMilliseconds(82)));
 
         await observer.OnEventAsync(
             new AgentCompletedEvent(
@@ -225,6 +227,9 @@ public class RuntimeObservabilityTests
         var tool = activities.Single(activity =>
             activity.OperationName == "tool.execute");
         tool.GetTagItem("tool.name").Should().Be("LookupInvoice");
+        tool.GetTagItem("tool.category").Should().Be("ERP");
+        tool.GetTagItem("tool.duration.ms").Should().Be(82d);
+        tool.GetTagItem("tool.success").Should().Be(true);
         tool.GetTagItem("success").Should().Be(true);
     }
 

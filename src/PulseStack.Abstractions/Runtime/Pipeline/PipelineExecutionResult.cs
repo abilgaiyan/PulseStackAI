@@ -1,4 +1,5 @@
 using PulseStack.Abstractions.Agents;
+using PulseStack.Abstractions.Runtime.Tools;
 using PulseStack.Abstractions.Runtime.Usage;
 
 namespace PulseStack.Abstractions.Runtime.Pipeline;
@@ -20,6 +21,9 @@ public sealed class PipelineExecutionResult
         = [];
 
     public AIUsage TotalUsage { get; init; }
+        = new();
+
+    public ToolExecutionSummary ToolSummary { get; init; }
         = new();
 
     public DateTimeOffset StartedAt { get; init; }
