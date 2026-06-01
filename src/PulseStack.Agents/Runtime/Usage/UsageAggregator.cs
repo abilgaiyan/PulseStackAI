@@ -39,12 +39,16 @@ public sealed class UsageAggregator
             Provider =
                 providers.Count == 1
                     ? providers[0]
-                    : "Multiple",
+                    : providers.Count == 0
+                        ? string.Empty
+                        : "Multiple",
 
             Model =
                 models.Count == 1
                     ? models[0]
-                    : "Multiple",
+                    : models.Count == 0
+                        ? string.Empty
+                        : "Multiple",
 
             PromptTokens =
                 availableUsages.Sum(usage => usage.PromptTokens),

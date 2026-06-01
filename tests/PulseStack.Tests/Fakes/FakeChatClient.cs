@@ -4,11 +4,21 @@ namespace PulseStack.Tests.Fakes;
 
 internal sealed class FakeChatClient : IChatClient
 {
-    private readonly Queue<string> _responses;
+    private readonly Queue<ChatResponse> _responses;
 
     public FakeChatClient(IEnumerable<string> responses)
     {
-        _responses = new Queue<string>(responses);
+        _responses = new Queue<ChatResponse>(
+            responses.Select(response =>
+                new ChatResponse(
+                    new ChatMessage(
+                        ChatRole.Assistant,
+                        response))));
+    }
+
+    public FakeChatClient(IEnumerable<ChatResponse> responses)
+    {
+        _responses = new Queue<ChatResponse>(responses);
     }
 
     public Task<ChatResponse> GetResponseAsync(
@@ -16,13 +26,8 @@ internal sealed class FakeChatClient : IChatClient
         ChatOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        var text = _responses.Dequeue();
-
         return Task.FromResult(
-            new ChatResponse(
-                new ChatMessage(
-                    ChatRole.Assistant,
-                    text)));
+            _responses.Dequeue());
     }
 
    public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
@@ -33,7 +38,7 @@ internal sealed class FakeChatClient : IChatClient
     {
         while (_responses.Count > 0)
         {
-            yield return new ChatResponseUpdate(ChatRole.Assistant, _responses.Dequeue());
+            yield return new ChatResponseUpdate(ChatRole.Assistant, _responses.Dequeue().Text);
         }
         await Task.CompletedTask;
     }

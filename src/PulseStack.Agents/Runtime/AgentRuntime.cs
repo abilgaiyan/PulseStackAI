@@ -29,11 +29,13 @@ public sealed class AgentRuntime : IAgentRuntime
     private readonly string? _model;
     private readonly IAgent? _agent;
     private readonly IRuntimeEventDispatcher _eventDispatcher;
+    private readonly UsageExtractorRegistry _usageExtractors;
 
     internal AgentRuntime(
         IRuntimeEventDispatcher eventDispatcher)
     {
         _eventDispatcher = eventDispatcher ?? throw new ArgumentNullException(nameof(eventDispatcher));
+        _usageExtractors = UsageExtractorRegistry.CreateDefault();
     }
 
     public AgentRuntime(
@@ -67,7 +69,8 @@ public sealed class AgentRuntime : IAgentRuntime
         IConversationMemory? memory,
         string? model,
         IAgent? agent,
-        IRuntimeEventDispatcher eventDispatcher)
+        IRuntimeEventDispatcher eventDispatcher,
+        UsageExtractorRegistry? usageExtractors = null)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
         _instructions = instructions;
@@ -77,6 +80,9 @@ public sealed class AgentRuntime : IAgentRuntime
         _model = model;
         _agent = agent;
         _eventDispatcher = eventDispatcher ?? throw new ArgumentNullException(nameof(eventDispatcher));
+        _usageExtractors =
+            usageExtractors
+            ?? UsageExtractorRegistry.CreateDefault();
         _toolExecutionLoop = new ToolExecutionLoop(
             tools,
             new RuntimeToolExecutor(toolExecutor));
@@ -113,7 +119,8 @@ public sealed class AgentRuntime : IAgentRuntime
         IToolRegistry? tools,
         IConversationMemory? memory,
         IAgent? agent,
-        IRuntimeEventDispatcher eventDispatcher)
+        IRuntimeEventDispatcher eventDispatcher,
+        UsageExtractorRegistry? usageExtractors = null)
     {
         _clientFactory = clientFactory ?? throw new ArgumentNullException(nameof(clientFactory));
         _model = string.IsNullOrWhiteSpace(model)
@@ -125,6 +132,9 @@ public sealed class AgentRuntime : IAgentRuntime
         _memory = memory;
         _agent = agent;
         _eventDispatcher = eventDispatcher ?? throw new ArgumentNullException(nameof(eventDispatcher));
+        _usageExtractors =
+            usageExtractors
+            ?? UsageExtractorRegistry.CreateDefault();
         _toolExecutionLoop = new ToolExecutionLoop(
             tools,
             new RuntimeToolExecutor(toolExecutor));
@@ -269,9 +279,12 @@ public sealed class AgentRuntime : IAgentRuntime
                     output;
 
                 var usage =
-                    ExtractUsage(
+                    _usageExtractors.Extract(
                         response,
-                        agent);
+                        new UsageExtractionContext
+                        {
+                            Model = agent.Model
+                        });
 
                 var completedAt =
                     DateTimeOffset.UtcNow;
@@ -623,22 +636,6 @@ public sealed class AgentRuntime : IAgentRuntime
                     PipelineContextKeys.RuntimeAgentLifecycleManaged);
             }
         }
-    }
-
-    private static AIUsage? ExtractUsage(
-        ChatResponse response,
-        IAgent agent)
-    {
-        ArgumentNullException.ThrowIfNull(response);
-        ArgumentNullException.ThrowIfNull(agent);
-
-        // TODO:
-        // Extract provider usage from supported provider responses.
-        // OpenAI, Anthropic, Groq, Gemini, and OpenRouter expose
-        // token accounting through different metadata shapes.
-        // Keep this provider-agnostic until response metadata
-        // contracts are stabilized.
-        return null;
     }
 
     private static bool IsAgentLifecycleManaged(

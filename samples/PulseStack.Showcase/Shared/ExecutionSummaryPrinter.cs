@@ -55,10 +55,10 @@ internal static class ExecutionSummaryPrinter
         if (result.TotalUsage.TotalTokens > 0)
         {
             Console.WriteLine(
-                $"Provider           : {result.TotalUsage.Provider}");
+                $"Provider           : {FormatUsageValue(result.TotalUsage.Provider)}");
 
             Console.WriteLine(
-                $"Model              : {result.TotalUsage.Model}");
+                $"Model              : {FormatUsageValue(result.TotalUsage.Model)}");
 
             Console.WriteLine(
                 $"Prompt Tokens      : {result.TotalUsage.PromptTokens}");
@@ -103,4 +103,10 @@ internal static class ExecutionSummaryPrinter
         Console.WriteLine(
             result.FinalOutput);
     }
+
+    private static string FormatUsageValue(
+        string value)
+        => string.IsNullOrWhiteSpace(value)
+            ? "Not reported"
+            : value;
 }
