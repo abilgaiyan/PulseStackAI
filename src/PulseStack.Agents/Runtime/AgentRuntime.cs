@@ -289,7 +289,11 @@ public sealed class AgentRuntime : IAgentRuntime
                         response,
                         new UsageExtractionContext
                         {
-                            Model = agent.Model
+                            Model = agent.Model,
+                            Provider =
+                                ProviderModelParser
+                                    .ExtractProvider(
+                                        agent.Model)
                         });
 
                 var completedAt =
