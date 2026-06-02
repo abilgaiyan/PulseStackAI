@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using PulseStack.Agents.Runtime.Diagnostics;
 
 namespace PulseStack.Agents.Runtime.Diagnostics.Events;
@@ -11,7 +13,7 @@ public sealed record ToolExecutedEvent(
     Guid? BranchId,
     bool IsSuccess,
     string? ErrorMessage,
-    IReadOnlyDictionary<string, object?> Metadata,
     string Category = "",
-    TimeSpan? Duration = null)
+    TimeSpan? Duration = null,
+    IReadOnlyDictionary<string, object?> Metadata = null!)
     : IRuntimeEvent;

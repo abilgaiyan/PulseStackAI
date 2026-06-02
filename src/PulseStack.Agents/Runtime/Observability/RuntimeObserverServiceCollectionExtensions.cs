@@ -30,4 +30,15 @@ public static class RuntimeObserverServiceCollectionExtensions
 
         return services;
     }
+
+    public static IServiceCollection
+        AddOpenTelemetryMetricsObserver(
+            this IServiceCollection services)
+    {
+        services.AddSingleton<
+            IRuntimeObserver,
+            OpenTelemetryMetricsObserver>();
+
+        return services;
+    }    
 }

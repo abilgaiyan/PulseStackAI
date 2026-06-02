@@ -185,11 +185,12 @@ public sealed class AgentRuntime : IAgentRuntime
             eventDispatcher: eventDispatcher);
 
         var options = BuildChatOptions();
+        var startedAt = DateTimeOffset.UtcNow;
 
         executionContext.EventDispatcher.Dispatch(
             new AgentStartedEvent(
                 executionContext.ExecutionId,
-                DateTimeOffset.UtcNow,
+                startedAt,
                 _agent?.Name,
                 _model,
                 executionContext.BranchId,
@@ -200,31 +201,36 @@ public sealed class AgentRuntime : IAgentRuntime
             var response = await ExecuteToolLoopAsync(
                 executionContext,
                 options);
-
+            var completedAt = DateTimeOffset.UtcNow; 
+           
             executionContext.EventDispatcher.Dispatch(
                 new AgentCompletedEvent(
                     executionContext.ExecutionId,
-                    DateTimeOffset.UtcNow,
+                    startedAt,
                     _agent?.Name,
                     _model,
                     executionContext.BranchId,
                     true,
                     null,
+                    completedAt - startedAt,
                     SnapshotMetadata(executionContext.Metadata)));
 
             return response;
         }
         catch (Exception ex)
         {
+            var completedAt =
+                DateTimeOffset.UtcNow;
             executionContext.EventDispatcher.Dispatch(
                 new AgentCompletedEvent(
                     executionContext.ExecutionId,
-                    DateTimeOffset.UtcNow,
+                    startedAt,
                     _agent?.Name,
                     _model,
                     executionContext.BranchId,
                     false,
                     ex.Message,
+                    completedAt - startedAt,
                     SnapshotMetadata(executionContext.Metadata)));
 
             throw;
@@ -298,6 +304,7 @@ public sealed class AgentRuntime : IAgentRuntime
                         executionContext.BranchId,
                         true,
                         null,
+                        completedAt - startedAt,
                         SnapshotPipelineMetadata(context.Items)));
 
                 return new AgentExecutionResult
@@ -325,6 +332,7 @@ public sealed class AgentRuntime : IAgentRuntime
                         executionContext.BranchId,
                         false,
                         ex.Message,
+                        completedAt - startedAt,
                         SnapshotPipelineMetadata(context.Items)));
 
                 throw;
@@ -358,6 +366,7 @@ public sealed class AgentRuntime : IAgentRuntime
                         executionContext.BranchId,
                         false,
                         ex.Message,
+                        completedAt - startedAt,
                         SnapshotPipelineMetadata(context.Items)));
 
                 return new AgentExecutionResult

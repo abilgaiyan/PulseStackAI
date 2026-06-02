@@ -10,5 +10,6 @@ public sealed record AgentCompletedEvent(
     Guid? BranchId,
     bool IsSuccess,
     string? ErrorMessage,
+    TimeSpan Duration,
     IReadOnlyDictionary<string, object?> Metadata)
     : IRuntimeEvent;

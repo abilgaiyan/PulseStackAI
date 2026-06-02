@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics;
+using PulseStack.Abstractions.Runtime.Usage;
 using PulseStack.Agents.Runtime.Diagnostics;
 using PulseStack.Agents.Runtime.Diagnostics.Events;
 using PulseStack.Agents.Runtime.Observability;
@@ -92,6 +93,8 @@ public class RuntimeObservabilityTests
                     null,
                     true,
                     null,
+                    "ERP",
+                    TimeSpan.FromMilliseconds(82),
                     new Dictionary<string, object?>()));
         }
         finally
@@ -172,9 +175,9 @@ public class RuntimeObservabilityTests
                 branchId,
                 true,
                 null,
-                new Dictionary<string, object?>(),
                 "ERP",
-                TimeSpan.FromMilliseconds(82)));
+                TimeSpan.FromMilliseconds(82),
+                new Dictionary<string, object?>()));
 
         await observer.OnEventAsync(
             new AgentCompletedEvent(
@@ -185,6 +188,7 @@ public class RuntimeObservabilityTests
                 branchId,
                 true,
                 null,
+                TimeSpan.FromSeconds(5),
                 new Dictionary<string, object?>()));
 
         await observer.OnEventAsync(
@@ -195,6 +199,8 @@ public class RuntimeObservabilityTests
                 1,
                 1,
                 0,
+                TimeSpan.FromSeconds(6),
+                new AIUsage(),
                 new Dictionary<string, object?>()));
 
         activities.Select(activity => activity.OperationName)
@@ -271,6 +277,7 @@ public class RuntimeObservabilityTests
                 null,
                 false,
                 "Permanent failure.",
+                TimeSpan.FromSeconds(1),
                 new Dictionary<string, object?>()));
 
         var agent = activities.Should().ContainSingle()

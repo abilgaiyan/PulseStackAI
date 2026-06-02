@@ -7,5 +7,6 @@ public enum ExecutionStatus
     Completed = 2,
     PartialSuccess = 3,
     Failed = 4,
-    Cancelled = 5
+    Cancelled = 5,
+    TimedOut = 6
 }

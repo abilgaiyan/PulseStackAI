@@ -27,5 +27,7 @@ await ToolCallingScenario.RunAsync(services);
 
 await ERPInvoiceLookupToolCallingScenario.RunAsync(services);
 
+await OpenTelemetryMetricsScenario.RunAsync(services);
+
 Console.WriteLine();
 Console.WriteLine("Showcase complete.");

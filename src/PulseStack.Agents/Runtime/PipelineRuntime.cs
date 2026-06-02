@@ -149,6 +149,8 @@ internal sealed class PipelineRuntime
                     agents.Count,
                     successfulAgents,
                     state.Errors.Count,
+                    completedAt - startedAt,
+                    state.TotalUsage,
                     SnapshotMetadata(context.Items)));
 
             return result;
@@ -158,11 +160,17 @@ internal sealed class PipelineRuntime
             var completedAt =
                 DateTimeOffset.UtcNow;
 
+            var timedOut =
+                timeoutCts?.IsCancellationRequested == true &&
+                !cancellationToken.IsCancellationRequested;    
+
             return new PipelineExecutionResult
             {
                 Success = false,
 
-                Status = ExecutionStatus.Cancelled,
+                Status = timedOut
+                    ? ExecutionStatus.TimedOut
+                    : ExecutionStatus.Cancelled,
 
                 ExecutionId =
                     executionContext.ExecutionId,
@@ -178,10 +186,13 @@ internal sealed class PipelineRuntime
                 [
                     new PipelineExecutionError
                     {
-                        Code = "pipeline_cancelled",
+                        Code = timedOut
+                            ? "pipeline_timeout"
+                            : "pipeline_cancelled",
 
-                        Message =
-                            "Pipeline execution was cancelled."
+                        Message = timedOut
+                            ? "Pipeline execution exceeded the configured timeout."
+                            : "Pipeline execution was cancelled."
                     }
                 ],
 

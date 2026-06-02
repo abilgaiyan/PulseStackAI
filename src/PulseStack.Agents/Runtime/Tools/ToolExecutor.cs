@@ -34,10 +34,11 @@ public sealed class ToolExecutor : IToolExecutor
         IToolRegistry tools,
         AgentExecutionContext context)
     {
+        var startedAt = DateTimeOffset.UtcNow;
         context.EventDispatcher.Dispatch(
             new ToolExecutingEvent(
                 context.ExecutionId,
-                DateTimeOffset.UtcNow,
+                startedAt,
                 toolCall.Tool,
                 toolCall.Input,
                 context.Agent?.Name,
@@ -49,6 +50,7 @@ public sealed class ToolExecutor : IToolExecutor
 
         if (tool is null)
         {
+            var completedAt = DateTimeOffset.UtcNow;
             context.EventDispatcher.Dispatch(
                 new ToolExecutedEvent(
                     context.ExecutionId,
@@ -59,6 +61,8 @@ public sealed class ToolExecutor : IToolExecutor
                     context.BranchId,
                     false,
                     $"Tool '{toolCall.Tool}' not found.",
+                    "",
+                    completedAt - startedAt,
                     SnapshotMetadata(context.Metadata)));
 
             return new ChatMessage(
@@ -78,8 +82,9 @@ public sealed class ToolExecutor : IToolExecutor
                     context.BranchId,
                     false,
                     $"Tool '{tool.Name}' is disabled.",
-                    SnapshotMetadata(context.Metadata),
-                    tool.Category));
+                    tool.Category,
+                    TimeSpan.Zero,
+                    SnapshotMetadata(context.Metadata)));
 
             return new ChatMessage(
                 ChatRole.Tool,
@@ -129,9 +134,9 @@ public sealed class ToolExecutor : IToolExecutor
                 context.BranchId,
                 result.IsSuccess,
                 result.ErrorMessage,
-                SnapshotMetadata(context.Metadata),
                 result.Metadata.Category,
-                result.Metadata.Duration));
+                result.Metadata.Duration,
+                SnapshotMetadata(context.Metadata)));
 
         var formatted = FormatResult(result);
         var toolContent = result.IsSuccess
