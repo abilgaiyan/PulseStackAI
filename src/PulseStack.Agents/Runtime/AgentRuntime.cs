@@ -263,6 +263,8 @@ public sealed class AgentRuntime : IAgentRuntime
                 executionContext.BranchId,
                 SnapshotPipelineMetadata(context.Items)));
 
+                AIUsage? usage = null;
+
         while (true)
         {
             try
@@ -284,17 +286,23 @@ public sealed class AgentRuntime : IAgentRuntime
                 context.CurrentOutput =
                     output;
 
-                var usage =
-                    _usageExtractors.Extract(
-                        response,
-                        new UsageExtractionContext
-                        {
-                            Model = agent.Model,
-                            Provider =
-                                ProviderModelParser
-                                    .ExtractProvider(
-                                        agent.Model)
-                        });
+            var model =
+                response.ModelId
+                ?? agent.Model
+                ?? string.Empty;
+
+            var provider =
+                ProviderModelParser
+                    .ExtractProvider(model);
+
+            usage =
+                _usageExtractors.Extract(
+                    response,
+                    new UsageExtractionContext
+                    {
+                        Model = model,
+                        Provider = provider
+                    });
 
                 var completedAt =
                     DateTimeOffset.UtcNow;
@@ -379,6 +387,7 @@ public sealed class AgentRuntime : IAgentRuntime
                     Output = context.CurrentOutput ?? string.Empty,
                     RetryCount = retryCount,
                     Exception = ex,
+                    Usage = usage,
                     StartedAt = startedAt,
                     CompletedAt = completedAt
                 };
