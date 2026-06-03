@@ -36,9 +36,9 @@ public sealed class ChatResponseUsageExtractor : IUsageExtractor
                 ?? string.Empty,
 
             Model =
-                context.Model
-                ?? response.ModelId
-                ?? string.Empty,
+                    response.ModelId
+                    ?? context.Model
+                    ?? string.Empty,
 
             PromptTokens =
                 promptTokens,
