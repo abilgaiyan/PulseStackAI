@@ -77,6 +77,28 @@ internal static class ExecutionSummaryPrinter
 
         Console.WriteLine();
 
+        if (result.TotalCost is not null)
+        {
+            Console.WriteLine();
+
+            Console.WriteLine(
+                "Execution Cost");
+
+            Console.WriteLine(
+                "--------------");
+
+            Console.WriteLine(
+                $"Prompt Cost       : {result.TotalCost.PromptCost:F6} USD");
+
+            Console.WriteLine(
+                $"Completion Cost   : {result.TotalCost.CompletionCost:F6} USD");
+
+            Console.WriteLine(
+                $"Total Cost        : {result.TotalCost.TotalCost:F6} USD");
+        }        
+
+        Console.WriteLine();
+        
         Console.WriteLine(
             "Tool Summary");
 

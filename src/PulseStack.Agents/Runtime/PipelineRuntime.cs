@@ -4,6 +4,8 @@ using PulseStack.Abstractions.Runtime.Pipeline;
 using PulseStack.Agents.Runtime.Context;
 using PulseStack.Agents.Runtime.Diagnostics;
 using PulseStack.Agents.Runtime.Diagnostics.Events;
+using PulseStack.Abstractions.Runtime.Usage;
+using PulseStack.Agents.Runtime.Costing;
 using PulseStack.Agents.Runtime.Tools;
 
 namespace PulseStack.Agents.Runtime;
@@ -105,6 +107,23 @@ internal sealed class PipelineRuntime
                     _ => ExecutionStatus.Failed
                 };
 
+            var pricingProvider =
+                new DefaultModelPricingProvider();
+
+            AICost? cost = null;
+
+            if (pricingProvider.TryGetPricing(
+                    state.TotalUsage.Provider,
+                    state.TotalUsage.Model,
+                    out var pricing))
+            {
+                cost =
+                    new CostCalculator()
+                        .Calculate(
+                            state.TotalUsage,
+                            pricing);
+            }                
+
             var result =
                 new PipelineExecutionResult
                 {
@@ -126,6 +145,9 @@ internal sealed class PipelineRuntime
 
                     TotalUsage =
                         state.TotalUsage,
+
+                    TotalCost =
+                        cost,    
 
                     ToolSummary =
                         new ToolExecutionAggregator()

@@ -19,6 +19,8 @@ await TimeoutScenario.RunAsync(services);
 
 await OpenTelemetryScenario.RunAsync(services);
 
+await OpenTelemetryMetricsScenario.RunAsync(services);
+
 await UsageAndCostScenario.RunAsync();
 
 await RuntimeGovernanceScenario.RunAsync(services);
@@ -26,8 +28,6 @@ await RuntimeGovernanceScenario.RunAsync(services);
 await ToolCallingScenario.RunAsync(services);
 
 await ERPInvoiceLookupToolCallingScenario.RunAsync(services);
-
-await OpenTelemetryMetricsScenario.RunAsync(services);
 
 Console.WriteLine();
 Console.WriteLine("Showcase complete.");

@@ -23,6 +23,8 @@ public sealed class PipelineExecutionResult
     public AIUsage TotalUsage { get; init; }
         = new();
 
+    public AICost? TotalCost { get; init; }        
+
     public ToolExecutionSummary ToolSummary { get; init; }
         = new();
 
