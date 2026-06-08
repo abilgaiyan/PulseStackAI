@@ -5,6 +5,7 @@ using PulseStack.Abstractions.Runtime.Usage;
 using PulseStack.Agents.Runtime.Diagnostics;
 using PulseStack.Agents.Runtime.Diagnostics.Events;
 using PulseStack.Agents.Runtime.Observability;
+using PulseStack.Tests.Fakes;
 using Xunit;
 
 namespace PulseStack.Tests.Agents;
@@ -322,27 +323,5 @@ public class RuntimeObservabilityTests
             2,
             new Dictionary<string, object?>());
 
-    private sealed class RecordingRuntimeObserver
-        : IRuntimeObserver
-    {
-        public List<IRuntimeEvent> Events { get; } = [];
-
-        public Task OnEventAsync(
-            IRuntimeEvent runtimeEvent,
-            CancellationToken cancellationToken = default)
-        {
-            Events.Add(runtimeEvent);
-
-            return Task.CompletedTask;
-        }
-    }
-
-    private sealed class ThrowingRuntimeObserver
-        : IRuntimeObserver
-    {
-        public Task OnEventAsync(
-            IRuntimeEvent runtimeEvent,
-            CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("Observer failed.");
-    }
+    
 }
