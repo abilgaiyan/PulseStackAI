@@ -23,13 +23,6 @@ public sealed class ParallelPipeline
 
     private PipelineExecutionPolicy _policy = new(); 
 
-    public ParallelPipeline(string name)
-        : this(
-            name,
-            new RuntimeEventDispatcher())
-    {
-    }
-
     public ParallelPipeline(
         string name,
         IRuntimeObserver observer)
@@ -38,7 +31,7 @@ public sealed class ParallelPipeline
             new RuntimeEventDispatcher(observer))
     {
     }
-
+    
     internal ParallelPipeline(
         string name,
         IRuntimeEventDispatcher eventDispatcher)
@@ -47,11 +40,15 @@ public sealed class ParallelPipeline
 
         Name = name;
 
+        var agentRuntime =
+            new AgentRuntime(eventDispatcher);
+
         _runtime =
             new PipelineRuntime(eventDispatcher);
 
         _strategy =
-            new ParallelPipelineExecutionStrategy();
+            new ParallelPipelineExecutionStrategy(
+                agentRuntime);
     }
 
     public ParallelPipeline Add(

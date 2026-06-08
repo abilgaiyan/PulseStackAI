@@ -4,6 +4,8 @@ using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
 using PulseStack.Abstractions.Runtime.Usage;
 using PulseStack.Agents.Runtime;
+using PulseStack.Agents.Runtime.Context;
+using PulseStack.Agents.Runtime.Diagnostics;
 using PulseStack.Agents.Runtime.Costing;
 using PulseStack.Agents.Runtime.Usage;
 using Xunit;
@@ -109,8 +111,9 @@ public class RuntimeUsageTests
     [Fact]
     public async Task PipelineRuntime_Should_Aggregate_Response_Usage()
     {
-        var runtime =
-            new PipelineRuntime();
+        var dispatcher = new RuntimeEventDispatcher();
+        var runtime = new PipelineRuntime(dispatcher);
+        var agentRuntime = new AgentRuntime(dispatcher);
 
         var context =
             new PipelineContext
@@ -137,7 +140,7 @@ public class RuntimeUsageTests
                         1)
                 ],
                 context,
-                new SequentialPipelineExecutionStrategy(),
+                new SequentialPipelineExecutionStrategy(agentRuntime),
                 new PipelineExecutionPolicy(),
                 CancellationToken.None);
 

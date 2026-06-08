@@ -12,11 +12,6 @@ internal sealed class SequentialPipelineExecutionStrategy
 {
     private readonly AgentRuntime _agentRuntime;
 
-    public SequentialPipelineExecutionStrategy()
-        : this(new AgentRuntime(new RuntimeEventDispatcher()))
-    {
-    }
-
     internal SequentialPipelineExecutionStrategy(
         AgentRuntime agentRuntime)
     {

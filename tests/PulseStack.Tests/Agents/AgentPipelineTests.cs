@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.Extensions.AI;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Agents.Runtime.Diagnostics;
 using PulseStack.Tests.Fakes;
 using PulseStack.Agents.Pipelines;
 using Xunit;
@@ -52,7 +53,8 @@ public class AgentPipelineTests
     [Fact]
     public async Task RunDetailedAsync_Should_Propagate_Execution_Errors()
     {
-        var pipeline = new ParallelPipeline("DetailedErrors")
+        var dispatcher = new RuntimeEventDispatcher();
+        var pipeline = new ParallelPipeline("DetailedErrors", dispatcher)
             .Add(new FakeAgent("Researcher", "Research result"))
             .Add(new ThrowingAgent("Broken"));
 
@@ -70,7 +72,8 @@ public class AgentPipelineTests
     [Fact]
     public async Task RunAsync_Should_Remain_Backward_Compatible()
     {
-        var pipeline = new ParallelPipeline("Compatibility")
+        var dispatcher = new RuntimeEventDispatcher();
+        var pipeline = new ParallelPipeline("Compatibility", dispatcher)
             .Add(new FakeAgent("First", "one"))
             .Add(new FakeAgent("Second", "two"));
 

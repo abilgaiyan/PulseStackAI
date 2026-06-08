@@ -19,6 +19,7 @@ public class PipelineRuntimeTests
         var runtime =
             new PipelineRuntime(dispatcher);
 
+        var agentRuntime = new AgentRuntime(dispatcher);
         var context =
             new PipelineContext
             {
@@ -37,7 +38,7 @@ public class PipelineRuntimeTests
                 "Sequential",
                 agents,
                 context,
-                new SequentialPipelineExecutionStrategy(),
+                new SequentialPipelineExecutionStrategy(agentRuntime),
                 cancellationToken: CancellationToken.None);
 
         result.Success.Should().BeTrue();
@@ -67,6 +68,7 @@ public class PipelineRuntimeTests
     {
         var dispatcher = new RuntimeEventDispatcher();
         var runtime = new PipelineRuntime(dispatcher);
+        var agentRuntime = new AgentRuntime(dispatcher);
         var context = new PipelineContext
         {
             Input = "input",
@@ -77,7 +79,7 @@ public class PipelineRuntimeTests
             "Parallel",
             [new StaticAgent("First", "one")],
             context,
-            new ParallelPipelineExecutionStrategy());
+            new ParallelPipelineExecutionStrategy(agentRuntime));
 
         context.Items[PipelineContextKeys.RuntimeExecutionId]
             .Should()

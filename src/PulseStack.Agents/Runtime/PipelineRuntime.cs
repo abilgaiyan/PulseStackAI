@@ -15,11 +15,12 @@ internal sealed class PipelineRuntime
     private readonly IRuntimeEventDispatcher _eventDispatcher;
 
     public PipelineRuntime(
-        IRuntimeEventDispatcher? eventDispatcher = null)
+        IRuntimeEventDispatcher eventDispatcher)
     {
         _eventDispatcher =
             eventDispatcher
-            ?? new RuntimeEventDispatcher();
+            ?? throw new ArgumentNullException(
+                nameof(eventDispatcher));
     }
 
     public async Task<PipelineExecutionResult> ExecuteAsync(

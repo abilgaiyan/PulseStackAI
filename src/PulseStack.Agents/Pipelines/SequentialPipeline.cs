@@ -22,38 +22,39 @@ public sealed class SequentialPipeline
     public string Name { get; }
     private PipelineExecutionPolicy _policy = new();
 
-    public SequentialPipeline(string name) 
+   public SequentialPipeline(string name)
         : this(
             name,
-            new PipelineRuntime(),
-            new SequentialPipelineExecutionStrategy())
+            new RuntimeEventDispatcher())
     {
     }
 
     public SequentialPipeline(
         string name,
         IRuntimeObserver observer)
-        : this(
-            name,
-            new PipelineRuntime(
-                new RuntimeEventDispatcher(observer)),
-            new SequentialPipelineExecutionStrategy())
-    {
-    }
+    : this(
+        name,
+        new RuntimeEventDispatcher(observer))
+        {
+        }
 
-    internal SequentialPipeline(
+    public  SequentialPipeline(
         string name,
-        PipelineRuntime runtime,
-        IPipelineExecutionStrategy strategy)
+        IRuntimeEventDispatcher eventDispatcher)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         Name = name;
 
-        _runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
+        var agentRuntime =
+            new AgentRuntime(eventDispatcher);
 
-        _strategy = strategy ?? throw new ArgumentNullException(nameof(strategy));
+        _runtime =
+            new PipelineRuntime(eventDispatcher);
 
+        _strategy =
+            new SequentialPipelineExecutionStrategy(
+                agentRuntime);
     }
 
     public SequentialPipeline Add(

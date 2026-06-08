@@ -13,11 +13,6 @@ internal sealed class ParallelPipelineExecutionStrategy
 {
     private readonly AgentRuntime _agentRuntime;
 
-    public ParallelPipelineExecutionStrategy()
-        : this(new AgentRuntime(new RuntimeEventDispatcher()))
-    {
-    }
-
     internal ParallelPipelineExecutionStrategy(
         AgentRuntime agentRuntime)
     {

@@ -4,6 +4,7 @@ using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Tools;
 using PulseStack.Agents.Pipelines;
 using PulseStack.Agents.Runtime.Context;
+using PulseStack.Agents.Runtime.Diagnostics;
 using Xunit;
 
 namespace PulseStack.Tests.Agents;
@@ -18,8 +19,9 @@ public class ParallelPipelineTests
             TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously);
+        var dispatcher = new RuntimeEventDispatcher();
 
-        var pipeline = new ParallelPipeline("Parallel")
+        var pipeline = new ParallelPipeline("Parallel", dispatcher)
             .Add(new BlockingAgent(
                 "First",
                 "one",
@@ -74,7 +76,8 @@ public class ParallelPipelineTests
             CurrentOutput = "input"
         };
 
-        var pipeline = new ParallelPipeline("Parallel")
+        var dispatcher = new RuntimeEventDispatcher();
+        var pipeline = new ParallelPipeline("Parallel", dispatcher)
             .Add(first)
             .Add(second);
 
@@ -91,7 +94,8 @@ public class ParallelPipelineTests
     [Fact]
     public async Task RunAsync_Should_Aggregate_Steps_ToolResults_And_FinalOutputs()
     {
-        var pipeline = new ParallelPipeline("Parallel")
+        var dispatcher = new RuntimeEventDispatcher();
+        var pipeline = new ParallelPipeline("Parallel", dispatcher)
             .Add(new ToolRecordingAgent(
                 "First",
                 "one",
@@ -128,7 +132,8 @@ public class ParallelPipelineTests
     [Fact]
     public async Task RunAsync_Should_Preserve_Successful_Results_When_A_Branch_Fails()
     {
-        var pipeline = new ParallelPipeline("Parallel")
+        var dispatcher = new RuntimeEventDispatcher();
+        var pipeline = new ParallelPipeline("Parallel", dispatcher)
             .Add(new ToolRecordingAgent(
                 "First",
                 "one",
