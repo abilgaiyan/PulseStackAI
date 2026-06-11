@@ -1,8 +1,8 @@
 using FluentAssertions;
-using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
 using PulseStack.Agents.Pipelines;
 using PulseStack.Agents.Runtime.Observability;
+using PulseStack.Agents.Runtime.Diagnostics.Events;
 using PulseStack.Tests.Fakes;
 using Xunit;
 
@@ -104,6 +104,7 @@ public class ConditionalPipelineTests
             .Should()
             .Be("Summary");
     }
+
     [Fact]
     public async Task Condition_True_Should_Not_Execute_False_Branch()
     {
@@ -140,5 +141,46 @@ public class ConditionalPipelineTests
             .AgentName
             .Should()
             .Be("TrueAgent");
-    }    
+    }
+
+    [Fact]
+    public async Task Condition_Should_Emit_Event()
+    {
+        // Arrange
+
+        var recordingObserver =
+            new RecordingRuntimeObserver();
+
+        var observer =
+            new CompositeRuntimeObserver(
+                [recordingObserver]);
+
+        var condition =
+            new DelegateCondition(_ => true);
+
+        var pipeline =
+            new ConditionalPipeline(
+                "Conditional",
+                condition,
+                observer)
+            .AddTrueAgent(
+                new FakeAgent(
+                    "Compliance",
+                    "Approved"));
+
+        // Act
+
+        await pipeline.RunDetailedAsync("input");
+
+        // Assert
+
+        var conditionEvent =
+            recordingObserver.Events
+                .OfType<ConditionEvaluatedEvent>()
+                .Single();
+
+        conditionEvent.Result
+            .Should()
+            .BeTrue();
+    }
 }
