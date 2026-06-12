@@ -63,7 +63,12 @@ public sealed class ConsoleRuntimeObserver
                 Console.WriteLine($"Attempt : {retry.Attempt}");
                 Console.WriteLine($"Reason : {retry.Error}");
                 break;    
-                            
+
+            case ConditionEvaluatedEvent conditionEvaluated:
+                WriteHeader("Condition Evaluated");
+                WriteLine("Condition", conditionEvaluated.ConditionName);
+                WriteLine("Result",    conditionEvaluated.Result);
+                break;                            
         }
 
         return Task.CompletedTask;

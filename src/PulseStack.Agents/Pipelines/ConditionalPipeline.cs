@@ -62,9 +62,10 @@ public sealed class ConditionalPipeline : IAgentPipeline
             await _condition.EvaluateAsync(
                 context,
                 cancellationToken);
+                
+        context.Items["ConditionResult"] = result;                
 
-        var conditionName =
-            _condition.GetType().Name;
+        var conditionName = _condition.Name;
 
         _eventDispatcher.Dispatch(
             new ConditionEvaluatedEvent(
@@ -77,6 +78,8 @@ public sealed class ConditionalPipeline : IAgentPipeline
             result
                 ? _trueAgents
                 : _falseAgents;
+
+        context.Items["ConditionalBranch"] = selectedAgents;                
 
         if (selectedAgents.Count == 0)
         {

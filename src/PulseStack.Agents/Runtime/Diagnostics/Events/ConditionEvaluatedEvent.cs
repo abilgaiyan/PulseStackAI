@@ -9,14 +9,14 @@ namespace PulseStack.Agents.Runtime.Diagnostics.Events;
 public sealed record ConditionEvaluatedEvent(
     Guid ExecutionId,
     DateTimeOffset Timestamp,
-    string StepName,
-    bool Result) : IRuntimeEvent
+    string ConditionName,
+    bool Result)
+    : IRuntimeEvent
 {
-    /// <inheritdoc />
     public IReadOnlyDictionary<string, object?> Metadata { get; } =
         new Dictionary<string, object?>
         {
-            { "StepName", StepName },
-            { "Result", Result }
+            ["ConditionName"] = ConditionName,
+            ["Result"] = Result
         };
 }

@@ -11,6 +11,8 @@ await SequentialPipelineScenario.RunAsync(services);
 
 await ParallelPipelineScenario.RunAsync(services);
 
+await ConditionalPipelineScenario.RunAsync(services);
+
 await PartialFailureScenario.RunAsync(services);
 
 await RetryScenario.RunAsync(services);

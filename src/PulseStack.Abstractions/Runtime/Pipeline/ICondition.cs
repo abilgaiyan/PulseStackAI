@@ -9,6 +9,8 @@ namespace PulseStack.Abstractions.Runtime.Pipeline;
 /// </summary>
 public interface ICondition
 {
+
+    string Name { get; }
     /// <summary>
     /// Evaluates the condition using the provided context.
     /// </summary>

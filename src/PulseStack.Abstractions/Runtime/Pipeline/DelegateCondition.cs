@@ -10,11 +10,20 @@ namespace PulseStack.Abstractions.Runtime.Pipeline;
 public sealed class DelegateCondition : ICondition
 {
     private readonly Func<PipelineContext, bool> _predicate;
+    public string Name { get; }
 
     public DelegateCondition(
-        Func<PipelineContext, bool> predicate)
+        Func<PipelineContext, bool> predicate,
+        string? name = null)
     {
+        ArgumentNullException.ThrowIfNull(predicate);
+
         _predicate = predicate;
+
+        Name =
+            string.IsNullOrWhiteSpace(name)
+                ? nameof(DelegateCondition)
+                : name;
     }
 
     public ValueTask<bool> EvaluateAsync(
