@@ -239,5 +239,37 @@ public class RouterPipelineTests
             .Should()
             .Be("Legal");
     }    
-      
+    [Fact]
+    public async Task Router_Should_Preserve_Usage_Tracking()
+    {
+        var selector =
+            new KeywordAgentSelector(
+                new Dictionary<string, string>
+                {
+                    ["contract"] = "Legal"
+                });
+
+        var observer =
+            new CompositeRuntimeObserver([]);
+
+        var pipeline =
+            new RouterPipeline(
+                "Router",
+                selector,
+                observer)
+            .Add(
+                new FakeAgent(
+                    "Legal",
+                    "Legal Review"))
+            .Add(
+                new FakeAgent(
+                    "Support",
+                    "Support Response"));
+
+        var result =
+            await pipeline.RunDetailedAsync(
+                "Please review this contract.");
+
+       result.TotalUsage.Should().NotBeNull();         
+    }    
 }
