@@ -11,7 +11,7 @@ using PulseStack.Agents.Runtime.Diagnostics.Events;
 namespace PulseStack.Agents.Pipelines;
 
 public sealed class RouterPipeline
-    : IAgentPipeline
+    : IAgentPipeline, IPipelineNode
 {
     private readonly List<IAgent> _agents = [];
 

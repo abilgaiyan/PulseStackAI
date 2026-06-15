@@ -7,7 +7,7 @@ using PulseStack.Agents.Runtime.Diagnostics;
 
 namespace PulseStack.Agents.Pipelines;
 
-public sealed class ConditionalPipeline : IAgentPipeline
+public sealed class ConditionalPipeline : IAgentPipeline, IPipelineNode
 {
     private readonly List<IAgent> _trueAgents = [];
 

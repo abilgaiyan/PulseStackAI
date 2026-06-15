@@ -12,7 +12,7 @@ namespace PulseStack.Agents.Pipelines;
 /// to the next agent.
 /// </summary>
 public sealed class SequentialPipeline
-    : IAgentPipeline
+    : IAgentPipeline, IPipelineNode
 {
     private readonly List<IAgent> _agents = [];
 

@@ -1,8 +1,9 @@
 using Microsoft.Extensions.AI;
+using PulseStack.Abstractions.Runtime.Pipeline;
 
 namespace PulseStack.Abstractions.Agents;
 
-public interface IAgent
+public interface IAgent : IPipelineNode
 {
     string Name { get; }
     string? Model { get; }
