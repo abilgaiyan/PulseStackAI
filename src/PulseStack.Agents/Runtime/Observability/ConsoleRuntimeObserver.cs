@@ -68,7 +68,14 @@ public sealed class ConsoleRuntimeObserver
                 WriteHeader("Condition Evaluated");
                 WriteLine("Condition", conditionEvaluated.ConditionName);
                 WriteLine("Result",    conditionEvaluated.Result);
-                break;                            
+                break;
+
+            case AgentSelectedEvent selected:
+                WriteHeader("Agent Selected");
+                WriteLine("Selector", selected.SelectorName);
+                WriteLine("Agent", selected.AgentName);
+                WriteOptionalLine("Reason", selected.Reason);
+                break;                                            
         }
 
         return Task.CompletedTask;
