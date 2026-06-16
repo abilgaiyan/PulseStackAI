@@ -5,7 +5,6 @@ namespace PulseStack.Abstractions.Agents;
 
 public interface IAgent : IPipelineNode
 {
-    string Name { get; }
     string? Model { get; }
 
     Task<ChatResponse> RunAsync(
