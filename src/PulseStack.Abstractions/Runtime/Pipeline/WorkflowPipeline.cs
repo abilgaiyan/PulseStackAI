@@ -1,12 +1,11 @@
-using PulseStack.Abstractions.Runtime.Pipeline;
 
-namespace PulseStack.Agents.Workflows;
+namespace PulseStack.Abstractions.Runtime.Pipeline;
 
 /// <summary>
 /// Represents a composable workflow
 /// consisting of pipeline nodes.
 /// </summary>
-public sealed class WorkflowPipeline
+public sealed class WorkflowPipeline : IPipelineNode
 {
     private readonly List<IPipelineNode> _nodes = [];
 
