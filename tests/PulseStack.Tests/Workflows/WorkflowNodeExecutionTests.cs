@@ -1,10 +1,10 @@
 using FluentAssertions;
-using PulseStack.Tests.Fakes;
-using PulseStack.Abstractions.Runtime.Pipeline;
-using PulseStack.Agents.Pipelines;
-using PulseStack.Agents.Workflows;
 using PulseStack.Abstractions.Agents;
+using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Agents.Runtime;
 using PulseStack.Agents.Runtime.Composition;
+using PulseStack.Agents.Runtime.Diagnostics;
+using PulseStack.Tests.Fakes;
 using Xunit;
 
 namespace PulseStack.Tests.Workflows;
@@ -12,18 +12,35 @@ namespace PulseStack.Tests.Workflows;
 public class WorkflowNodeExecutionTests
 {
     [Fact]
-    public async Task DefaultNodeExecutor_Should_Execute_Agent()
+    public async Task AgentNodeExecutor_Should_Execute_Agent()
     {
-        var executor = new DefaultNodeExecutor();
+        // Arrange
 
-        var agent = new FakeAgent("Researcher", "Done");
-            
+        var executor = CreateExecutor();
 
-        var result = await executor.ExecuteAsync(agent, new PipelineContext());  
+        var agent =
+            new FakeAgent(
+                "Researcher",
+                "Done");
+
+        var context =
+            new PipelineContext();
+
+        // Act
+
+        var result =
+            await executor.ExecuteAsync(
+                agent,
+                context);
+
+        // Assert
 
         result.Success.Should().BeTrue();
+
+        result.NodeName.Should().Be("Researcher");
+
         result.Output.Should().Be("Done");
-    }  
+    }
 
     [Fact]
     public async Task Workflow_Should_Execute_Real_Agent_Node()
@@ -40,7 +57,7 @@ public class WorkflowNodeExecutionTests
         var runtime =
             new WorkflowRuntime(
                 [
-                    new DefaultNodeExecutor()
+                    CreateExecutor()
                 ]);
 
         var context =
@@ -64,11 +81,26 @@ public class WorkflowNodeExecutionTests
 
         result.Nodes.Should().ContainSingle();
 
-        var node = result.Nodes.Single();
+        var node =
+            result.Nodes.Single();
 
         node.NodeName.Should().Be("Researcher");
+
         node.Success.Should().BeTrue();
+
         node.Output.Should().Be("Research Complete");
     }
 
+    private static AgentNodeExecutor CreateExecutor()
+    {
+        var dispatcher =
+            new RuntimeEventDispatcher();
+
+        var runtime =
+            new AgentRuntime(
+                dispatcher);
+
+        return new AgentNodeExecutor(
+            runtime);
+    }
 }
