@@ -1,5 +1,6 @@
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
+
 namespace PulseStack.Agents.Runtime.Composition;
 
 internal sealed class AgentNodeExecutor

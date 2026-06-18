@@ -4,6 +4,7 @@ using PulseStack.Abstractions.Runtime.Pipeline;
 using PulseStack.Agents.Runtime;
 using PulseStack.Agents.Runtime.Composition;
 using PulseStack.Agents.Runtime.Diagnostics;
+using PulseStack.Agents.Pipelines;
 using PulseStack.Tests.Fakes;
 using Xunit;
 
@@ -89,6 +90,64 @@ public class WorkflowNodeExecutionTests
         node.Success.Should().BeTrue();
 
         node.Output.Should().Be("Research Complete");
+    }
+
+    [Fact]
+    public async Task Workflow_Should_Execute_Pipeline_Node()
+    {
+        // Arrange
+
+        var dispatcher =
+            new RuntimeEventDispatcher();
+
+        var pipeline =
+            new SequentialPipeline(
+                "Research Pipeline",
+                dispatcher)
+            .Add(
+                new FakeAgent(
+                    "Researcher",
+                    "Research Complete"));
+
+        var workflow =
+            new WorkflowPipeline("Workflow")
+                .Add(pipeline);
+
+        var runtime =
+            new WorkflowRuntime(
+                [
+                    new PipelineNodeExecutor()
+                ]);
+
+        var context =
+            new PipelineContext
+            {
+                Input = "AI orchestration"
+            };
+
+        // Act
+
+        var result =
+            await runtime.ExecuteAsync(
+                workflow,
+                context);
+
+        // Assert
+
+        result.Success.Should().BeTrue();
+
+        result.FinalOutput.Should().Be(
+            "Research Complete");
+
+        result.Nodes.Should().ContainSingle();
+
+        var node =
+            result.Nodes.Single();
+
+        node.NodeName.Should().Be(
+            "Research Pipeline");
+
+        node.Success.Should().BeTrue();
     }
 
     private static AgentNodeExecutor CreateExecutor()
