@@ -397,7 +397,68 @@ public class WorkflowNodeExecutionTests
     [Fact]
     public async Task Workflow_Should_Pass_Output_Between_Nested_Workflows()
     {
+        // Arrange
         
+        var dispatcher = new RuntimeEventDispatcher();
+        var agentRuntime = new AgentRuntime(dispatcher);
+        
+        var nestedRuntime = new WorkflowRuntime(
+        [
+            new AgentNodeExecutor(agentRuntime)
+        ]);
+        
+        var runtime = new WorkflowRuntime(
+        [
+            new AgentNodeExecutor(agentRuntime),
+            new WorkflowNodeExecutor(nestedRuntime)
+        ]);
+        
+        // Create first workflow that produces output
+        var firstWorkflow = new WorkflowPipeline("FirstWorkflow")
+            .Add(new FakeAgent("Agent1", "Initial Result"));
+        
+        // Create second workflow that consumes output from first
+        var secondWorkflow = new WorkflowPipeline("SecondWorkflow")
+            .Add(new ContextAwareFakeAgent("Agent2"));
+        
+        // Create parent workflow that chains them together
+        var parentWorkflow = new WorkflowPipeline("Parent")
+            .Add(firstWorkflow)
+            .Add(secondWorkflow);
+        
+        var context = new PipelineContext
+        {
+            Input = "Initial Context Input"
+        };
+        
+        // Act
+        
+        var result = await runtime.ExecuteAsync(parentWorkflow, context);
+        
+        // Assert
+        
+        result.Success.Should().BeTrue();
+        
+        // Verify output flows between workflows
+        result.Nodes.Should().HaveCount(2);
+        
+        // First workflow output should be available as input to second
+        var firstNode = result.Nodes[0];
+        firstNode.NodeName.Should().Be("FirstWorkflow");
+        firstNode.Success.Should().BeTrue();
+        firstNode.Output.Should().Be("Initial Result");
+        
+        // Second workflow should process the output from first
+        var secondNode = result.Nodes[1];
+        secondNode.NodeName.Should().Be("SecondWorkflow");
+        secondNode.Success.Should().BeTrue();
+        secondNode.Output.Should().Be("Received: Initial Result");
+        
+        // Final output should reflect the chained processing
+        result.FinalOutput.Should().Be("Received: Initial Result");
+        
+        // Context should maintain the latest output
+        context.CurrentOutput.Should().Be("Received: Initial Result");
     }
     
     private static AgentNodeExecutor CreateExecutor()
