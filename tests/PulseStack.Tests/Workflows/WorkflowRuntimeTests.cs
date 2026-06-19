@@ -3,6 +3,8 @@ using PulseStack.Tests.Fakes;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Agents.Runtime.Composition;
 using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Agents.Runtime.Diagnostics;
+using PulseStack.Agents.Runtime.Diagnostics.Events;
 
 using Xunit;
 
@@ -22,11 +24,12 @@ public class WorkflowRuntimeTests
                 new TestNode(
                     "Research"));
 
+        var dispatcher = new RuntimeEventDispatcher();
         var runtime =
             new WorkflowRuntime(
                 [
                     new FakeNodeExecutor()
-                ]);
+                ], dispatcher);
 
         var context =
             new PipelineContext
@@ -66,6 +69,8 @@ public class WorkflowRuntimeTests
         var executionOrder =
             new List<string>();
 
+        var dispatcher = new RuntimeEventDispatcher();            
+
         var workflow =
             new WorkflowPipeline(
                 "Workflow")
@@ -84,7 +89,7 @@ public class WorkflowRuntimeTests
                 [
                     new FakeNodeExecutor(
                         executionOrder)
-                ]);
+                ], dispatcher);
 
         var context =
             new PipelineContext
@@ -130,8 +135,10 @@ public class WorkflowRuntimeTests
                 new TestNode(
                     "Unknown"));
 
+        var dispatcher = new RuntimeEventDispatcher();
+
         var runtime =
-            new WorkflowRuntime([]);
+            new WorkflowRuntime([], dispatcher);
 
         var context =
             new PipelineContext();

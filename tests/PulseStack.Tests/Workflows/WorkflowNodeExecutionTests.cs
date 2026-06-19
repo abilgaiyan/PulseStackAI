@@ -4,6 +4,7 @@ using PulseStack.Abstractions.Runtime.Pipeline;
 using PulseStack.Agents.Runtime;
 using PulseStack.Agents.Runtime.Composition;
 using PulseStack.Agents.Runtime.Diagnostics;
+using PulseStack.Agents.Runtime.Observability;
 using PulseStack.Agents.Pipelines;
 using PulseStack.Tests.Fakes;
 using Xunit;
@@ -17,7 +18,7 @@ public class WorkflowNodeExecutionTests
     {
         // Arrange
 
-        var executor = CreateExecutor();
+        var executor = WorkflowRuntimeFactory.CreateAgentExecutor();
 
         var agent =
             new FakeAgent(
@@ -55,11 +56,7 @@ public class WorkflowNodeExecutionTests
                         "Researcher",
                         "Research Complete"));
 
-        var runtime =
-            new WorkflowRuntime(
-                [
-                    CreateExecutor()
-                ]);
+        var runtime = WorkflowRuntimeFactory.Create();
 
         var context =
             new PipelineContext
@@ -113,12 +110,9 @@ public class WorkflowNodeExecutionTests
             new WorkflowPipeline("Workflow")
                 .Add(pipeline);
 
-        var runtime =
-            new WorkflowRuntime(
-                [
-                    new PipelineNodeExecutor()
-                ]);
-
+        
+        var runtime = WorkflowRuntimeFactory.Create();
+        
         var context =
             new PipelineContext
             {
@@ -166,12 +160,10 @@ public class WorkflowNodeExecutionTests
                 new AgentNodeExecutor(agentRuntime)
             };
 
-        var workflowRuntime =
-            new WorkflowRuntime(executors);
-
+        var runtime = WorkflowRuntimeFactory.Create();
         var executor =
             new WorkflowNodeExecutor(
-                workflowRuntime);
+                runtime);
 
         var workflow =
             new WorkflowPipeline("Research")
@@ -196,25 +188,9 @@ public class WorkflowNodeExecutionTests
     {
         // Arrange
 
-        var dispatcher =
-            new RuntimeEventDispatcher();
-
-        var agentRuntime =
-            new AgentRuntime(
-                dispatcher);
-
-        var nestedRuntime =
-            new WorkflowRuntime(
-            [
-                new AgentNodeExecutor(agentRuntime)
-            ]);
-
-        var runtime =
-            new WorkflowRuntime(
-            [
-                new AgentNodeExecutor(agentRuntime),
-                new WorkflowNodeExecutor(nestedRuntime)
-            ]);
+      var runtime =
+            WorkflowRuntimeFactory
+                .CreateWithNestedWorkflowSupport();
 
         var childWorkflow =
             new WorkflowPipeline("Research")
@@ -227,11 +203,11 @@ public class WorkflowNodeExecutionTests
             new WorkflowPipeline("Parent")
                 .Add(childWorkflow);
 
-        var context =
-            new PipelineContext
-            {
-                Input = "AI orchestration"
-            };
+                var context =
+                    new PipelineContext
+                    {
+                        Input = "AI orchestration"
+                    };
 
         // Act
 
@@ -259,25 +235,7 @@ public class WorkflowNodeExecutionTests
     {
         // Arrange
 
-        var dispatcher =
-            new RuntimeEventDispatcher();
-
-        var agentRuntime =
-            new AgentRuntime(
-                dispatcher);
-
-        var nestedRuntime =
-            new WorkflowRuntime(
-            [
-                new AgentNodeExecutor(agentRuntime)
-            ]);
-
-        var runtime =
-            new WorkflowRuntime(
-            [
-                new AgentNodeExecutor(agentRuntime),
-                new WorkflowNodeExecutor(nestedRuntime)
-            ]);
+      var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
 
         var researchWorkflow =
             new WorkflowPipeline("Research")
@@ -334,25 +292,7 @@ public class WorkflowNodeExecutionTests
     {
         // Arrange
 
-        var dispatcher =
-            new RuntimeEventDispatcher();
-
-        var agentRuntime =
-            new AgentRuntime(
-                dispatcher);
-
-        var nestedRuntime =
-            new WorkflowRuntime(
-            [
-                new AgentNodeExecutor(agentRuntime)
-            ]);
-
-        var runtime =
-            new WorkflowRuntime(
-            [
-                new AgentNodeExecutor(agentRuntime),
-                new WorkflowNodeExecutor(nestedRuntime)
-            ]);
+        var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
 
         var childWorkflow =
             new WorkflowPipeline("Research")
@@ -399,19 +339,7 @@ public class WorkflowNodeExecutionTests
     {
         // Arrange
         
-        var dispatcher = new RuntimeEventDispatcher();
-        var agentRuntime = new AgentRuntime(dispatcher);
-        
-        var nestedRuntime = new WorkflowRuntime(
-        [
-            new AgentNodeExecutor(agentRuntime)
-        ]);
-        
-        var runtime = new WorkflowRuntime(
-        [
-            new AgentNodeExecutor(agentRuntime),
-            new WorkflowNodeExecutor(nestedRuntime)
-        ]);
+        var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
         
         // Create first workflow that produces output
         var firstWorkflow = new WorkflowPipeline("FirstWorkflow")
@@ -460,8 +388,12 @@ public class WorkflowNodeExecutionTests
         // Context should maintain the latest output
         context.CurrentOutput.Should().Be("Received: Initial Result");
     }
-    
-    private static AgentNodeExecutor CreateExecutor()
+
+ }
+
+internal static class WorkflowRuntimeFactory
+{
+    public static AgentNodeExecutor CreateAgentExecutor()
     {
         var dispatcher =
             new RuntimeEventDispatcher();
@@ -472,5 +404,72 @@ public class WorkflowNodeExecutionTests
 
         return new AgentNodeExecutor(
             runtime);
+    }
+    
+    public static WorkflowRuntime Create()
+    {
+        var dispatcher =
+            new RuntimeEventDispatcher();
+
+        var agentRuntime =
+            new AgentRuntime(
+                dispatcher);
+
+        return new WorkflowRuntime(
+        [
+            new AgentNodeExecutor(
+                agentRuntime),
+            new PipelineNodeExecutor()
+        ],
+        dispatcher);
+    }
+
+    public static WorkflowRuntime CreateWithNestedWorkflowSupport()
+    {
+        var dispatcher =
+            new RuntimeEventDispatcher();
+
+        var agentRuntime =
+            new AgentRuntime(
+                dispatcher);
+
+        var nestedRuntime =
+            new WorkflowRuntime(
+            [
+                new AgentNodeExecutor(
+                    agentRuntime),
+                new PipelineNodeExecutor()
+            ],
+            dispatcher);
+
+        return new WorkflowRuntime(
+        [
+            new AgentNodeExecutor(
+                agentRuntime),
+            new PipelineNodeExecutor(),
+            new WorkflowNodeExecutor(
+                nestedRuntime)
+        ],
+        dispatcher);
+    }
+
+    public static WorkflowRuntime Create(
+        IRuntimeObserver observer)
+    {
+        var dispatcher =
+            new RuntimeEventDispatcher(
+                observer);
+
+        var agentRuntime =
+            new AgentRuntime(
+                dispatcher);
+
+        return new WorkflowRuntime(
+        [
+            new AgentNodeExecutor(
+                agentRuntime),
+            new PipelineNodeExecutor()
+        ],
+        dispatcher);
     }
 }
