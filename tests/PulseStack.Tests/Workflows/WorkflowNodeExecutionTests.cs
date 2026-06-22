@@ -4,7 +4,6 @@ using PulseStack.Abstractions.Runtime.Pipeline;
 using PulseStack.Agents.Runtime;
 using PulseStack.Agents.Runtime.Composition;
 using PulseStack.Agents.Runtime.Diagnostics;
-using PulseStack.Agents.Runtime.Observability;
 using PulseStack.Agents.Pipelines;
 using PulseStack.Tests.Fakes;
 using Xunit;
@@ -390,86 +389,3 @@ public class WorkflowNodeExecutionTests
     }
 
  }
-
-internal static class WorkflowRuntimeFactory
-{
-    public static AgentNodeExecutor CreateAgentExecutor()
-    {
-        var dispatcher =
-            new RuntimeEventDispatcher();
-
-        var runtime =
-            new AgentRuntime(
-                dispatcher);
-
-        return new AgentNodeExecutor(
-            runtime);
-    }
-    
-    public static WorkflowRuntime Create()
-    {
-        var dispatcher =
-            new RuntimeEventDispatcher();
-
-        var agentRuntime =
-            new AgentRuntime(
-                dispatcher);
-
-        return new WorkflowRuntime(
-        [
-            new AgentNodeExecutor(
-                agentRuntime),
-            new PipelineNodeExecutor()
-        ],
-        dispatcher);
-    }
-
-    public static WorkflowRuntime CreateWithNestedWorkflowSupport()
-    {
-        var dispatcher =
-            new RuntimeEventDispatcher();
-
-        var agentRuntime =
-            new AgentRuntime(
-                dispatcher);
-
-        var nestedRuntime =
-            new WorkflowRuntime(
-            [
-                new AgentNodeExecutor(
-                    agentRuntime),
-                new PipelineNodeExecutor()
-            ],
-            dispatcher);
-
-        return new WorkflowRuntime(
-        [
-            new AgentNodeExecutor(
-                agentRuntime),
-            new PipelineNodeExecutor(),
-            new WorkflowNodeExecutor(
-                nestedRuntime)
-        ],
-        dispatcher);
-    }
-
-    public static WorkflowRuntime Create(
-        IRuntimeObserver observer)
-    {
-        var dispatcher =
-            new RuntimeEventDispatcher(
-                observer);
-
-        var agentRuntime =
-            new AgentRuntime(
-                dispatcher);
-
-        return new WorkflowRuntime(
-        [
-            new AgentNodeExecutor(
-                agentRuntime),
-            new PipelineNodeExecutor()
-        ],
-        dispatcher);
-    }
-}

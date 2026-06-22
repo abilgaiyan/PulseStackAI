@@ -9,11 +9,17 @@ namespace PulseStack.Abstractions.Runtime.Pipeline;
 /// </summary>
 public sealed class DelegateCondition : ICondition
 {
-    private readonly Func<PipelineContext, bool> _predicate;
+    private readonly Func<
+        PipelineContext,
+        CancellationToken,
+        ValueTask<bool>> _predicate;
     public string Name { get; }
 
     public DelegateCondition(
-        Func<PipelineContext, bool> predicate,
+        Func<
+            PipelineContext,
+            CancellationToken,
+            ValueTask<bool>> predicate,
         string? name = null)
     {
         ArgumentNullException.ThrowIfNull(predicate);
@@ -26,10 +32,23 @@ public sealed class DelegateCondition : ICondition
                 : name;
     }
 
+    public DelegateCondition(
+        Func<PipelineContext, bool> predicate,
+        string? name = null)
+        : this(
+            (ctx, _) =>
+                ValueTask.FromResult(
+                    predicate(ctx)),
+            name)
+    {
+    }
+
     public ValueTask<bool> EvaluateAsync(
         PipelineContext context,
         CancellationToken cancellationToken = default)
     {
-        return ValueTask.FromResult(_predicate(context));
+        return _predicate(
+            context,
+            cancellationToken);
     }
 }
