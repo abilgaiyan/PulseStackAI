@@ -7,10 +7,7 @@ using PulseStack.Agents.Runtime.Composition;
 using PulseStack.Agents.Runtime.Diagnostics;
 using PulseStack.Tests.Fakes;
 
-
 namespace PulseStack.Tests.Workflows;
-
-
 public class RetryNodeExecutorTests
 {
     [Fact]

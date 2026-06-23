@@ -49,7 +49,11 @@ internal static class WorkflowRuntimeFactory
 
         executors.Add(
             new RetryNodeExecutor(
-                resolver));                
+                resolver)); 
+
+        executors.Add(
+            new ParallelNodeExecutor(
+                resolver));                             
 
         return new WorkflowRuntime(
             executors,
@@ -128,6 +132,10 @@ internal static class WorkflowRuntimeFactory
         executors.Add(
             new ConditionalNodeExecutor(
                 resolver));
+                
+        executors.Add(
+            new ParallelNodeExecutor(
+                resolver));                
 
         return executors;
     }
