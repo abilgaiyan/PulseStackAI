@@ -5,12 +5,14 @@ namespace PulseStack.Agents.Runtime.Composition;
 internal sealed class NodeExecutorResolver
     : INodeExecutorResolver
 {
-    private readonly IReadOnlyList<INodeExecutor> _executors;
+    private readonly IEnumerable<INodeExecutor> _executors;
 
     public NodeExecutorResolver(
         IEnumerable<INodeExecutor> executors)
     {
-        _executors = executors.ToList();
+       _executors = executors
+            ?? throw new ArgumentNullException(
+                nameof(executors));
     }
 
     public INodeExecutor Resolve(

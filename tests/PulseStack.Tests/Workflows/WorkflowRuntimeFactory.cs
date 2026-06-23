@@ -47,6 +47,10 @@ internal static class WorkflowRuntimeFactory
             new ConditionalNodeExecutor(
                 resolver));
 
+        executors.Add(
+            new RetryNodeExecutor(
+                resolver));                
+
         return new WorkflowRuntime(
             executors,
             dispatcher);

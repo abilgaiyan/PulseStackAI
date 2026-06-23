@@ -1,6 +1,7 @@
 using FluentAssertions;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Agents.Runtime.Composition;
 using PulseStack.Tests.Fakes;
 using Xunit;
 
@@ -13,6 +14,20 @@ public class ConditionalNodeExecutorTest
      [Fact]
     public async Task ConditionalNode_Should_Execute_When_Condition_Is_True()
     {
+        var executors =
+            new List<INodeExecutor>();
+
+        var resolver =
+            new NodeExecutorResolver(
+                executors);
+
+        executors.Add(
+            WorkflowRuntimeFactory.CreateAgentExecutor());
+
+        var executor =
+            new ConditionalNodeExecutor(
+                resolver);
+
         var node =
             new ConditionalNode(
                 "Condition",
@@ -21,21 +36,33 @@ public class ConditionalNodeExecutorTest
                     "Researcher",
                     "Executed"));
 
-        // executor comes later
-        // var executor = ...
+        var result =
+            await executor.ExecuteAsync(
+                node,
+                new PipelineContext());
 
-        // var result =
-        //     await executor.ExecuteAsync(
-        //         node,
-        //         new PipelineContext());
+        result.Success.Should().BeTrue();
 
-        // result.Success.Should().BeTrue();
-        // result.Output.Should().Be("Executed");
+        result.Output.Should().Be("Executed");
     }
 
-   [Fact]
+    [Fact]
     public async Task ConditionalNode_Should_Skip_When_Condition_Is_False()
     {
+        var executors =
+            new List<INodeExecutor>();
+
+        var resolver =
+            new NodeExecutorResolver(
+                executors);
+
+        executors.Add(
+            WorkflowRuntimeFactory.CreateAgentExecutor());
+
+        var executor =
+            new ConditionalNodeExecutor(
+                resolver);
+
         var node =
             new ConditionalNode(
                 "Condition",
@@ -44,7 +71,14 @@ public class ConditionalNodeExecutorTest
                     "Researcher",
                     "Executed"));
 
-        // executor comes later
+        var result =
+            await executor.ExecuteAsync(
+                node,
+                new PipelineContext());
+
+        result.Success.Should().BeTrue();
+
+        result.Output.Should().BeNull();
     }
 
     [Fact]
@@ -132,4 +166,5 @@ public class ConditionalNodeExecutorTest
         result.FinalOutput.Should().Be(
             "Research Complete");
     }
+
 }
