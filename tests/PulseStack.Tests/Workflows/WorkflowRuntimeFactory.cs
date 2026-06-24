@@ -110,7 +110,11 @@ internal static class WorkflowRuntimeFactory
 
         executors.Add(
             new ParallelNodeExecutor(
-                resolver));                
+                resolver));    
+
+        executors.Add(
+            new LoopNodeExecutor(
+                resolver));                            
 
         return executors;
     }

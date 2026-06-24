@@ -1,10 +1,7 @@
 using FluentAssertions;
 using Xunit;
-using PulseStack.Agents.Runtime;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
-using PulseStack.Agents.Runtime.Composition;
-using PulseStack.Agents.Runtime.Diagnostics;
 using PulseStack.Tests.Fakes;
 
 namespace PulseStack.Tests.Workflows;
