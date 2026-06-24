@@ -1,20 +1,17 @@
-using PulseStack.Abstractions.Runtime.Pipeline;
 using PulseStack.Abstractions.Agents;
+using PulseStack.Abstractions.Runtime.Pipeline;
 
 namespace PulseStack.Agents.Runtime.Composition;
 
 internal sealed class WorkflowNodeExecutor
     : INodeExecutor
 {
-    private readonly IWorkflowRuntime _workflowRuntime;
+    private readonly Lazy<IWorkflowRuntime> _workflowRuntime;
 
     public WorkflowNodeExecutor(
-        IWorkflowRuntime workflowRuntime)
+        Lazy<IWorkflowRuntime> workflowRuntime)
     {
-        _workflowRuntime =
-            workflowRuntime
-            ?? throw new ArgumentNullException(
-                nameof(workflowRuntime));
+        _workflowRuntime = workflowRuntime;
     }
 
     public bool CanExecute(
@@ -26,14 +23,11 @@ internal sealed class WorkflowNodeExecutor
         PipelineContext context,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(node);
-        ArgumentNullException.ThrowIfNull(context);
-
         var workflow =
             (WorkflowPipeline)node;
 
         var result =
-            await _workflowRuntime.ExecuteAsync(
+            await _workflowRuntime.Value.ExecuteAsync(
                 workflow,
                 context,
                 cancellationToken);

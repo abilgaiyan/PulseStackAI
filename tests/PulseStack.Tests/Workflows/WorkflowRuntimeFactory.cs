@@ -29,34 +29,8 @@ internal static class WorkflowRuntimeFactory
             new AgentRuntime(
                 dispatcher);
 
-        var executors =
-            new List<INodeExecutor>();
-
-        var resolver =
-            new NodeExecutorResolver(
-                executors);
-
-        executors.Add(
-            new AgentNodeExecutor(
-                agentRuntime));
-
-        executors.Add(
-            new PipelineNodeExecutor());
-
-        executors.Add(
-            new ConditionalNodeExecutor(
-                resolver));
-
-        executors.Add(
-            new RetryNodeExecutor(
-                resolver)); 
-
-        executors.Add(
-            new ParallelNodeExecutor(
-                resolver));                             
-
         return new WorkflowRuntime(
-            executors,
+            CreateExecutors(agentRuntime),
             dispatcher);
     }
 
@@ -124,15 +98,16 @@ internal static class WorkflowRuntimeFactory
 
         if (workflowRuntime is not null)
         {
-            executors.Add(
+           executors.Add(
                 new WorkflowNodeExecutor(
-                    workflowRuntime));
+                    new Lazy<IWorkflowRuntime>(
+                        () => workflowRuntime)));
         }
 
         executors.Add(
             new ConditionalNodeExecutor(
                 resolver));
-                
+
         executors.Add(
             new ParallelNodeExecutor(
                 resolver));                

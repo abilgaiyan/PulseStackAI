@@ -146,23 +146,13 @@ public class WorkflowNodeExecutionTests
     [Fact]
     public async Task WorkflowNodeExecutor_Should_Execute_Nested_Workflow()
     {
-        var dispatcher =
-            new RuntimeEventDispatcher();
+        var runtime =
+            WorkflowRuntimeFactory.Create();
 
-        var agentRuntime =
-            new AgentRuntime(
-                dispatcher);
-
-        var executors =
-            new INodeExecutor[]
-            {
-                new AgentNodeExecutor(agentRuntime)
-            };
-
-        var runtime = WorkflowRuntimeFactory.Create();
         var executor =
             new WorkflowNodeExecutor(
-                runtime);
+                new Lazy<IWorkflowRuntime>(
+                    () => runtime));
 
         var workflow =
             new WorkflowPipeline("Research")
