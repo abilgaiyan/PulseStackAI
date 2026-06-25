@@ -18,6 +18,7 @@ public static class WorkflowServiceCollectionExtensions
         services.AddSingleton<INodeExecutor, RetryNodeExecutor>();
         services.AddSingleton<INodeExecutor, ParallelNodeExecutor>();
         services.AddSingleton<INodeExecutor, LoopNodeExecutor>();
+        services.AddSingleton<INodeExecutor, SwitchNodeExecutor>();
 
         services.AddSingleton<IWorkflowRuntime, WorkflowRuntime>();
 

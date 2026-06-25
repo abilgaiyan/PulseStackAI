@@ -116,6 +116,10 @@ internal static class WorkflowRuntimeFactory
             new LoopNodeExecutor(
                 resolver));                            
 
+        executors.Add(
+            new SwitchNodeExecutor(
+                resolver));                            
+
         return executors;
     }
 }
