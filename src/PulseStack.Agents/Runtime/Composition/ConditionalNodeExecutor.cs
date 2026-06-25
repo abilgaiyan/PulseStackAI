@@ -4,24 +4,19 @@ using PulseStack.Abstractions.Runtime.Pipeline;
 namespace PulseStack.Agents.Runtime.Composition;
 
 internal sealed class ConditionalNodeExecutor
-    : INodeExecutor
+    : CompositeNodeExecutor
 {
-    private readonly INodeExecutorResolver _resolver;
-
     public ConditionalNodeExecutor(
         INodeExecutorResolver resolver)
+        : base(resolver)
     {
-        _resolver =
-            resolver
-            ?? throw new ArgumentNullException(
-                nameof(resolver));
     }
 
-    public bool CanExecute(
+    public override bool CanExecute(
         IPipelineNode node)
         => node is ConditionalNode;
 
-    public async Task<NodeExecutionResult> ExecuteAsync(
+    public override async Task<NodeExecutionResult> ExecuteAsync(
         IPipelineNode node,
         PipelineContext context,
         CancellationToken cancellationToken = default)
@@ -46,11 +41,7 @@ internal sealed class ConditionalNodeExecutor
             };
         }
 
-        var executor =
-            _resolver.Resolve(
-                conditionalNode.Node);
-
-        return await executor.ExecuteAsync(
+        return await ExecuteNodeAsync(
             conditionalNode.Node,
             context,
             cancellationToken);

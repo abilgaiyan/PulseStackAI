@@ -4,31 +4,25 @@ using PulseStack.Abstractions.Runtime.Pipeline;
 namespace PulseStack.Agents.Runtime.Composition;
 
 internal sealed class RetryNodeExecutor
-    : INodeExecutor
+    : CompositeNodeExecutor
 {
-    private readonly INodeExecutorResolver _resolver;
-
     public RetryNodeExecutor(
         INodeExecutorResolver resolver)
+        : base(resolver)
     {
-        _resolver = resolver;
     }
 
-    public bool CanExecute(
+    public override bool CanExecute(
         IPipelineNode node)
         => node is RetryNode;
 
-    public async Task<NodeExecutionResult> ExecuteAsync(
+    public override async Task<NodeExecutionResult> ExecuteAsync(
         IPipelineNode node,
         PipelineContext context,
         CancellationToken cancellationToken = default)
     {
         var retryNode =
             (RetryNode)node;
-
-        var executor =
-            _resolver.Resolve(
-                retryNode.Node);
 
         NodeExecutionResult? lastResult = null;
 
@@ -37,7 +31,7 @@ internal sealed class RetryNodeExecutor
             attempt++)
         {
             lastResult =
-                await executor.ExecuteAsync(
+                await ExecuteNodeAsync(
                     retryNode.Node,
                     context,
                     cancellationToken);

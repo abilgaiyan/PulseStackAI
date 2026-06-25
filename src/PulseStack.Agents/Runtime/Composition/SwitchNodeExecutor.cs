@@ -4,24 +4,19 @@ using PulseStack.Abstractions.Runtime.Pipeline;
 namespace PulseStack.Agents.Runtime.Composition;
 
 internal sealed class SwitchNodeExecutor
-    : INodeExecutor
+    : CompositeNodeExecutor
 {
-    private readonly INodeExecutorResolver _resolver;
-
     public SwitchNodeExecutor(
         INodeExecutorResolver resolver)
+        : base(resolver)
     {
-        _resolver =
-            resolver
-            ?? throw new ArgumentNullException(
-                nameof(resolver));
     }
 
-    public bool CanExecute(
+    public override bool CanExecute(
         IPipelineNode node)
         => node is SwitchNode;
 
-    public async Task<NodeExecutionResult> ExecuteAsync(
+    public override async Task<NodeExecutionResult> ExecuteAsync(
         IPipelineNode node,
         PipelineContext context,
         CancellationToken cancellationToken = default)
@@ -48,24 +43,16 @@ internal sealed class SwitchNodeExecutor
 
         if (matchedCase is not null)
         {
-            var executor =
-                _resolver.Resolve(
-                    matchedCase.Node);
-
             result =
-                await executor.ExecuteAsync(
+                await ExecuteNodeAsync(
                     matchedCase.Node,
                     context,
                     cancellationToken);
         }
         else if (switchNode.DefaultNode is not null)
         {
-            var executor =
-                _resolver.Resolve(
-                    switchNode.DefaultNode);
-
             result =
-                await executor.ExecuteAsync(
+                await ExecuteNodeAsync(
                     switchNode.DefaultNode,
                     context,
                     cancellationToken);

@@ -4,21 +4,19 @@ using PulseStack.Abstractions.Runtime.Pipeline;
 namespace PulseStack.Agents.Runtime.Composition;
 
 internal sealed class LoopNodeExecutor
-    : INodeExecutor
+    : CompositeNodeExecutor
 {
-    private readonly INodeExecutorResolver _resolver;
-
     public LoopNodeExecutor(
         INodeExecutorResolver resolver)
+        : base(resolver)
     {
-        _resolver = resolver;
     }
 
-    public bool CanExecute(
+    public override bool CanExecute(
         IPipelineNode node)
         => node is LoopNode;
 
-    public async Task<NodeExecutionResult> ExecuteAsync(
+    public override async Task<NodeExecutionResult> ExecuteAsync(
         IPipelineNode node,
         PipelineContext context,
         CancellationToken cancellationToken = default)
@@ -28,9 +26,6 @@ internal sealed class LoopNodeExecutor
 
         var loopNode = (LoopNode)node;
 
-        var executor =
-            _resolver.Resolve(loopNode.Node);
-
         NodeExecutionResult? lastResult = null;
 
         foreach (var item in loopNode.Items(context))
@@ -38,7 +33,7 @@ internal sealed class LoopNodeExecutor
             context.Items["CurrentItem"] = item;
 
             lastResult =
-                await executor.ExecuteAsync(
+                await ExecuteNodeAsync(
                     loopNode.Node,
                     context,
                     cancellationToken);
