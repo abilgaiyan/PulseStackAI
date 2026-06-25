@@ -4,7 +4,7 @@ using PulseStack.Agents.Runtime.Diagnostics;
 using PulseStack.Abstractions.Runtime.Pipeline;
 using PulseStack.Agents.Runtime;
 
-namespace PulseStack.Tests.Workflows; 
+namespace PulseStack.Tests.Workflows;
 internal static class WorkflowRuntimeFactory
 {
     public static AgentNodeExecutor CreateAgentExecutor()
@@ -19,7 +19,7 @@ internal static class WorkflowRuntimeFactory
         return new AgentNodeExecutor(
             runtime);
     }
-    
+
     public static WorkflowRuntime Create()
     {
         var dispatcher =
@@ -29,9 +29,9 @@ internal static class WorkflowRuntimeFactory
             new AgentRuntime(
                 dispatcher);
 
-        return new WorkflowRuntime(
-            CreateExecutors(agentRuntime),
-            dispatcher);
+        return CreateRuntime(
+            dispatcher,
+            agentRuntime);
     }
 
     public static WorkflowRuntime CreateWithNestedWorkflowSupport()
@@ -44,15 +44,14 @@ internal static class WorkflowRuntimeFactory
                 dispatcher);
 
         var nestedRuntime =
-            new WorkflowRuntime(
-                CreateExecutors(agentRuntime),
-                dispatcher);
+            CreateRuntime(
+                dispatcher,
+                agentRuntime);
 
-        return new WorkflowRuntime(
-            CreateExecutors(
-                agentRuntime,
-                nestedRuntime),
-            dispatcher);
+        return CreateRuntime(
+            dispatcher,
+            agentRuntime,
+            nestedRuntime);
     }
 
     public static WorkflowRuntime Create(
@@ -67,11 +66,25 @@ internal static class WorkflowRuntimeFactory
                 dispatcher);
 
         var nestedRuntime =
-                    new WorkflowRuntime(
-                        CreateExecutors(agentRuntime),
-                        dispatcher);
+            CreateRuntime(
+                dispatcher,
+                agentRuntime);
 
-          return new WorkflowRuntime(
+        return CreateRuntime(
+            dispatcher,
+            agentRuntime,
+            nestedRuntime);
+    }
+
+    private static WorkflowRuntime CreateRuntime(
+        RuntimeEventDispatcher dispatcher,
+        AgentRuntime agentRuntime,
+        WorkflowRuntime? nestedRuntime = null)
+    {
+        ArgumentNullException.ThrowIfNull(dispatcher);
+        ArgumentNullException.ThrowIfNull(agentRuntime);
+
+        return new WorkflowRuntime(
             CreateExecutors(
                 agentRuntime,
                 nestedRuntime),
@@ -80,8 +93,10 @@ internal static class WorkflowRuntimeFactory
 
     private static List<INodeExecutor> CreateExecutors(
         AgentRuntime agentRuntime,
-        WorkflowRuntime? workflowRuntime = null)
+        WorkflowRuntime? nestedRuntime = null)
     {
+        ArgumentNullException.ThrowIfNull(agentRuntime);
+
         var executors =
             new List<INodeExecutor>();
 
@@ -96,12 +111,12 @@ internal static class WorkflowRuntimeFactory
         executors.Add(
             new PipelineNodeExecutor());
 
-        if (workflowRuntime is not null)
+        if (nestedRuntime is not null)
         {
-           executors.Add(
+            executors.Add(
                 new WorkflowNodeExecutor(
                     new Lazy<IWorkflowRuntime>(
-                        () => workflowRuntime)));
+                        () => nestedRuntime)));
         }
 
         executors.Add(
@@ -109,16 +124,20 @@ internal static class WorkflowRuntimeFactory
                 resolver));
 
         executors.Add(
+            new RetryNodeExecutor(
+                resolver));
+
+        executors.Add(
             new ParallelNodeExecutor(
-                resolver));    
+                resolver));
 
         executors.Add(
             new LoopNodeExecutor(
-                resolver));                            
+                resolver));
 
         executors.Add(
             new SwitchNodeExecutor(
-                resolver));                            
+                resolver));
 
         return executors;
     }
