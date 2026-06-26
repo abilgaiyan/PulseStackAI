@@ -41,9 +41,18 @@ internal sealed class ConditionalNodeExecutor
             };
         }
 
-        return await ExecuteNodeAsync(
-            conditionalNode.Node,
-            context,
-            cancellationToken);
+        var result =
+            await ExecuteNodeAsync(
+                conditionalNode.Node,
+                context,
+                cancellationToken);
+
+        return new NodeExecutionResult
+        {
+            NodeName = conditionalNode.Name,
+            Success = result.Success,
+            Output = result.Output,
+            Usage = result.Usage
+        };
     }
 }

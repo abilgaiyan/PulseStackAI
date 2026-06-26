@@ -1,5 +1,6 @@
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Agents.Runtime.Usage;
 
 namespace PulseStack.Agents.Runtime.Composition;
 
@@ -37,7 +38,12 @@ internal sealed class WorkflowNodeExecutor
             NodeName = workflow.Name,
             Success = result.Success,
             Output = result.FinalOutput,
-            Usage = null
+            Usage =
+                result.Nodes.Any(x => x.Usage is not null)
+                    ? new UsageAggregator()
+                        .Aggregate(
+                            result.Nodes.Select(x => x.Usage))
+                    : null
         };
     }
 }

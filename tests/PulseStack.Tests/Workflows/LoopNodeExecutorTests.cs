@@ -1,6 +1,7 @@
 using FluentAssertions;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Runtime.Usage;
 using PulseStack.Agents.Runtime.Composition;
 using PulseStack.Tests.Fakes;
 using Xunit;
@@ -125,6 +126,57 @@ public class LoopNodeExecutorTests
         result.NodeName.Should().Be("Loop");
         alwaysFailExecutor.Attempts.Should().Be(1);
 
+    }
+
+    [Fact]
+    public async Task LoopNode_Should_Return_Own_Name_And_Preserve_Failed_Child_Result()
+    {
+        var usage =
+            new AIUsage
+            {
+                Provider = "Test",
+                Model = "model",
+                PromptTokens = 2,
+                CompletionTokens = 3
+            };
+
+        var executors =
+            new List<INodeExecutor>
+            {
+                new FakeNodeExecutor(
+                    success: false,
+                    output: "Failed Child",
+                    usage: usage)
+            };
+
+        var resolver =
+            new NodeExecutorResolver(
+                executors);
+
+        var loopExecutor =
+            new LoopNodeExecutor(
+                resolver);
+
+        var node =
+            new LoopNode(
+                "Loop",
+                _ => new object[]
+                {
+                    "A"
+                },
+                new FakeAgent(
+                    "Researcher",
+                    "Executed"));
+
+        var result =
+            await loopExecutor.ExecuteAsync(
+                node,
+                new PipelineContext());
+
+        result.NodeName.Should().Be("Loop");
+        result.Success.Should().BeFalse();
+        result.Output.Should().Be("Failed Child");
+        result.Usage.Should().BeSameAs(usage);
     }
 
     [Fact]

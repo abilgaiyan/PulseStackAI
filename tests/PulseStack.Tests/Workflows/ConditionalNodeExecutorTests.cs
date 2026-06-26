@@ -1,6 +1,7 @@
 using FluentAssertions;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Runtime.Usage;
 using PulseStack.Agents.Runtime.Composition;
 using PulseStack.Tests.Fakes;
 using Xunit;
@@ -43,7 +44,57 @@ public class ConditionalNodeExecutorTest
 
         result.Success.Should().BeTrue();
 
+        result.NodeName.Should().Be("Condition");
+
         result.Output.Should().Be("Executed");
+    }
+
+    [Fact]
+    public async Task ConditionalNode_Should_Return_Own_Name_And_Preserve_Child_Result()
+    {
+        var childUsage =
+            new AIUsage
+            {
+                Provider = "Test",
+                Model = "model",
+                PromptTokens = 3,
+                CompletionTokens = 4
+            };
+
+        var executors =
+            new List<INodeExecutor>();
+
+        var resolver =
+            new NodeExecutorResolver(
+                executors);
+
+        executors.Add(
+            new FakeNodeExecutor(
+                success: false,
+                output: "Child Output",
+                usage: childUsage));
+
+        var executor =
+            new ConditionalNodeExecutor(
+                resolver);
+
+        var node =
+            new ConditionalNode(
+                "Condition",
+                new DelegateCondition(_ => true),
+                new FakeAgent(
+                    "Child",
+                    "Ignored"));
+
+        var result =
+            await executor.ExecuteAsync(
+                node,
+                new PipelineContext());
+
+        result.NodeName.Should().Be("Condition");
+        result.Success.Should().BeFalse();
+        result.Output.Should().Be("Child Output");
+        result.Usage.Should().BeSameAs(childUsage);
     }
 
     [Fact]

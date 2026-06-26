@@ -1,5 +1,6 @@
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Agents.Runtime.Usage;
 
 
 namespace PulseStack.Agents.Runtime.Composition;
@@ -50,7 +51,13 @@ internal sealed class ParallelNodeExecutor
         {
             NodeName = parallelNode.Name,
             Success = results.All(x => x.Success),
-            Output = output
+            Output = output,
+            Usage =
+                results.Any(x => x.Usage is not null)
+                    ? new UsageAggregator()
+                        .Aggregate(
+                            results.Select(x => x.Usage))
+                    : null
         };
     }
 }

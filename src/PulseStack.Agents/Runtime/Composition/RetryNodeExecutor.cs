@@ -38,11 +38,23 @@ internal sealed class RetryNodeExecutor
 
             if (lastResult.Success)
             {
-                return lastResult;
+                return new NodeExecutionResult
+                {
+                    NodeName = retryNode.Name,
+                    Success = lastResult.Success,
+                    Output = lastResult.Output,
+                    Usage = lastResult.Usage
+                };
             }
         }
 
-        return lastResult!;
+        return new NodeExecutionResult
+        {
+            NodeName = retryNode.Name,
+            Success = lastResult!.Success,
+            Output = lastResult.Output,
+            Usage = lastResult.Usage
+        };
     }        
     
 }

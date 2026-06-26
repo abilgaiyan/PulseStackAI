@@ -3,6 +3,7 @@ using Xunit;
 using PulseStack.Agents.Runtime;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Runtime.Usage;
 using PulseStack.Agents.Runtime.Composition;
 using PulseStack.Agents.Runtime.Diagnostics;
 using PulseStack.Tests.Fakes;
@@ -39,7 +40,54 @@ public class RetryNodeExecutorTests
                         new PipelineContext());
 
         result.Success.Should().BeTrue();
+        result.NodeName.Should().Be("Retry");
         result.Output.Should().Be("Done");                
+    }
+
+    [Fact]
+    public async Task RetryNode_Should_Return_Own_Name_And_Preserve_Final_Child_Result()
+    {
+        var usage =
+            new AIUsage
+            {
+                Provider = "Test",
+                Model = "model",
+                PromptTokens = 5,
+                CompletionTokens = 7
+            };
+
+        var executors =
+            new List<INodeExecutor>();
+
+        var resolver =
+            new NodeExecutorResolver(
+                executors);
+
+        executors.Add(
+            new FakeNodeExecutor(
+                output: "Retried Output",
+                usage: usage));
+
+        var retryExecutor =
+            new RetryNodeExecutor(
+                resolver);
+
+        var node =
+            new RetryNode(
+                "Retry",
+                new FakeAgent(
+                    "Researcher",
+                    "Executed"));
+
+        var result =
+            await retryExecutor.ExecuteAsync(
+                node,
+                new PipelineContext());
+
+        result.NodeName.Should().Be("Retry");
+        result.Success.Should().BeTrue();
+        result.Output.Should().Be("Retried Output");
+        result.Usage.Should().BeSameAs(usage);
     }
     
     [Fact]

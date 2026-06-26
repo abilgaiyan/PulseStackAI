@@ -5,6 +5,7 @@ using PulseStack.Agents.Runtime;
 using PulseStack.Agents.Runtime.Composition;
 using PulseStack.Agents.Runtime.Diagnostics;
 using PulseStack.Agents.Pipelines;
+using PulseStack.Abstractions.Runtime.Usage;
 using PulseStack.Tests.Fakes;
 using Xunit;
 
@@ -170,6 +171,55 @@ public class WorkflowNodeExecutionTests
 
         result.Output.Should().Be(
             "Research Complete");
+    }
+
+    [Fact]
+    public async Task WorkflowNodeExecutor_Should_Return_Own_Name_And_Preserve_Child_Usage()
+    {
+        var usage =
+            new AIUsage
+            {
+                Provider = "Test",
+                Model = "model",
+                PromptTokens = 11,
+                CompletionTokens = 13
+            };
+
+        var dispatcher =
+            new RuntimeEventDispatcher();
+
+        var runtime =
+            new WorkflowRuntime(
+                [
+                    new FakeNodeExecutor(
+                        output: "Nested Output",
+                        usage: usage)
+                ],
+                dispatcher);
+
+        var executor =
+            new WorkflowNodeExecutor(
+                new Lazy<IWorkflowRuntime>(
+                    () => runtime));
+
+        var workflow =
+            new WorkflowPipeline("Nested")
+                .Add(
+                    new FakeAgent(
+                        "Child",
+                        "Ignored"));
+
+        var result =
+            await executor.ExecuteAsync(
+                workflow,
+                new PipelineContext());
+
+        result.NodeName.Should().Be("Nested");
+        result.Success.Should().BeTrue();
+        result.Output.Should().Be("Nested Output");
+        result.Usage.Should().NotBeNull();
+        result.Usage!.PromptTokens.Should().Be(11);
+        result.Usage.CompletionTokens.Should().Be(13);
     }
 
    [Fact]

@@ -1,6 +1,7 @@
 using FluentAssertions;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Runtime.Usage;
 using PulseStack.Agents.Runtime.Composition;
 using PulseStack.Tests.Fakes;
 using Xunit;
@@ -29,6 +30,59 @@ public class SwitchNodeExecutorTests
 
         result.Success.Should().BeTrue();
         result.FinalOutput.Should().Be("Approved");
+    }
+
+    [Fact]
+    public async Task SwitchNode_Should_Return_Own_Name_And_Preserve_Child_Result()
+    {
+        var usage =
+            new AIUsage
+            {
+                Provider = "Test",
+                Model = "model",
+                PromptTokens = 8,
+                CompletionTokens = 9
+            };
+
+        var executors =
+            new List<INodeExecutor>
+            {
+                new FakeNodeExecutor(
+                    success: false,
+                    output: "Rejected",
+                    usage: usage)
+            };
+
+        var resolver =
+            new NodeExecutorResolver(
+                executors);
+
+        var executor =
+            new SwitchNodeExecutor(
+                resolver);
+
+        var node =
+            new SwitchNode(
+                name: "StatusSwitch",
+                selector: _ => "Rejected",
+                cases:
+                [
+                    new SwitchCase(
+                        "Rejected",
+                        new FakeAgent(
+                            "Rejector",
+                            "Ignored"))
+                ]);
+
+        var result =
+            await executor.ExecuteAsync(
+                node,
+                new PipelineContext());
+
+        result.NodeName.Should().Be("StatusSwitch");
+        result.Success.Should().BeFalse();
+        result.Output.Should().Be("Rejected");
+        result.Usage.Should().BeSameAs(usage);
     }
 
     [Fact]

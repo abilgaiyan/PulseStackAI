@@ -43,8 +43,8 @@ internal sealed class LoopNodeExecutor
                 return new NodeExecutionResult
                 {
                     NodeName = loopNode.Name,
-                    Success = false,
-                    Output = context.CurrentOutput,
+                    Success = lastResult.Success,
+                    Output = lastResult.Output,
                     Usage = lastResult.Usage
                 };
             }
@@ -54,7 +54,7 @@ internal sealed class LoopNodeExecutor
         {
             NodeName = loopNode.Name,
             Success = lastResult?.Success ?? true,
-            Output = context.CurrentOutput,
+            Output = lastResult?.Output ?? context.CurrentOutput,
             Usage = lastResult?.Usage
         };
     }
