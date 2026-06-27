@@ -202,4 +202,104 @@ public class WorkflowBuilderTests
         action.Should()
             .Throw<ArgumentException>();
     }
+
+    [Fact]
+    public void WorkflowBuilder_Retry_Should_Use_Default_Name()
+    {
+        var agent = new FakeAgent("ValidationStep", "Done");
+
+        var workflow = Workflow.Create("Research")
+            .Retry(agent, 3)
+            .Build();
+
+        var retryNode = workflow.Nodes.OfType<RetryNode>().Single();
+
+        retryNode.Name.Should().Be("Retry");
+        retryNode.MaxAttempts.Should().Be(3);
+        retryNode.Node.Should().BeSameAs(agent);
+    }
+
+    [Fact]
+    public void WorkflowBuilder_Retry_Should_Use_Custom_Name()
+    {
+        var agent = new FakeAgent("ValidationStep", "Done");
+
+        var workflow = Workflow.Create("Research")
+            .Retry("Retry Validation", agent, 5)
+            .Build();
+
+        var retryNode = workflow.Nodes.OfType<RetryNode>().Single();
+
+        retryNode.Name.Should().Be("Retry Validation");
+        retryNode.MaxAttempts.Should().Be(5);
+        retryNode.Node.Should().BeSameAs(agent);
+    }
+
+    [Fact]
+    public void WorkflowBuilder_Retry_Should_Support_Chaining_Both_Overloads()
+    {
+        var workflow = Workflow.Create("Test")
+            .Retry(new FakeAgent("A", "Done"), 2)
+            .Retry("CustomRetry", new FakeAgent("B", "Done"), 4)
+            .Build();
+
+        workflow.Nodes.OfType<RetryNode>().Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void WorkflowBuilder_Retry_Should_Throw_When_Node_Is_Null()
+    {
+        Action action = () => Workflow.Create("Test").Retry(null!, 3);
+        action.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void WorkflowBuilder_Retry_Should_Throw_When_Name_Is_Empty()
+    {
+        Action action = () => Workflow.Create("Test").Retry("", new FakeAgent("A", "Done"), 3);
+        action.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void WorkflowBuilder_Retry_Should_Throw_When_MaxAttempts_Is_Zero()
+    {
+        Action action = () => Workflow.Create("Test").Retry(new FakeAgent("A", "Done"), 0);
+        action.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void WorkflowBuilder_Retry_Should_Throw_When_MaxAttempts_Is_Negative()
+    {
+        Action action = () => Workflow.Create("Test").Retry(new FakeAgent("A", "Done"), -1);
+        action.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void WorkflowBuilder_Retry_Should_Use_Default_MaxAttempts()
+    {
+        var workflow =
+            Workflow.Create("Test")
+                .Retry(
+                    new FakeAgent("A", "Done"))
+                .Build();
+
+        var retry =
+            workflow.Nodes
+                .OfType<RetryNode>()
+                .Single();
+
+        retry.MaxAttempts.Should().Be(3);
+    }
+
+    [Fact]
+    public void WorkflowBuilder_Retry_Should_Throw_When_Name_Is_Null()
+    {
+         Action action =
+            () => Workflow.Create("Test")
+                .Retry(null!,
+                    new FakeAgent("A", "Done"));
+
+        action.Should()
+            .Throw<ArgumentException>();
+    }
 }

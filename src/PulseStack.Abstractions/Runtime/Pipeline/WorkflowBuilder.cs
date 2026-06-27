@@ -16,16 +16,6 @@ public sealed class WorkflowBuilder
                 name);
     }
 
-    private WorkflowBuilder AddNode(
-        IPipelineNode node)
-    {
-        ArgumentNullException.ThrowIfNull(node);
-
-        _workflow.Add(node);
-
-        return this;
-    }
-
     public WorkflowBuilder Run(
         IAgent agent)
     {
@@ -74,8 +64,57 @@ public sealed class WorkflowBuilder
                 condition,
                 thenNode));
     }
+
+    /// <summary>
+    /// Wraps a node with retry logic (default name "Retry")
+    /// </summary>
+    public WorkflowBuilder Retry(
+        IPipelineNode node,
+        int maxAttempts = 3)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        
+        ValidateRetryAttempts(maxAttempts);
+
+        return AddNode(new RetryNode("Retry", node, maxAttempts));
+    }
+
+    /// <summary>
+    /// Wraps a node with retry logic using a custom name.
+    /// </summary>
+    public WorkflowBuilder Retry(
+        string name,
+        IPipelineNode node,
+        int maxAttempts = 3)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(node);
+
+        ValidateRetryAttempts(maxAttempts);
+
+        return AddNode(new RetryNode(name, node, maxAttempts));
+    }
+
     public WorkflowPipeline Build()
     {
         return _workflow;
+    }
+
+        private WorkflowBuilder AddNode(
+        IPipelineNode node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+
+        _workflow.Add(node);
+
+        return this;
+    }
+
+    private static void ValidateRetryAttempts(
+        int maxAttempts)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(
+            maxAttempts,
+            1);
     }
 }
