@@ -123,12 +123,47 @@ public sealed class WorkflowBuilder
         return AddNode(new LoopNode(name, items, node));
     }
 
+    /// <summary>
+    /// Creates a Parallel execution block (default name "Parallel").
+    /// </summary>
+    public WorkflowBuilder Parallel(params IPipelineNode[] nodes)
+        => Parallel("Parallel", nodes);
+
+    /// <summary>
+    /// Creates a Parallel execution block with a custom name.
+    /// The name will appear in diagnostics, logs, and future workflow visualizations.
+    /// </summary>
+    public WorkflowBuilder Parallel(string name, params IPipelineNode[] nodes)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(nodes);
+
+        if (nodes.Length == 0)
+            throw new ArgumentException(
+                "At least one node is required for Parallel execution.",
+                nameof(nodes));
+
+        for (var i = 0; i < nodes.Length; i++)
+        {
+            if (nodes[i] is null)
+                throw new ArgumentNullException(
+                    nameof(nodes),
+                    $"Node at index {i} is null.");
+        }
+
+        var parallel = new ParallelNode(name);
+        foreach (var node in nodes)
+            parallel.Add(node);
+
+        return AddNode(parallel);
+    }
+
     public WorkflowPipeline Build()
     {
         return _workflow;
     }
 
-        private WorkflowBuilder AddNode(
+    private WorkflowBuilder AddNode(
         IPipelineNode node)
     {
         ArgumentNullException.ThrowIfNull(node);

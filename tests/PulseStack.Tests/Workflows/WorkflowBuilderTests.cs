@@ -380,4 +380,110 @@ public class WorkflowBuilderTests
         Action action = () => Workflow.Create("Test").ForEach(null!, _ => [0], new FakeAgent("A", "Done"));
         action.Should().Throw<ArgumentException>();
     }
+
+    [Fact]
+    public void WorkflowBuilder_Parallel_Should_Use_Default_Name()
+    {
+        var node1 = new FakeAgent("A", "Done");
+        var node2 = new FakeAgent("B", "Done");
+
+        var workflow = Workflow.Create("Test")
+            .Parallel(node1, node2)
+            .Build();
+
+        var parallel = workflow.Nodes.OfType<ParallelNode>().Single();
+
+        parallel.Name.Should().Be("Parallel");
+        parallel.Nodes.Should().HaveCount(2);
+        parallel.Nodes.Should().Contain(node1);
+        parallel.Nodes.Should().Contain(node2);
+    }
+
+    [Fact]
+    public void WorkflowBuilder_Parallel_Should_Use_Custom_Name()
+    {
+        var node1 = new FakeAgent("Summarizer", "Done");
+        var node2 = new FakeAgent("Classifier", "Done");
+
+        var workflow = Workflow.Create("Test")
+            .Parallel("Analysis", node1, node2)
+            .Build();
+
+        var parallel = workflow.Nodes.OfType<ParallelNode>().Single();
+        parallel.Name.Should().Be("Analysis");
+        parallel.Nodes.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void WorkflowBuilder_Parallel_Should_Support_Chaining_Both_Overloads()
+    {
+        var workflow = Workflow.Create("Test")
+            .Parallel(new FakeAgent("A", "Done"))
+            .Parallel("Custom", new FakeAgent("B", "Done"), new FakeAgent("C", "Done"))
+            .Build();
+
+        workflow.Nodes.OfType<ParallelNode>().Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void WorkflowBuilder_Parallel_Should_Throw_When_Array_Is_Empty()
+    {
+        Action action = () => Workflow.Create("Test").Parallel();
+        action.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void WorkflowBuilder_Parallel_Should_Throw_When_Node_Is_Null()
+    {
+        Action action = () => Workflow.Create("Test").Parallel(new FakeAgent("A", "Done"), null!);
+        action.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void WorkflowBuilder_Parallel_Should_Throw_When_Name_Is_Empty()
+    {
+        Action action = () => Workflow.Create("Test").Parallel("", new FakeAgent("A", "Done"));
+        action.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void WorkflowBuilder_Parallel_Should_Throw_When_Name_Is_Null()
+    {
+        Action action =
+            () => Workflow.Create("Test")
+                .Parallel(
+                    name:null!,
+                    nodes: new FakeAgent("A", "Done"));
+
+        action.Should()
+            .Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void WorkflowBuilder_Parallel_Should_Preserve_Node_Order()
+    {
+        var node1 =
+            new FakeAgent("A", "Done");
+
+        var node2 =
+            new FakeAgent("B", "Done");
+
+        var node3 =
+            new FakeAgent("C", "Done");
+
+        var workflow =
+            Workflow.Create("Test")
+                .Parallel(node1, node2, node3)
+                .Build();
+
+        var parallel =
+            workflow.Nodes
+                .OfType<ParallelNode>()
+                .Single();
+
+        parallel.Nodes.Should().ContainInOrder(
+            node1,
+            node2,
+            node3);
+    }
 }
