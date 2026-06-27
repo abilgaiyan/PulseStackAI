@@ -9,29 +9,33 @@ public sealed class WorkflowBuilder
     internal WorkflowBuilder(
         string name)
     {
+         ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
         _workflow =
             new WorkflowPipeline(
                 name);
     }
 
+    private WorkflowBuilder AddNode(
+        IPipelineNode node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+
+        _workflow.Add(node);
+
+        return this;
+    }
+
     public WorkflowBuilder Run(
         IAgent agent)
     {
-        ArgumentNullException.ThrowIfNull(agent);
-
-        _workflow.Add(agent);
-
-        return this;
+       return AddNode(agent);
     }
 
     public WorkflowBuilder Workflow(
         WorkflowPipeline workflow)
     {
-        ArgumentNullException.ThrowIfNull(workflow);
-
-        _workflow.Add(workflow);
-
-        return this;
+       return AddNode(workflow);
     }
 
     public WorkflowPipeline Build()

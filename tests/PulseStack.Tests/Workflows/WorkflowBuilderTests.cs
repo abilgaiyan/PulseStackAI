@@ -66,4 +66,52 @@ public class WorkflowBuilderTests
 
         workflow.Should().BeOfType<WorkflowPipeline>();
     }
+
+    [Fact]
+    public void Build_Should_Return_Same_Workflow()
+    {
+
+        var builder =
+            Workflow.Create("Research");
+
+        var workflow1 =
+            builder.Build();
+
+        var workflow2 =
+            builder.Build();
+
+        workflow1.Should().BeSameAs(workflow2);
+    }
+
+    [Fact]
+    public void Builder_Should_Support_Chaining()
+    {
+        var workflow =
+            Workflow.Create("Research")
+                .Run(new FakeAgent("A", "Done"))
+                .Run(new FakeAgent("B", "Done"))
+                .Build();
+
+        workflow.Nodes.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void Workflow_Create_Should_Throw_When_Name_Is_Empty()
+    {
+        Action action =
+            () => Workflow.Create("");
+
+        action.Should()
+            .Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void Workflow_Create_Should_Throw_When_Name_Is_Null()
+    {
+        Action action =
+            () => Workflow.Create(null);
+
+        action.Should()
+            .Throw<ArgumentException>();
+    }
 }
