@@ -73,7 +73,7 @@ public sealed class WorkflowBuilder
         int maxAttempts = 3)
     {
         ArgumentNullException.ThrowIfNull(node);
-        
+
         ValidateRetryAttempts(maxAttempts);
 
         return AddNode(new RetryNode("Retry", node, maxAttempts));
@@ -93,6 +93,34 @@ public sealed class WorkflowBuilder
         ValidateRetryAttempts(maxAttempts);
 
         return AddNode(new RetryNode(name, node, maxAttempts));
+    }
+
+    /// <summary>
+    /// Creates a ForEach loop (default name "ForEach")
+    /// </summary>
+    public WorkflowBuilder ForEach(
+        Func<PipelineContext, IEnumerable<object>> items,
+        IPipelineNode node)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        ArgumentNullException.ThrowIfNull(node);
+
+        return AddNode(new LoopNode("ForEach", items, node));
+    }
+
+    /// <summary>
+    /// Creates a ForEach loop with a custom name.
+    /// </summary>
+    public WorkflowBuilder ForEach(
+        string name,
+        Func<PipelineContext, IEnumerable<object>> items,
+        IPipelineNode node)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(items);
+        ArgumentNullException.ThrowIfNull(node);
+
+        return AddNode(new LoopNode(name, items, node));
     }
 
     public WorkflowPipeline Build()

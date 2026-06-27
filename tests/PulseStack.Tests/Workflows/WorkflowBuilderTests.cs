@@ -1,4 +1,5 @@
 using FluentAssertions;
+using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
 using PulseStack.Tests.Fakes;
 using Xunit;
@@ -301,5 +302,82 @@ public class WorkflowBuilderTests
 
         action.Should()
             .Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void WorkflowBuilder_ForEach_Should_Use_Default_Name()
+    {
+        Func<PipelineContext, IEnumerable<object>> itemsSelector = 
+            _ => [1, 2, 3 ];
+
+        var processor = new FakeAgent("ProcessItem", "Processed");
+
+        var workflow = Workflow.Create("Research")
+            .ForEach(itemsSelector, processor)
+            .Build();
+
+        var loopNode = workflow.Nodes.OfType<LoopNode>().Single();
+
+        loopNode.Name.Should().Be("ForEach");
+        loopNode.Items.Should().BeSameAs(itemsSelector);
+        loopNode.Node.Should().BeSameAs(processor);
+    }
+
+    [Fact]
+    public void WorkflowBuilder_ForEach_Should_Use_Custom_Name()
+    {
+        Func<PipelineContext, IEnumerable<object>> itemsSelector = 
+            _ => [];
+
+        var processor = new FakeAgent("ProcessItem", "Processed");
+
+        var workflow = Workflow.Create("Research")
+            .ForEach("Process Documents", itemsSelector, processor)
+            .Build();
+
+        var loopNode = workflow.Nodes.OfType<LoopNode>().Single();
+
+        loopNode.Name.Should().Be("Process Documents");
+        loopNode.Items.Should().BeSameAs(itemsSelector);
+        loopNode.Node.Should().BeSameAs(processor);
+    }
+
+    [Fact]
+    public void WorkflowBuilder_ForEach_Should_Support_Chaining_Both_Overloads()
+    {
+        var workflow = Workflow.Create("Test")
+            .ForEach(_ => [ "a", "b" ], new FakeAgent("A", "Done"))
+            .ForEach("CustomLoop", _ => new[] { 1, 2 }.Select(x => (object)x), new FakeAgent("B", "Done"))
+            .Build();
+
+        workflow.Nodes.OfType<LoopNode>().Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void WorkflowBuilder_ForEach_Should_Throw_When_Items_Is_Null()
+    {
+        Action action = () => Workflow.Create("Test").ForEach(null!, new FakeAgent("A", "Done"));
+        action.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void WorkflowBuilder_ForEach_Should_Throw_When_Node_Is_Null()
+    {
+        Action action = () => Workflow.Create("Test").ForEach(_ => [0], null!);
+        action.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void WorkflowBuilder_ForEach_Should_Throw_When_Name_Is_Empty()
+    {
+        Action action = () => Workflow.Create("Test").ForEach("", _ => [0], new FakeAgent("A", "Done"));
+        action.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void WorkflowBuilder_ForEach_Should_Throw_When_Name_Is_Null()
+    {
+        Action action = () => Workflow.Create("Test").ForEach(null!, _ => [0], new FakeAgent("A", "Done"));
+        action.Should().Throw<ArgumentException>();
     }
 }
