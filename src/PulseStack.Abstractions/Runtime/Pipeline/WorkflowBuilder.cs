@@ -38,6 +38,42 @@ public sealed class WorkflowBuilder
        return AddNode(workflow);
     }
 
+    /// <summary>
+    /// Adds a conditional branch to the workflow (uses default name "If").
+    /// </summary>
+    public WorkflowBuilder If(
+        ICondition condition,
+        IPipelineNode thenNode)
+    {
+        ArgumentNullException.ThrowIfNull(condition);
+        ArgumentNullException.ThrowIfNull(thenNode);
+
+       return AddNode(
+            new ConditionalNode(
+                "If",
+                condition,
+                thenNode));
+    }
+
+    /// <summary>
+    /// Adds a conditional branch to the workflow with a custom name.
+    /// The name will appear in diagnostics, logs, and future workflow visualizations.
+    /// </summary>
+    public WorkflowBuilder If(
+        string name,
+        ICondition condition,
+        IPipelineNode thenNode)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(condition);
+        ArgumentNullException.ThrowIfNull(thenNode);
+
+        return AddNode(
+            new ConditionalNode(
+                name,
+                condition,
+                thenNode));
+    }
     public WorkflowPipeline Build()
     {
         return _workflow;

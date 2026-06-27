@@ -109,7 +109,95 @@ public class WorkflowBuilderTests
     public void Workflow_Create_Should_Throw_When_Name_Is_Null()
     {
         Action action =
-            () => Workflow.Create(null);
+            () => Workflow.Create(null!);
+
+        action.Should()
+            .Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void WorkflowBuilder_If_Should_Throw_When_Condition_Is_Null()
+    {
+        Action action = () => Workflow.Create("Test")
+            .If(null!, new FakeAgent("Test", "Done"));
+
+        action.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void WorkflowBuilder_If_Should_Throw_When_Node_Is_Null()
+    {
+        Action action = () => Workflow.Create("Test")
+            .If(new DelegateCondition(_ => true), null!);
+
+        action.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void WorkflowBuilder_If_Should_Use_Default_Name()
+    {
+        var condition = new DelegateCondition(_ => true);
+        var thenNode = new FakeAgent("ApprovalStep", "Approved");
+
+        var workflow = Workflow.Create("Research")
+            .Run(new FakeAgent("ResearchStep", "Done"))
+            .If(condition, thenNode)           // overload without name
+            .Build();
+
+        var conditional = workflow.Nodes.OfType<ConditionalNode>().Single();
+        conditional.Name.Should().Be("If");
+        conditional.Condition.Should().BeSameAs(condition);
+        conditional.Node.Should().BeSameAs(thenNode);
+    }
+
+    [Fact]
+    public void WorkflowBuilder_If_Should_Use_Custom_Name()
+    {
+        var condition = new DelegateCondition(_ => true);
+        var thenNode = new FakeAgent("ApprovalStep", "Approved");
+
+        var workflow = Workflow.Create("Research")
+            .If("IsUserApproved", condition, thenNode)   // overload with name
+            .Build();
+
+        var conditional = workflow.Nodes.OfType<ConditionalNode>().Single();
+        conditional.Name.Should().Be("IsUserApproved");
+    }
+
+    [Fact]
+    public void WorkflowBuilder_Should_Support_Chaining_Both_Overloads()
+    {
+        var workflow = Workflow.Create("Test")
+            .If(new DelegateCondition(_ => true), new FakeAgent("If1", "Path1"))
+            .If("CheckPermission", new DelegateCondition(_ => false), new FakeAgent("If2", "Path2"))
+            .Build();
+
+        workflow.Nodes.OfType<ConditionalNode>().Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void WorkflowBuilder_If_Should_Throw_When_Name_Is_Empty()
+    {
+        Action action =
+            () => Workflow.Create("Test")
+                .If(
+                    "",
+                    new DelegateCondition(_ => true),
+                    new FakeAgent("A", "Done"));
+
+        action.Should()
+            .Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void WorkflowBuilder_If_Should_Throw_When_Name_Is_Null()
+    {
+        Action action =
+            () => Workflow.Create("Test")
+                .If(
+                    null!,
+                    new DelegateCondition(_ => true),
+                    new FakeAgent("A", "Done"));
 
         action.Should()
             .Throw<ArgumentException>();
