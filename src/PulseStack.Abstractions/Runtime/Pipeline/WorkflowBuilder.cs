@@ -33,17 +33,7 @@ public sealed class WorkflowBuilder
     /// </summary>
     public WorkflowBuilder If(
         ICondition condition,
-        IPipelineNode thenNode)
-    {
-        ArgumentNullException.ThrowIfNull(condition);
-        ArgumentNullException.ThrowIfNull(thenNode);
-
-       return AddNode(
-            new ConditionalNode(
-                "If",
-                condition,
-                thenNode));
-    }
+        IPipelineNode thenNode) => If("If", condition, thenNode);
 
     /// <summary>
     /// Adds a conditional branch to the workflow with a custom name.
@@ -54,7 +44,7 @@ public sealed class WorkflowBuilder
         ICondition condition,
         IPipelineNode thenNode)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ValidateName(name);
         ArgumentNullException.ThrowIfNull(condition);
         ArgumentNullException.ThrowIfNull(thenNode);
 
@@ -70,15 +60,8 @@ public sealed class WorkflowBuilder
     /// </summary>
     public WorkflowBuilder Retry(
         IPipelineNode node,
-        int maxAttempts = 3)
-    {
-        ArgumentNullException.ThrowIfNull(node);
-
-        ValidateRetryAttempts(maxAttempts);
-
-        return AddNode(new RetryNode("Retry", node, maxAttempts));
-    }
-
+        int maxAttempts = 3) => Retry("Retry", node, maxAttempts);
+    
     /// <summary>
     /// Wraps a node with retry logic using a custom name.
     /// </summary>
@@ -87,12 +70,16 @@ public sealed class WorkflowBuilder
         IPipelineNode node,
         int maxAttempts = 3)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ValidateName(name);
         ArgumentNullException.ThrowIfNull(node);
 
         ValidateRetryAttempts(maxAttempts);
 
-        return AddNode(new RetryNode(name, node, maxAttempts));
+        return AddNode(
+            new RetryNode(
+                name, 
+                node, 
+                maxAttempts));
     }
 
     /// <summary>
@@ -100,13 +87,7 @@ public sealed class WorkflowBuilder
     /// </summary>
     public WorkflowBuilder ForEach(
         Func<PipelineContext, IEnumerable<object>> items,
-        IPipelineNode node)
-    {
-        ArgumentNullException.ThrowIfNull(items);
-        ArgumentNullException.ThrowIfNull(node);
-
-        return AddNode(new LoopNode("ForEach", items, node));
-    }
+        IPipelineNode node) => ForEach("ForEach", items, node);
 
     /// <summary>
     /// Creates a ForEach loop with a custom name.
@@ -116,11 +97,15 @@ public sealed class WorkflowBuilder
         Func<PipelineContext, IEnumerable<object>> items,
         IPipelineNode node)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ValidateName(name);
         ArgumentNullException.ThrowIfNull(items);
         ArgumentNullException.ThrowIfNull(node);
 
-        return AddNode(new LoopNode(name, items, node));
+        return AddNode(
+            new LoopNode(
+                name, 
+                items, 
+                node));
     }
 
     /// <summary>
@@ -135,23 +120,15 @@ public sealed class WorkflowBuilder
     /// </summary>
     public WorkflowBuilder Parallel(string name, params IPipelineNode[] nodes)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ValidateName(name);
         ArgumentNullException.ThrowIfNull(nodes);
 
-        if (nodes.Length == 0)
-            throw new ArgumentException(
-                "At least one node is required for Parallel execution.",
-                nameof(nodes));
+        ValidateNodes(nodes);
 
-        for (var i = 0; i < nodes.Length; i++)
-        {
-            if (nodes[i] is null)
-                throw new ArgumentNullException(
-                    nameof(nodes),
-                    $"Node at index {i} is null.");
-        }
-
-        var parallel = new ParallelNode(name);
+        var parallel = 
+            new ParallelNode(
+                name);
+                
         foreach (var node in nodes)
             parallel.Add(node);
 
@@ -173,11 +150,34 @@ public sealed class WorkflowBuilder
         return this;
     }
 
+    private static void ValidateName(string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+    }
+
     private static void ValidateRetryAttempts(
         int maxAttempts)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(
             maxAttempts,
             1);
+    }
+
+    private static void ValidateNodes(
+    IReadOnlyList<IPipelineNode> nodes)
+    {
+         if (nodes.Count == 0)
+            throw new ArgumentException(
+                "At least one node is required for Parallel execution.",
+                nameof(nodes));
+
+        for (var i = 0; i < nodes.Count; i++)
+        {
+            if (nodes[i] is null)
+                throw new ArgumentNullException(
+                    nameof(nodes),
+                     $"Node at index {i} cannot be null.");
+        }
+
     }
 }
