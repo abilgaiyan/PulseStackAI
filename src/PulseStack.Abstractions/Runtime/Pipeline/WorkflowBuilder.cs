@@ -135,6 +135,43 @@ public sealed class WorkflowBuilder
         return AddNode(parallel);
     }
 
+    /// <summary>
+    /// Adds a switch branch to the workflow (default name "Switch").
+    /// </summary>
+    public WorkflowBuilder Switch(
+        Func<PipelineContext, string?> selector,
+        IEnumerable<SwitchCase> cases,
+        IPipelineNode? defaultNode = null)
+        => Switch("Switch", selector, cases, defaultNode);
+
+    /// <summary>
+    /// Adds a switch branch to the workflow with a custom name.
+    /// The name will appear in diagnostics, logs, and future workflow visualizations.
+    /// </summary>
+    public WorkflowBuilder Switch(
+        string name,
+        Func<PipelineContext, string?> selector,
+        IEnumerable<SwitchCase> cases,
+        IPipelineNode? defaultNode = null)
+    {
+        ValidateName(name);
+        ArgumentNullException.ThrowIfNull(selector);
+        ArgumentNullException.ThrowIfNull(cases);
+
+        var caseList =
+            cases as IReadOnlyList<SwitchCase>
+            ?? cases.ToArray();
+
+        ValidateSwitchCases(caseList);
+        
+        return AddNode(
+            new SwitchNode(
+                name,
+                selector,
+                caseList,
+                defaultNode));
+    }
+
     public WorkflowPipeline Build()
     {
         return _workflow;
@@ -164,7 +201,7 @@ public sealed class WorkflowBuilder
     }
 
     private static void ValidateNodes(
-    IReadOnlyList<IPipelineNode> nodes)
+        IReadOnlyList<IPipelineNode> nodes)
     {
          if (nodes.Count == 0)
             throw new ArgumentException(
@@ -177,6 +214,24 @@ public sealed class WorkflowBuilder
                 throw new ArgumentNullException(
                     nameof(nodes),
                      $"Node at index {i} cannot be null.");
+        }
+
+    }
+
+    private static void ValidateSwitchCases(
+        IReadOnlyList<SwitchCase> caseList)
+    {
+         if (caseList.Count == 0)
+            throw new ArgumentException(
+                "Switch requires at least one case.",
+                nameof(caseList));
+
+        for (var i = 0; i < caseList.Count; i++)
+        {
+            if (caseList[i] is null)
+                throw new ArgumentNullException(
+                    nameof(caseList),
+                     $"SwitchCase at index {i} cannot be null.");
         }
 
     }
