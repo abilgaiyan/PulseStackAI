@@ -1,302 +1,246 @@
 # PulseStackAI
 
-Modern .NET AI framework for building agents, tools, workflows, and enterprise AI applications.
-
-Built on top of `Microsoft.Extensions.AI`, PulseStackAI provides a clean, extensible architecture for integrating AI into real-world .NET systems.
-
----
-
-
-# Why PulseStackAI?
-
-PulseStackAI helps developers build production-ready AI systems without dealing with provider complexity, fragmented SDKs, or orchestration boilerplate.
-
-Use it to create:
-
-* AI copilots
-* Multi-agent workflows
-* Tool-calling assistants
-* ERP / CRM AI integrations
-* Enterprise knowledge assistants
-* AI-powered automation systems
+> **Workflow-Oriented AI Orchestration Framework for .NET**
+>
+> Build AI applications the way you design business workflows.
 
 ---
 
-# Framework Goal
+## Every AI project starts the same way...
 
-PulseStackAI is designed to let developers focus on business orchestration rather than AI infrastructure.
+You have a simple idea.
 
-The framework should abstract away:
+> "Read this document."
 
-* provider complexity
-* orchestration coordination
-* runtime execution concerns
-* retries and resilience
-* shared state management
-* tool execution infrastructure
-* execution diagnostics
+Or
 
-while exposing clean, explicit orchestration primitives.
+> "Review this contract."
 
-The goal is to allow developers to compose reliable AI workflows using deterministic runtime infrastructure.
+Or
 
-----
+> "Approve this expense."
 
-# Current Features (v0.2)
+At first, it feels like a single prompt.
 
-## Providers
+Then reality arrives.
 
-* OpenAI provider
-* Unified `IChatClient` abstraction
+You need another model.
 
-## Agents
+Then tool calling.
 
-* `AgentBuilder` fluent API
-* Configurable instructions and temperature
-* Streaming responses
-* Structured tool calling
+Then retries.
 
-## Tools
+Then memory.
 
-* Tool registry
-* Dependency Injection integration
-* Built-in tool support
-* JSON-based tool execution loop
+Then logging.
 
-## Pipelines
+Then observability.
 
-* Sequential multi-agent pipelines
+Then streaming.
 
----
+Then parallel execution.
 
-# Installation
+Then conditional routing.
 
-## Clone Repository
+Then provider abstractions.
 
-```bash
-git clone https://github.com/abilgaiyan/PulseStackAI.git
-cd PulseStackAI
-```
+Before long, you're no longer building your AI application.
+
+You're building an AI framework.
+
+**We've all done it.**
 
 ---
 
-# Quick Start
+## There has to be a better way.
 
-## Configure Services
+What if AI applications were written the same way we describe business processes?
+
+Instead of thinking about providers...
+
+Think about workflows.
+
+Instead of asking
+
+> "Which model should execute this?"
+
+Ask
+
+> "What should happen next?"
+
+Instead of writing infrastructure...
+
+Describe intent.
+
+---
+
+## That's why PulseStackAI exists.
+
+PulseStackAI is a Workflow-Oriented AI Orchestration Framework for .NET.
+
+It allows developers to express business workflows while the framework handles orchestration, execution, resiliency, diagnostics, observability, and provider integration.
+
+You describe the workflow.
+
+PulseStackAI executes it.
+
+---
+
+## Imagine writing AI applications like this...
 
 ```csharp
-services.AddPulseStack()
-    .UseOpenAI(apiKey, "gpt-4o-mini");
+var workflow =
+    Workflow.Create("Expense Approval")
+
+        .Run(loadExpense)
+
+        .If(
+            requiresManagerApproval,
+            managerApproval)
+
+        .Parallel(
+            fraudCheck,
+            policyValidation)
+
+        .Retry(finalSubmission)
+
+        .Build();
 ```
+
+No orchestration code.
+
+No execution loops.
+
+No retry plumbing.
+
+No provider-specific logic.
+
+Just the workflow.
 
 ---
 
-## Basic Chat
+## That's the idea.
 
-```csharp
-var client = sp.GetRequiredService<IChatClient>();
+The workflow becomes the application.
 
-var response = await client.AskAsync(
-    "Explain dependency injection.");
+The runtime becomes the infrastructure.
 
-Console.WriteLine(response);
-```
+The provider becomes an implementation detail.
 
 ---
 
-## Build an Agent
+## Design Philosophy
 
-```csharp
-var agent = new AgentBuilder("Assistant", client)
-    .WithInstructions("You are concise and helpful.")
-    .WithTemperature(0.3f)
-    .Build();
+PulseStackAI is built around one simple belief.
 
-var result = await agent.RunAsync(
-    "Explain async/await.");
+> **AI applications are workflows.**
 
-Console.WriteLine(result.Text);
-```
+Everything else follows from that.
 
----
+Workflows express business intent.
 
-## Register Tools
+The runtime executes that intent.
 
-```csharp
-services.AddPulseStack()
-    .UseOpenAI(apiKey, "gpt-4o-mini")
-    .AddTool<CalculatorTool>();
-```
+Providers supply intelligence.
+
+Infrastructure stays hidden.
+
+Business logic stays visible.
 
 ---
 
-## Tool-Enabled Agent
+## Architecture
 
-```csharp
-var registry = sp.GetRequiredService<IToolRegistry>();
-
-var agent = new AgentBuilder("Assistant", client)
-    .WithInstructions("Use tools when required.")
-    .WithTools(registry)
-    .Build();
-
-var result = await agent.RunAsync(
-    "What is 250 * 45?");
-
-Console.WriteLine(result.Text);
 ```
+Every layer in PulseStackAI has exactly one responsibility.
+
+Builders construct workflows.
+
+Runtimes execute workflows.
+
+Providers communicate with AI models.
+
+Keeping these responsibilities separate makes applications easier to understand, test, and evolve.
+Developer
+
+↓
+
+Workflow Language
+
+↓
+
+Workflow Definition
+
+↓
+
+Workflow Runtime
+
+↓
+
+Agent Runtime
+
+↓
+
+AI Provider
+```
+
+Each layer has exactly one responsibility.
+
+That's what keeps applications understandable as they grow.
 
 ---
 
-## Multi-Agent Pipeline
+## What you can build today
 
-```csharp
-var researcher = new AgentBuilder("Researcher", client)
-    .WithInstructions("Research the topic and provide key findings.")
-    .Build();
+PulseStackAI already supports:
 
-var writer = new AgentBuilder("Writer", client)
-    .WithInstructions("Convert findings into an executive summary.")
-    .Build();
-
-var pipeline = new AgentPipeline("ResearchPipeline")
-    .AddAgent(researcher)
-    .AddAgent(writer);
-
-var result = await pipeline.RunAsync(
-    "AI adoption in enterprise ERP systems.");
-
-Console.WriteLine(result.FinalOutput);
-```
-
----
-
-# Streaming Responses
-
-```csharp
-await foreach (var chunk in agent.StreamAsync(
-    "Explain dependency injection in simple terms."))
-{
-    Console.Write(chunk);
-}
-```
-
----
-
-# Solution Structure
-
-```text
-src/
-  PulseStack.Abstractions
-  PulseStack.Core
-  PulseStack.Agents
-  PulseStack.Tools
-  PulseStack.Providers.OpenAI
-
-samples/
-  BasicChat
-  BasicAgent
-  MultiAgentPipeline
-  StreamingChat
-
-tests/
-  PulseStack.Tests
-```
-
----
-
-# Architecture
-
-```text
-Providers
-    ↓
-IChatClient
-    ↓
-Agents
-    ↓
-Tools
-    ↓
-Pipelines
-```
-
----
-
-# Samples
-
-## Run Basic Chat
-
-```bash
-dotnet run --project samples/BasicChat
-```
-
-## Run Basic Agent
-
-```bash
-dotnet run --project samples/BasicAgent
-```
-
-## Run Multi-Agent Pipeline
-
-```bash
-dotnet run --project samples/MultiAgentPipeline
-```
-
-## Run Streaming Chat
-
-```bash
-dotnet run --project samples/StreamingChat
-```
-
----
-
-# Roadmap
-
-## v0.3
-
-* Azure OpenAI provider
-* Ollama provider
-* Conversation memory
-* Improved tool metadata
-* Structured tool schemas
-
-## v0.4
-
-* Vector storage
-* RAG support
-* Document indexing
-* Semantic search
-
-## v1.0
-
-* Enterprise workflow engine
-* MCP integration
-* Document intelligence
-* AI governance / audit logging
-* Plugin ecosystem
-
----
-
-# Current Status
-
-PulseStackAI is currently in active early development.
-
-The framework is stable enough for experimentation and prototyping while core architecture and APIs continue to evolve.
-
----
-
-# Design Philosophy
-
-PulseStackAI focuses on:
-
-* Clean Architecture
-* Extensibility
+* Sequential workflows
+* Conditional execution
+* Parallel execution
+* Retry policies
+* ForEach iteration
+* Switch routing
+* Nested workflows
+* Tool execution
+* Usage tracking
+* Runtime diagnostics
 * Provider abstraction
-* Enterprise AI integration
-* Developer productivity
-* Incremental complexity
+* Extensible execution nodes
+
+And we're just getting started.
 
 ---
 
-# License
+## Where we're going
 
-MIT License
+Today, PulseStackAI gives you a Workflow DSL.
+
+Tomorrow, it becomes a complete Workflow Language for AI applications.
+
+Imagine writing business processes instead of orchestration code.
+
+That's the future we're building.
+
+---
+
+## Welcome to PulseStackAI.
+
+AI is changing how software is built.
+
+We believe the next generation of applications won't be defined by prompts or providers.
+
+They'll be defined by workflows.
+
+Our mission is simple:
+
+Build AI applications the same way you design business systems.
+
+Declaratively.
+
+Compositionally.
+
+Observably.
+
+Provider independently.
+
+Welcome to PulseStackAI.
