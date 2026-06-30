@@ -55,7 +55,7 @@ ScaffoldingReadMe.txt
 
 CodeCoverage/
 testme*/
-docs/
+docs_old/
 
 # MSBuild Binary and Structured Log
 *.binlog
