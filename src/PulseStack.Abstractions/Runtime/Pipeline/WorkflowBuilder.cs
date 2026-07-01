@@ -2,7 +2,8 @@ using PulseStack.Abstractions.Agents;
 
 namespace PulseStack.Abstractions.Runtime.Pipeline;
 
-public sealed class WorkflowBuilder
+public sealed class WorkflowBuilder 
+    : IWorkflowBuilderParent<WorkflowBuilder>
 {
     private readonly WorkflowPipeline _workflow;
 
@@ -14,6 +15,16 @@ public sealed class WorkflowBuilder
         _workflow =
             new WorkflowPipeline(
                 name);
+    }
+
+    /// <summary>
+    /// Implementation of IWorkflowBuilderParent<WorkflowBuilder>
+    /// </summary>
+    public WorkflowBuilder AddNode(IPipelineNode node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        _workflow.Add(node);
+        return this;
     }
 
     public WorkflowBuilder Run(
@@ -175,16 +186,6 @@ public sealed class WorkflowBuilder
     public WorkflowPipeline Build()
     {
         return _workflow;
-    }
-
-    private WorkflowBuilder AddNode(
-        IPipelineNode node)
-    {
-        ArgumentNullException.ThrowIfNull(node);
-
-        _workflow.Add(node);
-
-        return this;
     }
 
     private static void ValidateName(string name)
