@@ -1,3 +1,4 @@
+
 namespace PulseStack.Abstractions.Runtime.Pipeline;
 
 /// <summary>

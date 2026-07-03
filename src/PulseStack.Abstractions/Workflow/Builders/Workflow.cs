@@ -1,4 +1,5 @@
-namespace PulseStack.Abstractions.Runtime.Pipeline;
+
+namespace PulseStack.Abstractions.Workflow.Builders;
 
 public static class Workflow
 {

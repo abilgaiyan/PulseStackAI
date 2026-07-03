@@ -1,18 +1,18 @@
 using FluentAssertions;
 using PulseStack.Tests.Fakes;
-using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Workflow.Nodes;
 using PulseStack.Agents.Pipelines;
 using Xunit;
 
 namespace PulseStack.Tests.Workflows;
 
-public class WorkflowPipelineTests
+public class WorkflowDefinitionTests
 {
    [Fact]
     public void Workflow_Should_Accept_Agents()
     {
         var workflow =
-            new WorkflowPipeline(
+            new WorkflowDefinition(
                 "TestWorkflow");
 
         workflow.Add(
@@ -29,7 +29,7 @@ public class WorkflowPipelineTests
     public void Workflow_Should_Accept_Pipelines()
     {
         var workflow =
-            new WorkflowPipeline(
+            new WorkflowDefinition(
                 "TestWorkflow");
 
         var pipeline =
@@ -48,7 +48,7 @@ public class WorkflowPipelineTests
     public void Workflow_Should_Preserve_Node_Order()
     {
         var workflow =
-            new WorkflowPipeline(
+            new WorkflowDefinition(
                 "Workflow");
 
         var first =

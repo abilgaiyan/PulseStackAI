@@ -1,6 +1,8 @@
 using FluentAssertions;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Workflow.Nodes;
+using PulseStack.Abstractions.Workflow.Routing;
 using PulseStack.Abstractions.Runtime.Usage;
 using PulseStack.Agents.Runtime.Composition;
 using PulseStack.Tests.Fakes;
@@ -15,7 +17,7 @@ public class SwitchNodeExecutorTests
     {
         var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
 
-        var workflow = new WorkflowPipeline("TestWorkflow")
+        var workflow = new WorkflowDefinition("TestWorkflow")
             .Add(new FakeAgent("Step1", "Research Complete"))
             .Add(new SwitchNode(
                 name: "StatusSwitch",
@@ -90,7 +92,7 @@ public class SwitchNodeExecutorTests
     {
         var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
 
-        var workflow = new WorkflowPipeline("TestWorkflow")
+        var workflow = new WorkflowDefinition("TestWorkflow")
             .Add(new FakeAgent("Step1", "Research Complete"))
             .Add(new SwitchNode(
                 name: "StatusSwitch",
@@ -113,7 +115,7 @@ public class SwitchNodeExecutorTests
     {
         var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
 
-        var workflow = new WorkflowPipeline("TestWorkflow")
+        var workflow = new WorkflowDefinition("TestWorkflow")
             .Add(new FakeAgent("Step1", "Initial Output"))
             .Add(new SwitchNode(
                 name: "StatusSwitch",
@@ -134,7 +136,7 @@ public class SwitchNodeExecutorTests
     {
         var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
 
-        var workflow = new WorkflowPipeline("TestWorkflow")
+        var workflow = new WorkflowDefinition("TestWorkflow")
             .Add(new SwitchNode(
                 name: "CaseTest",
                 selector: _ => "approved",
@@ -164,7 +166,7 @@ public class SwitchNodeExecutorTests
                 ],
                 defaultNode: new FakeAgent("GuestStep", "Guest Processed"));
 
-        var workflow = new WorkflowPipeline("TestWorkflow")
+        var workflow = new WorkflowDefinition("TestWorkflow")
             .Add(switchNode);
 
         var context = new PipelineContext();
@@ -189,7 +191,7 @@ public class SwitchNodeExecutorTests
     {
         var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
 
-        var workflow = new WorkflowPipeline("TestWorkflow")
+        var workflow = new WorkflowDefinition("TestWorkflow")
             .Add(new SwitchNode(
                 name: "RoleRouter",
                 selector: ctx => ctx.Items.TryGetValue("UserRole", out var role) 
@@ -215,7 +217,7 @@ public class SwitchNodeExecutorTests
     {
         var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
 
-        var workflow = new WorkflowPipeline("TestWorkflow")
+        var workflow = new WorkflowDefinition("TestWorkflow")
             .Add(new FakeAgent("Step1", "Started"))
             .Add(new SwitchNode(
                 name: "RoleRouter",
@@ -241,7 +243,7 @@ public class SwitchNodeExecutorTests
     {
         var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
 
-        var workflow = new WorkflowPipeline("TestWorkflow")
+        var workflow = new WorkflowDefinition("TestWorkflow")
             .Add(new FakeAgent("Step1", "Initial Output"))
             .Add(new SwitchNode(
                 name: "NullSelectorSwitch",
@@ -264,7 +266,7 @@ public class SwitchNodeExecutorTests
     {
         var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
 
-        var workflow = new WorkflowPipeline("TestWorkflow")
+        var workflow = new WorkflowDefinition("TestWorkflow")
             .Add(new FakeAgent("Step1", "Initial Output"))
             .Add(new SwitchNode(
                 name: "NullSelectorSwitch",
@@ -285,7 +287,7 @@ public class SwitchNodeExecutorTests
     {
         var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
 
-        var workflow = new WorkflowPipeline("TestWorkflow")
+        var workflow = new WorkflowDefinition("TestWorkflow")
             .Add(new FakeAgent("Step1", "Started"))
             .Add(new SwitchNode(
                 name: "RoleSwitch",
@@ -322,7 +324,7 @@ public class SwitchNodeExecutorTests
                     new SwitchCase("Rejected", new FakeAgent("Rejector", "Rejected")),
                     new SwitchCase("Approved", secondCase)   // Duplicate
                 ]);
-        var workflow = new WorkflowPipeline("TestWorkflow")
+        var workflow = new WorkflowDefinition("TestWorkflow")
             .Add(new FakeAgent("Step1", "Initial Output"))
             .Add(switchNode);
 

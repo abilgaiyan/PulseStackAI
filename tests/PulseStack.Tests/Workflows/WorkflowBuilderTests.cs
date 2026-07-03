@@ -1,6 +1,10 @@
 using FluentAssertions;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Workflow.Builders;
+using PulseStack.Abstractions.Workflow.Nodes;
+using PulseStack.Abstractions.Workflow.Conditions;
+using PulseStack.Abstractions.Workflow.Routing;
 using PulseStack.Tests.Fakes;
 using Xunit;
 
@@ -44,7 +48,7 @@ public class WorkflowBuilderTests
     public void WorkflowBuilder_Should_Add_Nested_Workflow()
     {
         var childWorkflow =
-            new WorkflowPipeline(
+            new WorkflowDefinition(
                 "Child");
 
         var workflow =
@@ -58,14 +62,14 @@ public class WorkflowBuilderTests
     }
 
     [Fact]
-    public void WorkflowBuilder_Should_Return_WorkflowPipeline()
+    public void WorkflowBuilder_Should_Return_WorkflowDefinition()
     {
         var workflow =
             Workflow.Create(
                     "Research")
                 .Build();
 
-        workflow.Should().BeOfType<WorkflowPipeline>();
+        workflow.Should().BeOfType<WorkflowDefinition>();
     }
 
     [Fact]

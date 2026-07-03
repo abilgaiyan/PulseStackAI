@@ -1,7 +1,7 @@
 using FluentAssertions;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
-using PulseStack.Agents.Runtime;
+using PulseStack.Abstractions.Workflow.Nodes;
 using PulseStack.Agents.Runtime.Composition;
 using PulseStack.Agents.Runtime.Diagnostics;
 using PulseStack.Agents.Pipelines;
@@ -50,7 +50,7 @@ public class WorkflowNodeExecutionTests
         // Arrange
 
         var workflow =
-            new WorkflowPipeline("Workflow")
+            new WorkflowDefinition("Workflow")
                 .Add(
                     new FakeAgent(
                         "Researcher",
@@ -107,7 +107,7 @@ public class WorkflowNodeExecutionTests
                     "Research Complete"));
 
         var workflow =
-            new WorkflowPipeline("Workflow")
+            new WorkflowDefinition("Workflow")
                 .Add(pipeline);
 
         
@@ -156,7 +156,7 @@ public class WorkflowNodeExecutionTests
                     () => runtime));
 
         var workflow =
-            new WorkflowPipeline("Research")
+            new WorkflowDefinition("Research")
                 .Add(
                     new FakeAgent(
                         "Researcher",
@@ -203,7 +203,7 @@ public class WorkflowNodeExecutionTests
                     () => runtime));
 
         var workflow =
-            new WorkflowPipeline("Nested")
+            new WorkflowDefinition("Nested")
                 .Add(
                     new FakeAgent(
                         "Child",
@@ -232,14 +232,14 @@ public class WorkflowNodeExecutionTests
                 .CreateWithNestedWorkflowSupport();
 
         var childWorkflow =
-            new WorkflowPipeline("Research")
+            new WorkflowDefinition("Research")
                 .Add(
                     new FakeAgent(
                         "Researcher",
                         "Research Complete"));
 
         var parentWorkflow =
-            new WorkflowPipeline("Parent")
+            new WorkflowDefinition("Parent")
                 .Add(childWorkflow);
 
                 var context =
@@ -277,21 +277,21 @@ public class WorkflowNodeExecutionTests
       var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
 
         var researchWorkflow =
-            new WorkflowPipeline("Research")
+            new WorkflowDefinition("Research")
                 .Add(
                     new FakeAgent(
                         "Researcher",
                         "Research Complete"));
 
         var summaryWorkflow =
-            new WorkflowPipeline("Summary")
+            new WorkflowDefinition("Summary")
                 .Add(
                     new FakeAgent(
                         "Summarizer",
                         "Summary Complete"));
 
         var parentWorkflow =
-            new WorkflowPipeline("Parent")
+            new WorkflowDefinition("Parent")
                 .Add(researchWorkflow)
                 .Add(summaryWorkflow);
 
@@ -334,14 +334,14 @@ public class WorkflowNodeExecutionTests
         var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
 
         var childWorkflow =
-            new WorkflowPipeline("Research")
+            new WorkflowDefinition("Research")
                 .Add(
                     new FakeAgent(
                         "Researcher",
                         "Research Complete"));
 
         var parentWorkflow =
-            new WorkflowPipeline("Parent")
+            new WorkflowDefinition("Parent")
                 .Add(childWorkflow);
 
         var context =
@@ -381,15 +381,15 @@ public class WorkflowNodeExecutionTests
         var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
         
         // Create first workflow that produces output
-        var firstWorkflow = new WorkflowPipeline("FirstWorkflow")
+        var firstWorkflow = new WorkflowDefinition("FirstWorkflow")
             .Add(new FakeAgent("Agent1", "Initial Result"));
         
         // Create second workflow that consumes output from first
-        var secondWorkflow = new WorkflowPipeline("SecondWorkflow")
+        var secondWorkflow = new WorkflowDefinition("SecondWorkflow")
             .Add(new ContextAwareFakeAgent("Agent2"));
         
         // Create parent workflow that chains them together
-        var parentWorkflow = new WorkflowPipeline("Parent")
+        var parentWorkflow = new WorkflowDefinition("Parent")
             .Add(firstWorkflow)
             .Add(secondWorkflow);
         

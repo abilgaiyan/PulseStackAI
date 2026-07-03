@@ -1,6 +1,6 @@
 using FluentAssertions;
 using PulseStack.Abstractions.Agents;
-using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Workflow.Nodes;
 using PulseStack.Agents.Runtime.Diagnostics.Events;
 using PulseStack.Tests.Fakes;
 using Xunit;
@@ -89,9 +89,9 @@ public class WorkflowObservabilityTests
             .ContainSingle();
     }
 
-    private static WorkflowPipeline CreateWorkflow()
+    private static WorkflowDefinition CreateWorkflow()
     {
-        return new WorkflowPipeline("Workflow")
+        return new WorkflowDefinition("Workflow")
             .Add(
                 new FakeAgent(
                     "Researcher",

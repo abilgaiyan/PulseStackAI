@@ -1,27 +1,28 @@
 using PulseStack.Abstractions.Agents;
+using PulseStack.Abstractions.Runtime.Pipeline;
 
-namespace PulseStack.Abstractions.Runtime.Pipeline;
+namespace PulseStack.Abstractions.Workflow.Nodes;
 
-public sealed class ConditionalNode
+public sealed class LoopNode
     : IPipelineNode
 {
     public string Name { get; }
 
-    public ICondition Condition { get; }
+    public Func<PipelineContext, IEnumerable<object>> Items { get; }
 
     public IPipelineNode Node { get; }
 
-    public ConditionalNode(
+    public LoopNode(
         string name,
-        ICondition condition,
+        Func<PipelineContext, IEnumerable<object>> items,
         IPipelineNode node)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        ArgumentNullException.ThrowIfNull(condition);
+        ArgumentNullException.ThrowIfNull(items);
         ArgumentNullException.ThrowIfNull(node);
 
         Name = name;
-        Condition = condition;
+        Items = items;
         Node = node;
     }
 }

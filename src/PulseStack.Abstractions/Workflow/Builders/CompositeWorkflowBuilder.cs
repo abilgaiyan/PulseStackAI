@@ -1,6 +1,8 @@
 using PulseStack.Abstractions.Agents;
+using  PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Workflow.Nodes;
 
-namespace PulseStack.Abstractions.Runtime.Pipeline;
+namespace PulseStack.Abstractions.Workflow.Builders;
 
 /// <summary>
 /// Base class for all nested workflow language blocks.
@@ -51,7 +53,7 @@ public abstract class CompositeWorkflowBuilder<TParent>
     /// <summary>
     /// Implements a complete child workflow sequence directly within this nested block.
     /// </summary>
-    public CompositeWorkflowBuilder<TParent> Workflow(WorkflowPipeline workflow)
+    public CompositeWorkflowBuilder<TParent> Workflow(WorkflowDefinition workflow)
     {
         AddNode(workflow);
         return this;

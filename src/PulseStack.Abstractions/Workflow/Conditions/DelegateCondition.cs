@@ -1,8 +1,7 @@
-using System.Threading;
-using System.Threading.Tasks;
 using PulseStack.Abstractions.Agents;
+using PulseStack.Abstractions.Runtime.Pipeline;
 
-namespace PulseStack.Abstractions.Runtime.Pipeline;
+namespace PulseStack.Abstractions.Workflow.Conditions;
 
 /// <summary>
 /// A condition that delegates evaluation to a provided function.

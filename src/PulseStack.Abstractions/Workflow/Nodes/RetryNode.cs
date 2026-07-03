@@ -1,6 +1,6 @@
+using PulseStack.Abstractions.Runtime.Pipeline;
 
-namespace PulseStack.Abstractions.Runtime.Pipeline;
-
+namespace PulseStack.Abstractions.Workflow.Nodes;
 public sealed class RetryNode : IPipelineNode
 {
     public string Name { get; }

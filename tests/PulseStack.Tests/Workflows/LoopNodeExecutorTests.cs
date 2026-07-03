@@ -1,6 +1,7 @@
 using FluentAssertions;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Workflow.Nodes;
 using PulseStack.Abstractions.Runtime.Usage;
 using PulseStack.Agents.Runtime.Composition;
 using PulseStack.Tests.Fakes;
@@ -17,7 +18,7 @@ public class LoopNodeExecutorTests
             WorkflowRuntimeFactory.Create();
 
         var workflow =
-            new WorkflowPipeline("Workflow")
+            new WorkflowDefinition("Workflow")
                 .Add(
                     new LoopNode(
                         "Loop",
@@ -58,7 +59,7 @@ public class LoopNodeExecutorTests
             WorkflowRuntimeFactory.Create();
 
         var workflow =
-            new WorkflowPipeline("Workflow")
+            new WorkflowDefinition("Workflow")
                 .Add(
                     new LoopNode(
                         "Loop",
@@ -186,7 +187,7 @@ public class LoopNodeExecutorTests
             WorkflowRuntimeFactory.Create();
 
         var workflow =
-            new WorkflowPipeline("Workflow")
+            new WorkflowDefinition("Workflow")
                 .Add(
                     new LoopNode(
                         "Loop",
@@ -226,7 +227,7 @@ public class LoopNodeExecutorTests
             WorkflowRuntimeFactory.Create();
 
         var workflow =
-            new WorkflowPipeline("Workflow")
+            new WorkflowDefinition("Workflow")
                 .Add(
                     new LoopNode(
                         "Loop",
@@ -267,11 +268,11 @@ public class LoopNodeExecutorTests
         var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
         
         // Create a nested workflow
-        var nestedWorkflow = new WorkflowPipeline("ProcessItem")
+        var nestedWorkflow = new WorkflowDefinition("ProcessItem")
             .Add(new FakeAgent("Step1", "Step1 Done"))
             .Add(new LoopAwareFakeAgent("Step2"));
         
-        var workflow = new WorkflowPipeline("Main")
+        var workflow = new WorkflowDefinition("Main")
             .Add(
                 new LoopNode(
                     "Loop",

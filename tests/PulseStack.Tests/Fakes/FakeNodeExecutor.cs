@@ -1,6 +1,7 @@
 using Microsoft.Extensions.AI;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Workflow.Nodes;
 using PulseStack.Abstractions.Runtime.Usage;
 
 namespace PulseStack.Tests.Fakes;

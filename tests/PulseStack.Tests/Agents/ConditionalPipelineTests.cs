@@ -1,5 +1,6 @@
 using FluentAssertions;
 using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Workflow.Conditions;
 using PulseStack.Agents.Pipelines;
 using PulseStack.Agents.Runtime.Observability;
 using PulseStack.Agents.Runtime.Diagnostics.Events;

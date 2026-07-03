@@ -1,5 +1,5 @@
-namespace PulseStack.Abstractions.Runtime.Pipeline;
 
+namespace PulseStack.Abstractions.Runtime.Pipeline;
 public interface INodeExecutorResolver
 {
     INodeExecutor Resolve(

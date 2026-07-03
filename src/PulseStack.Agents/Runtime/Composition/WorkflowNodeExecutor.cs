@@ -1,5 +1,6 @@
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Workflow.Nodes;
 using PulseStack.Agents.Runtime.Usage;
 
 namespace PulseStack.Agents.Runtime.Composition;
@@ -17,7 +18,7 @@ internal sealed class WorkflowNodeExecutor
 
     public bool CanExecute(
         IPipelineNode node)
-        => node is WorkflowPipeline;
+        => node is WorkflowDefinition;
 
     public async Task<NodeExecutionResult> ExecuteAsync(
         IPipelineNode node,
@@ -25,7 +26,7 @@ internal sealed class WorkflowNodeExecutor
         CancellationToken cancellationToken = default)
     {
         var workflow =
-            (WorkflowPipeline)node;
+            (WorkflowDefinition)node;
 
         var result =
             await _workflowRuntime.Value.ExecuteAsync(

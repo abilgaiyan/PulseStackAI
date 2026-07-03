@@ -1,8 +1,6 @@
-using System.Threading;
-using System.Threading.Tasks;
 using PulseStack.Abstractions.Agents;
 
-namespace PulseStack.Abstractions.Runtime.Pipeline;
+namespace PulseStack.Abstractions.Workflow.Conditions;
 
 /// <summary>
 /// Defines a condition that can be evaluated in the context of a pipeline execution.

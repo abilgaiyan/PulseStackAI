@@ -1,5 +1,5 @@
-using PulseStack.Abstractions.Agents;
-using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Workflow.Nodes;
+using PulseStack.Abstractions.Workflow.Builders;
 
 namespace PulseStack.Tests.Workflows.Builders;
 
@@ -20,7 +20,7 @@ public sealed class TestBlockBuilder
 
     public override WorkflowBuilder End()
     {
-        var childWorkflow = new WorkflowPipeline(_blockName);
+        var childWorkflow = new WorkflowDefinition(_blockName);
 
         foreach (var node in Nodes)
         {

@@ -2,6 +2,7 @@ using PulseStack.Agents.Runtime.Observability;
 using PulseStack.Agents.Runtime.Composition;
 using PulseStack.Agents.Runtime.Diagnostics;
 using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Workflow.Nodes;
 using PulseStack.Agents.Runtime;
 
 namespace PulseStack.Tests.Workflows;

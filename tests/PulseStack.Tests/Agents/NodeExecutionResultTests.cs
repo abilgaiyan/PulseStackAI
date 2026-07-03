@@ -1,5 +1,5 @@
 using FluentAssertions;
-using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Workflow.Nodes;
 using Xunit;
 
 namespace PulseStack.Tests.Architecture;

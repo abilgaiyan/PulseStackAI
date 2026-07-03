@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Workflow.Nodes;
 using PulseStack.Agents.Runtime.Composition;
 
 namespace PulseStack.Agents.DependencyInjection;

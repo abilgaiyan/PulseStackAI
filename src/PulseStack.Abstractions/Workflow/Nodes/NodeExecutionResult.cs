@@ -1,6 +1,6 @@
 using PulseStack.Abstractions.Runtime.Usage;
 
-namespace PulseStack.Abstractions.Runtime.Pipeline;
+namespace PulseStack.Abstractions.Workflow.Nodes;
 public sealed class NodeExecutionResult
 {
     public string NodeName { get; init; } = string.Empty;

@@ -1,4 +1,5 @@
 using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Workflow.Nodes;
 using PulseStack.Abstractions.Agents;
 
 namespace PulseStack.Tests.Fakes;

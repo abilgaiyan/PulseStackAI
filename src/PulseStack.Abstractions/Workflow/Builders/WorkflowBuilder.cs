@@ -1,11 +1,15 @@
 using PulseStack.Abstractions.Agents;
+using PulseStack.Abstractions.Workflow.Nodes;
+using PulseStack.Abstractions.Workflow.Conditions;
+using PulseStack.Abstractions.Workflow.Routing;
+using  PulseStack.Abstractions.Runtime.Pipeline;
 
-namespace PulseStack.Abstractions.Runtime.Pipeline;
+namespace PulseStack.Abstractions.Workflow.Builders;
 
 public sealed class WorkflowBuilder 
     : IWorkflowBuilderParent<WorkflowBuilder>
 {
-    private readonly WorkflowPipeline _workflow;
+    private readonly WorkflowDefinition _workflow;
 
     internal WorkflowBuilder(
         string name)
@@ -13,7 +17,7 @@ public sealed class WorkflowBuilder
          ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         _workflow =
-            new WorkflowPipeline(
+            new WorkflowDefinition(
                 name);
     }
 
@@ -34,7 +38,7 @@ public sealed class WorkflowBuilder
     }
 
     public WorkflowBuilder Workflow(
-        WorkflowPipeline workflow)
+        WorkflowDefinition workflow)
     {
        return AddNode(workflow);
     }
@@ -183,7 +187,7 @@ public sealed class WorkflowBuilder
                 defaultNode));
     }
 
-    public WorkflowPipeline Build()
+    public WorkflowDefinition Build()
     {
         return _workflow;
     }

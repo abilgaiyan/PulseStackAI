@@ -1,6 +1,8 @@
 using FluentAssertions;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Workflow.Nodes;
+using PulseStack.Abstractions.Workflow.Conditions;
 using PulseStack.Abstractions.Runtime.Usage;
 using PulseStack.Agents.Runtime.Composition;
 using PulseStack.Tests.Fakes;
@@ -140,7 +142,7 @@ public class ConditionalNodeExecutorTest
                 .CreateWithNestedWorkflowSupport();
 
         var workflow =
-            new WorkflowPipeline("Workflow")
+            new WorkflowDefinition("Workflow")
                 .Add(
                     new ConditionalNode(
                         "Condition",
@@ -167,7 +169,7 @@ public class ConditionalNodeExecutorTest
                 .CreateWithNestedWorkflowSupport();
 
         var workflow =
-            new WorkflowPipeline("Workflow")
+            new WorkflowDefinition("Workflow")
                 .Add(
                     new ConditionalNode(
                         "Condition",
@@ -194,7 +196,7 @@ public class ConditionalNodeExecutorTest
                 .CreateWithNestedWorkflowSupport();
 
         var workflow =
-            new WorkflowPipeline("Workflow")
+            new WorkflowDefinition("Workflow")
                 .Add(
                     new FakeAgent(
                         "Step1",

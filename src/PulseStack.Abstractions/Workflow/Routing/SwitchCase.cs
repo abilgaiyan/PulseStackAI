@@ -1,4 +1,7 @@
-namespace PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Workflow.Nodes;
+
+namespace PulseStack.Abstractions.Workflow.Routing;
 
 public sealed class SwitchCase
 {

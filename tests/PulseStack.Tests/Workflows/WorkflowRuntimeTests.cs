@@ -3,8 +3,8 @@ using PulseStack.Tests.Fakes;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Agents.Runtime.Composition;
 using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Workflow.Nodes;
 using PulseStack.Agents.Runtime.Diagnostics;
-using PulseStack.Agents.Runtime.Diagnostics.Events;
 
 using Xunit;
 
@@ -18,7 +18,7 @@ public class WorkflowRuntimeTests
         // Arrange
 
         var workflow =
-            new WorkflowPipeline(
+            new WorkflowDefinition(
                 "Workflow")
             .Add(
                 new TestNode(
@@ -72,7 +72,7 @@ public class WorkflowRuntimeTests
         var dispatcher = new RuntimeEventDispatcher();            
 
         var workflow =
-            new WorkflowPipeline(
+            new WorkflowDefinition(
                 "Workflow")
             .Add(
                 new TestNode(
@@ -129,7 +129,7 @@ public class WorkflowRuntimeTests
     public async Task Workflow_Should_Throw_When_No_Executor_Exists()
     {
         var workflow =
-            new WorkflowPipeline(
+            new WorkflowDefinition(
                 "Workflow")
             .Add(
                 new TestNode(

@@ -1,5 +1,6 @@
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Workflow.Nodes;
 using PulseStack.Agents.Runtime.Diagnostics;
 using PulseStack.Agents.Runtime.Diagnostics.Events;
 
@@ -20,7 +21,7 @@ internal sealed class WorkflowRuntime
     }
 
     public async Task<WorkflowExecutionResult> ExecuteAsync(
-        WorkflowPipeline workflow,
+        WorkflowDefinition workflow,
         PipelineContext context,
         CancellationToken cancellationToken = default)
     {

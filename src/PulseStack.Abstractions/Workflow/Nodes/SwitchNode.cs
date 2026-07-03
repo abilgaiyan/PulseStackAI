@@ -1,6 +1,8 @@
 using  PulseStack.Abstractions.Agents;
+using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Workflow.Routing;
 
-namespace PulseStack.Abstractions.Runtime.Pipeline;
+namespace PulseStack.Abstractions.Workflow.Nodes;
 
 public sealed class SwitchNode
     : IPipelineNode

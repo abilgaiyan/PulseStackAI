@@ -1,20 +1,16 @@
+using PulseStack.Abstractions.Runtime.Pipeline;
 
-namespace PulseStack.Abstractions.Runtime.Pipeline;
-
-/// <summary>
-/// Represents a composable workflow
-/// consisting of pipeline nodes.
-/// </summary>
-public sealed class WorkflowPipeline : IPipelineNode
+namespace PulseStack.Abstractions.Workflow.Nodes;
+public sealed class ParallelNode : IPipelineNode
 {
     private readonly List<IPipelineNode> _nodes = [];
 
     public string Name { get; }
 
-    public IReadOnlyList<IPipelineNode> Nodes =>
-        _nodes;
+    public IReadOnlyList<IPipelineNode> Nodes
+        => _nodes;
 
-    public WorkflowPipeline(
+    public ParallelNode(
         string name)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -22,7 +18,7 @@ public sealed class WorkflowPipeline : IPipelineNode
         Name = name;
     }
 
-    public WorkflowPipeline Add(
+    public ParallelNode Add(
         IPipelineNode node)
     {
         ArgumentNullException.ThrowIfNull(node);

@@ -1,4 +1,4 @@
-using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Workflow.Builders;
 
 namespace PulseStack.Tests.Workflows.Builders;
 

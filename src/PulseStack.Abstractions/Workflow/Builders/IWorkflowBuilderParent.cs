@@ -1,4 +1,6 @@
-namespace PulseStack.Abstractions.Runtime.Pipeline;
+using  PulseStack.Abstractions.Runtime.Pipeline;
+
+namespace PulseStack.Abstractions.Workflow.Builders;
 
 /// <summary>
 /// Abstraction that allows nested builders (ParallelBuilder, SwitchBuilder, etc.)

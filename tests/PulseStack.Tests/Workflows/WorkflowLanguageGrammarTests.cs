@@ -1,6 +1,7 @@
 using FluentAssertions;
 using PulseStack.Tests.Workflows.Builders;
-using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Workflow.Nodes;
+using PulseStack.Abstractions.Workflow.Builders;
 using PulseStack.Tests.Fakes;
 using Xunit;
 
@@ -26,7 +27,7 @@ public class WorkflowLanguageGrammarTests
         workflow.Nodes.Should().HaveCount(2);
         workflow.Nodes[0].Should().BeSameAs(agent1);
 
-        var nestedWorkflow = workflow.Nodes[1] as WorkflowPipeline;
+        var nestedWorkflow = workflow.Nodes[1] as WorkflowDefinition;
         nestedWorkflow.Should().NotBeNull();
         nestedWorkflow!.Name.Should().Be("ValidationBlock");
         nestedWorkflow.Nodes.Should().ContainSingle().Which.Should().BeSameAs(agent2);

@@ -2,6 +2,7 @@ using FluentAssertions;
 using Xunit;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Workflow.Nodes;
 using PulseStack.Abstractions.Runtime.Usage;
 using PulseStack.Agents.Runtime.Composition;
 using PulseStack.Tests.Fakes;
@@ -16,7 +17,7 @@ public class ParallelNodeExecutorTests
             WorkflowRuntimeFactory.Create();
 
         var workflow =
-            new WorkflowPipeline("Workflow")
+            new WorkflowDefinition("Workflow")
                 .Add(
                     new ParallelNode("Parallel")
                         .Add(
@@ -45,7 +46,7 @@ public class ParallelNodeExecutorTests
             WorkflowRuntimeFactory.Create();
 
         var workflow =
-            new WorkflowPipeline("Workflow")
+            new WorkflowDefinition("Workflow")
                 .Add(
                     new ParallelNode("Parallel")
                         .Add(
