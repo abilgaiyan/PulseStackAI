@@ -432,7 +432,8 @@ public class WorkflowBuilderTests
     [Fact]
     public void WorkflowBuilder_Parallel_Should_Throw_When_Array_Is_Empty()
     {
-        Action action = () => Workflow.Create("Test").Parallel();
+        Action action = () => Workflow.Create("Test")
+            .Parallel(Array.Empty<IPipelineNode>());
         action.Should().Throw<ArgumentException>();
     }
 

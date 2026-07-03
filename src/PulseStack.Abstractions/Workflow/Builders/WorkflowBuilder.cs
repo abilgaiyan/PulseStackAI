@@ -150,6 +150,16 @@ public sealed class WorkflowBuilder
         return AddNode(parallel);
     }
 
+    public ParallelBuilder Parallel()
+    => Parallel("Parallel");
+
+    public ParallelBuilder Parallel(string name)
+    {
+        ValidateName(name);
+
+        return new ParallelBuilder(this, name);
+    }
+
     /// <summary>
     /// Adds a switch branch to the workflow (default name "Switch").
     /// </summary>
