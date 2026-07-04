@@ -2,6 +2,7 @@ using FluentAssertions;
 using PulseStack.Tests.Workflows.Builders;
 using PulseStack.Abstractions.Workflow.Nodes;
 using PulseStack.Abstractions.Workflow.Builders;
+using PulseStack.Abstractions.Workflow.Conditions;
 using PulseStack.Tests.Fakes;
 using Xunit;
 
@@ -31,5 +32,38 @@ public class WorkflowLanguageGrammarTests
         nestedWorkflow.Should().NotBeNull();
         nestedWorkflow!.Name.Should().Be("ValidationBlock");
         nestedWorkflow.Nodes.Should().ContainSingle().Which.Should().BeSameAs(agent2);
+    }
+
+    [Fact]
+    public void If_Should_Return_IfConditionBuilder()
+    {
+        var builder =
+            Workflow.Create("Approval")
+                .If(new DelegateCondition(_ => true));
+
+        builder.Should().BeOfType<IfConditionBuilder<WorkflowBuilder>>();
+    }
+
+    [Fact]
+    public void Then_Should_Return_ThenBuilder()
+    {
+        var builder =
+            Workflow.Create("Approval")
+                .If(new DelegateCondition(_ => true))
+                .Then();
+
+        builder.Should().BeOfType<ThenBuilder<WorkflowBuilder>>();
+    }
+
+    [Fact]
+    public void Else_Should_Return_ElseBuilder()
+    {
+        var builder =
+            Workflow.Create("Approval")
+                .If(new DelegateCondition(_ => true))
+                .Then()
+                .Else();
+
+        builder.Should().BeOfType<ElseBuilder<WorkflowBuilder>>();
     }
 }

@@ -42,10 +42,37 @@ public sealed class WorkflowBuilder
     {
        return AddNode(workflow);
     }
+    
+    /// <summary>
+    /// Begins a conditional workflow block.
+    /// The next valid language construct is Then().
+    /// </summary>
+    public IfConditionBuilder<WorkflowBuilder> If(
+        ICondition condition)
+    {
+        return If("If", condition);
+    }
+
+    /// <summary>
+    /// Begins a named conditional workflow block.
+    /// The next valid language construct is Then().
+    /// </summary>
+    public IfConditionBuilder<WorkflowBuilder> If(
+        string name,
+        ICondition condition)
+    {
+        ValidateName(name);
+        ArgumentNullException.ThrowIfNull(condition);
+
+        return new IfConditionBuilder<WorkflowBuilder>(
+            this,
+            condition);
+    }
 
     /// <summary>
     /// Adds a conditional branch to the workflow (uses default name "If").
     /// </summary>
+    [Obsolete("Use the Workflow Language syntax: If(...).Then()...End().")]
     public WorkflowBuilder If(
         ICondition condition,
         IPipelineNode thenNode) => If("If", condition, thenNode);
@@ -54,6 +81,7 @@ public sealed class WorkflowBuilder
     /// Adds a conditional branch to the workflow with a custom name.
     /// The name will appear in diagnostics, logs, and future workflow visualizations.
     /// </summary>
+    [Obsolete("Use the Workflow Language syntax: If(...).Then()...End().")]
     public WorkflowBuilder If(
         string name,
         ICondition condition,
