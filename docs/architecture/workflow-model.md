@@ -132,7 +132,7 @@ Builders act as the bridge between the Workflow Language and the Workflow Model.
 
 Their responsibility is simple.
 
-> **Builders compile the Workflow Language into the Workflow Model.**
+> **Builders compile the Workflow Language into a Workflow composed of Workflow Steps.**
 
 For example:
 

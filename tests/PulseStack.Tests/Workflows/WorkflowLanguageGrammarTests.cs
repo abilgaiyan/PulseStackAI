@@ -1,5 +1,6 @@
 using FluentAssertions;
 using PulseStack.Tests.Workflows.Builders;
+using PulseStack.Abstractions.Workflow.Steps;
 using PulseStack.Abstractions.Workflow.Nodes;
 using PulseStack.Abstractions.Workflow.Builders;
 using PulseStack.Abstractions.Workflow.Conditions;

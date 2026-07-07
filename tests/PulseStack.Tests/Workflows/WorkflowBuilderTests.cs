@@ -1,7 +1,7 @@
 using FluentAssertions;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
-using PulseStack.Abstractions.Workflow.Builders;
+using PulseStack.Abstractions.Workflow.Steps;
 using PulseStack.Abstractions.Workflow.Nodes;
 using PulseStack.Abstractions.Workflow.Conditions;
 using PulseStack.Abstractions.Workflow.Routing;
