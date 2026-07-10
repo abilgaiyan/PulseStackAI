@@ -1,6 +1,7 @@
 using PulseStack.Abstractions.Agents;
+using PulseStack.Abstractions.Workflows;
 using PulseStack.Abstractions.Runtime.Pipeline;
-using PulseStack.Abstractions.Workflow.Nodes;
+using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Agents.Runtime.Diagnostics;
 using PulseStack.Agents.Runtime.Diagnostics.Events;
 
@@ -9,11 +10,11 @@ namespace PulseStack.Agents.Runtime.Composition;
 internal sealed class WorkflowRuntime
     : IWorkflowRuntime
 {
-    private readonly IReadOnlyList<INodeExecutor> _executors;
+    private readonly IReadOnlyList<IStepExecutor> _executors;
     private readonly IRuntimeEventDispatcher _eventDispatcher;
 
     public WorkflowRuntime(
-        IEnumerable<INodeExecutor> executors,
+        IEnumerable<IStepExecutor> executors,
         IRuntimeEventDispatcher eventDispatcher)
     {
         _executors = executors.ToList();
@@ -21,7 +22,7 @@ internal sealed class WorkflowRuntime
     }
 
     public async Task<WorkflowExecutionResult> ExecuteAsync(
-        WorkflowDefinition workflow,
+        Workflow workflow,
         PipelineContext context,
         CancellationToken cancellationToken = default)
     {
@@ -39,33 +40,33 @@ internal sealed class WorkflowRuntime
                 executionId,
                 startedAt,
                 workflow.Name,
-                workflow.Nodes.Count));
+                workflow.Steps.Count));
 
         var results =
-            new List<NodeExecutionResult>();
+            new List<StepExecutionResult>();
 
-        foreach (var node in workflow.Nodes)
+        foreach (var step in workflow.Steps)
         {
             var executor =
                 _executors.FirstOrDefault(
-                    x => x.CanExecute(node));
+                    x => x.CanExecute(step));
 
             if (executor is null)
             {
                 throw new InvalidOperationException(
-                    $"No executor registered for node '{node.Name}'.");
+                    $"No executor registered for step '{step.Name}'.");
             }
 
             _eventDispatcher.Dispatch(
                 new NodeStartedEvent(
                     executionId,
                     DateTimeOffset.UtcNow,
-                    node.Name,
-                    node.GetType().Name));
+                    step.Name,
+                    step.GetType().Name));
 
             var result =
                 await executor.ExecuteAsync(
-                    node,
+                    step,
                     context,
                     cancellationToken);
 
@@ -73,8 +74,8 @@ internal sealed class WorkflowRuntime
                 new NodeCompletedEvent(
                     executionId,
                     DateTimeOffset.UtcNow,
-                    node.Name,
-                    node.GetType().Name,
+                    step.Name,
+                    step.GetType().Name,
                     result.Success));
 
             results.Add(result);                    
@@ -96,7 +97,7 @@ internal sealed class WorkflowRuntime
 
             FinalOutput = context.CurrentOutput ?? string.Empty,
 
-            Nodes = results
+            Steps = results
         };
     }
 }

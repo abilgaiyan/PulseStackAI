@@ -1,11 +1,11 @@
 using PulseStack.Abstractions.Agents;
-using PulseStack.Abstractions.Workflow.Nodes;
+using PulseStack.Abstractions.Workflows;
 
 namespace PulseStack.Abstractions.Runtime.Pipeline;
 public interface IWorkflowRuntime
 {
     Task<WorkflowExecutionResult> ExecuteAsync(
-        WorkflowDefinition workflow,
+        Workflow workflow,
         PipelineContext context,
         CancellationToken cancellationToken = default);
 }

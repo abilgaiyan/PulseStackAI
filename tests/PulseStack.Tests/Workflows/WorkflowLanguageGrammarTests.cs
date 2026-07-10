@@ -1,9 +1,9 @@
 using FluentAssertions;
 using PulseStack.Tests.Workflows.Builders;
-using PulseStack.Abstractions.Workflow.Steps;
-using PulseStack.Abstractions.Workflow.Nodes;
-using PulseStack.Abstractions.Workflow.Builders;
-using PulseStack.Abstractions.Workflow.Conditions;
+using PulseStack.Abstractions.Workflows.Steps;
+using PulseStack.Abstractions.Workflows;
+using PulseStack.Abstractions.Workflows.Builders;
+using PulseStack.Abstractions.Workflows.Conditions;
 using PulseStack.Tests.Fakes;
 using Xunit;
 
@@ -20,19 +20,38 @@ public class WorkflowLanguageGrammarTests
         var workflow = Workflow.Create("MainWorkflow")
             .Run(agent1)
 
-            .Test("ValidationBlock")      // Enter composite scope
+            .Test("ValidationBlock")
                 .Run(agent2)
-            .End()                        // Exit composite scope
+            .End()
 
             .Build();
 
-        workflow.Nodes.Should().HaveCount(2);
-        workflow.Nodes[0].Should().BeSameAs(agent1);
+        workflow.Steps.Should().HaveCount(2);
 
-        var nestedWorkflow = workflow.Nodes[1] as WorkflowDefinition;
-        nestedWorkflow.Should().NotBeNull();
-        nestedWorkflow!.Name.Should().Be("ValidationBlock");
-        nestedWorkflow.Nodes.Should().ContainSingle().Which.Should().BeSameAs(agent2);
+        // First step
+        var runStep1 = workflow.Steps[0]
+            .Should()
+            .BeOfType<RunStep>()
+            .Subject;
+
+        runStep1.Agent.Should().BeSameAs(agent1);
+
+        // Nested workflow
+        var nestedWorkflow = workflow.Steps[1]
+            .Should()
+            .BeOfType<Workflow>()
+            .Subject;
+
+        nestedWorkflow.Name.Should().Be("ValidationBlock");
+
+        nestedWorkflow.Steps.Should().ContainSingle();
+
+        var runStep2 = nestedWorkflow.Steps[0]
+            .Should()
+            .BeOfType<RunStep>()
+            .Subject;
+
+        runStep2.Agent.Should().BeSameAs(agent2);
     }
 
     [Fact]

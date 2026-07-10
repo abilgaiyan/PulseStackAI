@@ -3,14 +3,14 @@ namespace PulseStack.Agents.Runtime.Diagnostics.Events;
 public sealed record NodeStartedEvent(
     Guid ExecutionId,
     DateTimeOffset Timestamp,
-    string NodeName,
+    string StepName,
     string NodeType)
     : IRuntimeEvent
 {
     public IReadOnlyDictionary<string, object?> Metadata
         => new Dictionary<string, object?>
         {
-            ["NodeName"] = NodeName,
+            ["StepName"] = StepName,
             ["NodeType"] = NodeType
         };
 }

@@ -1,4 +1,4 @@
-using PulseStack.Abstractions.Workflow.Nodes;
+using PulseStack.Abstractions.Workflows.Steps;
 namespace PulseStack.Abstractions.Runtime.Pipeline;
 public sealed class WorkflowExecutionResult 
 {
@@ -6,5 +6,5 @@ public sealed class WorkflowExecutionResult
 
     public string FinalOutput { get; init; } = string.Empty;
 
-    public IReadOnlyList<NodeExecutionResult> Nodes { get; init; } = [];
+    public IReadOnlyList<StepExecutionResult> Steps { get; init; } = [];
 }

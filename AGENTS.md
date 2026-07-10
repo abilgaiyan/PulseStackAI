@@ -114,11 +114,11 @@ Complex behavior should emerge from composing small workflow nodes.
 
 Prefer:
 
-* ConditionalNode
-* RetryNode
-* ParallelNode
-* LoopNode
-* SwitchNode
+* ConditionalStep
+* RetryStep
+* ParallelStep
+* LoopStep
+* SwitchStep
 * WorkflowNode
 
 Avoid deep inheritance hierarchies.

@@ -1,11 +1,11 @@
 using Microsoft.Extensions.AI;
-using PulseStack.Abstractions.Runtime.Pipeline;
 
 namespace PulseStack.Abstractions.Agents;
 
-public interface IAgent : IPipelineNode
+public interface IAgent 
 {
     string? Model { get; }
+    string Name { get; }
 
     Task<ChatResponse> RunAsync(
         string input,

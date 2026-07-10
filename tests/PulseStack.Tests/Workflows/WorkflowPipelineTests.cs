@@ -1,54 +1,49 @@
 using FluentAssertions;
 using PulseStack.Tests.Fakes;
-using PulseStack.Abstractions.Workflow.Nodes;
+using PulseStack.Abstractions.Workflows;
+using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Agents.Pipelines;
 using Xunit;
 
 namespace PulseStack.Tests.Workflows;
 
-public class WorkflowDefinitionTests
+public class WorkflowTests
 {
    [Fact]
     public void Workflow_Should_Accept_Agents()
     {
         var workflow =
-            new WorkflowDefinition(
+            new Workflow(
                 "TestWorkflow");
 
-        workflow.Add(
+        var agent = 
             new FakeAgent(
                 "Researcher",
-                "Research"));
+                "Research"); 
 
-        workflow.Nodes
+        workflow.Add(agent);
+            
+
+        workflow.Steps
             .Should()
             .HaveCount(1);
-    }
 
-    [Fact]
-    public void Workflow_Should_Accept_Pipelines()
-    {
-        var workflow =
-            new WorkflowDefinition(
-                "TestWorkflow");
-
-        var pipeline =
-            new SequentialPipeline(
-                "ResearchPipeline");
-
-        workflow.Add(
-            pipeline);
-
-        workflow.Nodes
+        workflow.Steps
+            .Single()
             .Should()
-            .ContainSingle();
+            .BeOfType<RunStep>();            
+
+        ((RunStep)workflow.Steps.Single())
+            .Agent
+            .Should()
+            .BeSameAs(agent);
     }
 
     [Fact]
-    public void Workflow_Should_Preserve_Node_Order()
+    public void Workflow_Should_Preserve_Step_Order()
     {
         var workflow =
-            new WorkflowDefinition(
+            new Workflow(
                 "Workflow");
 
         var first =
@@ -65,11 +60,11 @@ public class WorkflowDefinitionTests
             .Add(first)
             .Add(second);
 
-        workflow.Nodes[0]
+        workflow.Steps[0]
             .Should()
             .Be(first);
 
-        workflow.Nodes[1]
+        workflow.Steps[1]
             .Should()
             .Be(second);
     }

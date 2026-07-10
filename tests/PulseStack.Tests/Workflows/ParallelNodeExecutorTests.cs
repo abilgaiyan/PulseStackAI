@@ -2,24 +2,25 @@ using FluentAssertions;
 using Xunit;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
-using PulseStack.Abstractions.Workflow.Nodes;
+using PulseStack.Abstractions.Workflows;
+using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Abstractions.Runtime.Usage;
 using PulseStack.Agents.Runtime.Composition;
 using PulseStack.Tests.Fakes;
 
 namespace PulseStack.Tests.Workflows;
-public class ParallelNodeExecutorTests
+public class ParallelStepExecutorTests
 {
     [Fact]
-    public async Task ParallelNode_Should_Execute_All_Nodes()
+    public async Task ParallelStep_Should_Execute_All_Nodes()
     {
         var runtime =
             WorkflowRuntimeFactory.Create();
 
         var workflow =
-            new WorkflowDefinition("Workflow")
+            new Workflow("Workflow")
                 .Add(
-                    new ParallelNode("Parallel")
+                    new ParallelStep("Parallel")
                         .Add(
                             new FakeAgent(
                                 "Research",
@@ -36,19 +37,19 @@ public class ParallelNodeExecutorTests
 
         result.Success.Should().BeTrue();
 
-        result.Nodes.Should().ContainSingle();
+        result.Steps.Should().ContainSingle();
     }
 
     [Fact]
-    public async Task ParallelNode_Should_Aggregate_Output()
+    public async Task ParallelStep_Should_Aggregate_Output()
     {
         var runtime =
             WorkflowRuntimeFactory.Create();
 
         var workflow =
-            new WorkflowDefinition("Workflow")
+            new Workflow("Workflow")
                 .Add(
-                    new ParallelNode("Parallel")
+                    new ParallelStep("Parallel")
                         .Add(
                             new FakeAgent(
                                 "Research",
@@ -70,13 +71,13 @@ public class ParallelNodeExecutorTests
     }
 
     [Fact]
-    public async Task ParallelNode_Should_Return_Own_Name_And_Aggregate_Child_Usage()
+    public async Task ParallelStep_Should_Return_Own_Name_And_Aggregate_Child_Usage()
     {
         var executors =
-            new List<INodeExecutor>();
+            new List<IStepExecutor>();
 
         var resolver =
-            new NodeExecutorResolver(
+            new StepExecutorResolver(
                 executors);
 
         executors.Add(
@@ -91,11 +92,11 @@ public class ParallelNodeExecutorTests
                 }));
 
         var executor =
-            new ParallelNodeExecutor(
+            new ParallelStepExecutor(
                 resolver);
 
-        var node =
-            new ParallelNode("Parallel")
+        var step =
+            new ParallelStep("Parallel")
                 .Add(
                     new FakeAgent(
                         "A",
@@ -107,10 +108,10 @@ public class ParallelNodeExecutorTests
 
         var result =
             await executor.ExecuteAsync(
-                node,
+                step,
                 new PipelineContext());
 
-        result.NodeName.Should().Be("Parallel");
+        result.StepName.Should().Be("Parallel");
         result.Success.Should().BeTrue();
         result.Output.Should().Be(
             string.Join(

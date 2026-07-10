@@ -1,30 +1,31 @@
 using PulseStack.Abstractions.Runtime.Pipeline;
-using PulseStack.Abstractions.Workflow.Nodes;
+using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Abstractions.Agents;
+using PulseStack.Abstractions.Workflows;
 
 namespace PulseStack.Tests.Fakes;
 
-internal sealed class FlakyNodeExecutor : INodeExecutor
+internal sealed class FlakyNodeExecutor : IStepExecutor
 {
     private int _attempts;
 
     public int Attempts => _attempts;
 
     public bool CanExecute(
-        IPipelineNode node)
-        => node is FakeAgent;
+        IWorkflowStep step)
+        => step is Workflow;
 
-    public Task<NodeExecutionResult> ExecuteAsync(
-        IPipelineNode node,
+    public Task<StepExecutionResult> ExecuteAsync(
+        IWorkflowStep step,
         PipelineContext context,
         CancellationToken cancellationToken = default)
     {
         _attempts++;
 
         return Task.FromResult(
-            new NodeExecutionResult
+            new StepExecutionResult
             {
-                NodeName = node.Name,
+                StepName = step.Name,
                 Success = _attempts >= 2,
                 Output = _attempts >= 2
                     ? "Success"

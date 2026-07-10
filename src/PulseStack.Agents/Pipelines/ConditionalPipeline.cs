@@ -1,6 +1,6 @@
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
-using PulseStack.Abstractions.Workflow.Conditions;
+using PulseStack.Abstractions.Workflows.Conditions;
 using PulseStack.Agents.Runtime;
 using PulseStack.Agents.Runtime.Diagnostics.Events;
 using PulseStack.Agents.Runtime.Observability;
@@ -8,7 +8,7 @@ using PulseStack.Agents.Runtime.Diagnostics;
 
 namespace PulseStack.Agents.Pipelines;
 
-public sealed class ConditionalPipeline : IAgentPipeline, IPipelineNode
+public sealed class ConditionalPipeline : IAgentPipeline
 {
     private readonly List<IAgent> _trueAgents = [];
 

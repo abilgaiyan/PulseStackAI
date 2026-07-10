@@ -1,37 +1,37 @@
 using FluentAssertions;
 using Xunit;
 using PulseStack.Abstractions.Agents;
-using PulseStack.Abstractions.Workflow.Nodes;
+using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Abstractions.Runtime.Pipeline;
 using PulseStack.Abstractions.Runtime.Usage;
 using PulseStack.Agents.Runtime.Composition;
 using PulseStack.Tests.Fakes;
 
 namespace PulseStack.Tests.Workflows;
-public class RetryNodeExecutorTests
+public class RetryStepExecutorTests
 {
     [Fact]
     public async Task RetryNode_Should_Execute_Successfully()
     {
                 var executors =
-            new List<INodeExecutor>();
+            new List<IStepExecutor>();
 
         var resolver =
-            new NodeExecutorResolver(
+            new StepExecutorResolver(
                 executors);
 
         executors.Add(
             WorkflowRuntimeFactory.CreateAgentExecutor());
 
         var executor =
-            new RetryNodeExecutor(
+            new RetryStepExecutor(
                 resolver);
 
-        var retryNode = new RetryNode(
+        var retryNode = new RetryStep(
             "Retry",
-            new FakeAgent(
+            new RunStep(new FakeAgent(
                 "Researcher",
-                "Done"));
+                "Done")));
 
         var result =
                     await executor.ExecuteAsync(
@@ -39,7 +39,7 @@ public class RetryNodeExecutorTests
                         new PipelineContext());
 
         result.Success.Should().BeTrue();
-        result.NodeName.Should().Be("Retry");
+        result.StepName.Should().Be("Retry");
         result.Output.Should().Be("Done");                
     }
 
@@ -56,10 +56,10 @@ public class RetryNodeExecutorTests
             };
 
         var executors =
-            new List<INodeExecutor>();
+            new List<IStepExecutor>();
 
         var resolver =
-            new NodeExecutorResolver(
+            new StepExecutorResolver(
                 executors);
 
         executors.Add(
@@ -68,22 +68,22 @@ public class RetryNodeExecutorTests
                 usage: usage));
 
         var retryExecutor =
-            new RetryNodeExecutor(
+            new RetryStepExecutor(
                 resolver);
 
-        var node =
-            new RetryNode(
+        var step =
+            new RetryStep(
                 "Retry",
-                new FakeAgent(
+                new RunStep(new FakeAgent(
                     "Researcher",
-                    "Executed"));
+                    "Executed")));
 
         var result =
             await retryExecutor.ExecuteAsync(
-                node,
+                step,
                 new PipelineContext());
 
-        result.NodeName.Should().Be("Retry");
+        result.StepName.Should().Be("Retry");
         result.Success.Should().BeTrue();
         result.Output.Should().Be("Retried Output");
         result.Usage.Should().BeSameAs(usage);
@@ -93,10 +93,10 @@ public class RetryNodeExecutorTests
     public async Task RetryNode_Should_Retry_Until_Success()
     {
         var executors =
-            new List<INodeExecutor>();
+            new List<IStepExecutor>();
 
         var resolver =
-            new NodeExecutorResolver(
+            new StepExecutorResolver(
                 executors);
 
         var flakyExecutor =
@@ -105,20 +105,20 @@ public class RetryNodeExecutorTests
         executors.Add(flakyExecutor);
 
         var retryExecutor =
-            new RetryNodeExecutor(
+            new RetryStepExecutor(
                 resolver);
 
-        var node =
-            new RetryNode(
+        var step =
+            new RetryStep(
                 "Retry",
-                new FakeAgent(
+                new RunStep(new FakeAgent(
                     "Researcher",
-                    "Executed"),
+                    "Executed")),
                 maxAttempts: 3);
 
         var result =
             await retryExecutor.ExecuteAsync(
-                node,
+                step,
                 new PipelineContext());
 
         result.Success.Should().BeTrue();
@@ -132,10 +132,10 @@ public class RetryNodeExecutorTests
     public async Task RetryNode_Should_Stop_After_Max_Attempts()
     {
         var executors =
-            new List<INodeExecutor>();
+            new List<IStepExecutor>();
 
         var resolver =
-            new NodeExecutorResolver(
+            new StepExecutorResolver(
                 executors);
 
         var failingExecutor =
@@ -144,20 +144,20 @@ public class RetryNodeExecutorTests
         executors.Add(failingExecutor);
 
         var retryExecutor =
-            new RetryNodeExecutor(
+            new RetryStepExecutor(
                 resolver);
 
-        var node =
-            new RetryNode(
+        var step =
+            new RetryStep(
                 "Retry",
-                new FakeAgent(
+                new RunStep(new FakeAgent(
                     "Researcher",
-                    "Executed"),
+                    "Executed")),
                 maxAttempts: 3);
 
         var result =
             await retryExecutor.ExecuteAsync(
-                node,
+                step,
                 new PipelineContext());
 
         result.Success.Should().BeFalse();

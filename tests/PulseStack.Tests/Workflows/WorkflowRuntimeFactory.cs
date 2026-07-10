@@ -2,13 +2,12 @@ using PulseStack.Agents.Runtime.Observability;
 using PulseStack.Agents.Runtime.Composition;
 using PulseStack.Agents.Runtime.Diagnostics;
 using PulseStack.Abstractions.Runtime.Pipeline;
-using PulseStack.Abstractions.Workflow.Nodes;
 using PulseStack.Agents.Runtime;
 
 namespace PulseStack.Tests.Workflows;
 internal static class WorkflowRuntimeFactory
 {
-    public static AgentNodeExecutor CreateAgentExecutor()
+    public static RunStepExecutor CreateAgentExecutor()
     {
         var dispatcher =
             new RuntimeEventDispatcher();
@@ -17,7 +16,7 @@ internal static class WorkflowRuntimeFactory
             new AgentRuntime(
                 dispatcher);
 
-        return new AgentNodeExecutor(
+        return new RunStepExecutor(
             runtime);
     }
 
@@ -92,52 +91,52 @@ internal static class WorkflowRuntimeFactory
             dispatcher);
     }
 
-    private static List<INodeExecutor> CreateExecutors(
+    private static List<IStepExecutor> CreateExecutors(
         AgentRuntime agentRuntime,
         WorkflowRuntime? nestedRuntime = null)
     {
         ArgumentNullException.ThrowIfNull(agentRuntime);
 
         var executors =
-            new List<INodeExecutor>();
+            new List<IStepExecutor>();
 
         var resolver =
-            new NodeExecutorResolver(
+            new StepExecutorResolver(
                 executors);
 
         executors.Add(
-            new AgentNodeExecutor(
+            new RunStepExecutor(
                 agentRuntime));
 
         executors.Add(
-            new PipelineNodeExecutor());
+            new PipelineStepExecutor());
 
         if (nestedRuntime is not null)
         {
             executors.Add(
-                new WorkflowNodeExecutor(
+                new WorkflowStepExecutor(
                     new Lazy<IWorkflowRuntime>(
                         () => nestedRuntime)));
         }
 
         executors.Add(
-            new ConditionalNodeExecutor(
+            new ConditionalStepExecutor(
                 resolver));
 
         executors.Add(
-            new RetryNodeExecutor(
+            new RetryStepExecutor(
                 resolver));
 
         executors.Add(
-            new ParallelNodeExecutor(
+            new ParallelStepExecutor(
                 resolver));
 
         executors.Add(
-            new LoopNodeExecutor(
+            new LoopStepExecutor(
                 resolver));
 
         executors.Add(
-            new SwitchNodeExecutor(
+            new SwitchStepExecutor(
                 resolver));
 
         return executors;

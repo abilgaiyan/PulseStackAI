@@ -1,13 +1,13 @@
 using Microsoft.Extensions.AI;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
-using PulseStack.Abstractions.Workflow.Nodes;
+using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Abstractions.Runtime.Usage;
 
 namespace PulseStack.Tests.Fakes;
 
 public sealed class FakeNodeExecutor
-    : INodeExecutor
+    : IStepExecutor
 {
     private readonly List<string>? _executionOrder;
     private readonly bool _success;
@@ -27,25 +27,25 @@ public sealed class FakeNodeExecutor
     }
 
     public bool CanExecute(
-        IPipelineNode node)
+        IWorkflowStep step)
         => true;
 
-    public Task<NodeExecutionResult> ExecuteAsync(
-        IPipelineNode node,
+    public Task<StepExecutionResult> ExecuteAsync(
+        IWorkflowStep step,
         PipelineContext context,
         CancellationToken cancellationToken = default)
     {
-        _executionOrder?.Add(node.Name);
+        _executionOrder?.Add(step.Name);
 
         var output =
-            _output ?? node.Name;
+            _output ?? step.Name;
 
         context.CurrentOutput = output;
 
         return Task.FromResult(
-            new NodeExecutionResult
+            new StepExecutionResult
             {
-                NodeName = node.Name,
+                StepName = step.Name,
                 Success = _success,
                 Output = output,
                 Usage = _usage

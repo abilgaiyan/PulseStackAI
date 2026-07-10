@@ -1,8 +1,9 @@
 using FluentAssertions;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
-using PulseStack.Abstractions.Workflow.Nodes;
-using PulseStack.Abstractions.Workflow.Conditions;
+using PulseStack.Abstractions.Workflows;
+using PulseStack.Abstractions.Workflows.Steps;
+using PulseStack.Abstractions.Workflows.Conditions;
 using PulseStack.Abstractions.Runtime.Usage;
 using PulseStack.Agents.Runtime.Composition;
 using PulseStack.Tests.Fakes;
@@ -11,48 +12,51 @@ using Xunit;
 namespace PulseStack.Tests.Workflows;
 
 
-public class ConditionalNodeExecutorTest
+public class ConditionalStepExecutorTest
 {
     
      [Fact]
-    public async Task ConditionalNode_Should_Execute_When_Condition_Is_True()
+    public async Task ConditionalStep_Should_Execute_When_Condition_Is_True()
     {
         var executors =
-            new List<INodeExecutor>();
+            new List<IStepExecutor>();
 
         var resolver =
-            new NodeExecutorResolver(
+            new StepExecutorResolver(
                 executors);
 
         executors.Add(
             WorkflowRuntimeFactory.CreateAgentExecutor());
 
         var executor =
-            new ConditionalNodeExecutor(
+            new ConditionalStepExecutor(
                 resolver);
 
-        var node =
-            new ConditionalNode(
+        var agent = 
+            new FakeAgent(
+                "Researcher",
+                "Executed");       
+
+        var step =
+            new ConditionalStep(
                 "Condition",
                 new DelegateCondition(_ => true),
-                new FakeAgent(
-                    "Researcher",
-                    "Executed"));
+                new RunStep(agent));
 
         var result =
             await executor.ExecuteAsync(
-                node,
+                step,
                 new PipelineContext());
 
         result.Success.Should().BeTrue();
 
-        result.NodeName.Should().Be("Condition");
+        result.StepName.Should().Be("Condition");
 
         result.Output.Should().Be("Executed");
     }
 
     [Fact]
-    public async Task ConditionalNode_Should_Return_Own_Name_And_Preserve_Child_Result()
+    public async Task ConditionalStep_Should_Return_Own_Name_And_Preserve_Child_Result()
     {
         var childUsage =
             new AIUsage
@@ -64,10 +68,10 @@ public class ConditionalNodeExecutorTest
             };
 
         var executors =
-            new List<INodeExecutor>();
+            new List<IStepExecutor>();
 
         var resolver =
-            new NodeExecutorResolver(
+            new StepExecutorResolver(
                 executors);
 
         executors.Add(
@@ -77,56 +81,62 @@ public class ConditionalNodeExecutorTest
                 usage: childUsage));
 
         var executor =
-            new ConditionalNodeExecutor(
+            new ConditionalStepExecutor(
                 resolver);
 
-        var node =
-            new ConditionalNode(
+        var agent = 
+            new FakeAgent(
+                "Child",
+                "Ignored");        
+
+        var step =
+            new ConditionalStep(
                 "Condition",
                 new DelegateCondition(_ => true),
-                new FakeAgent(
-                    "Child",
-                    "Ignored"));
+                new RunStep(agent));
 
         var result =
             await executor.ExecuteAsync(
-                node,
+                step,
                 new PipelineContext());
 
-        result.NodeName.Should().Be("Condition");
+        result.StepName.Should().Be("Condition");
         result.Success.Should().BeFalse();
         result.Output.Should().Be("Child Output");
         result.Usage.Should().BeSameAs(childUsage);
     }
 
     [Fact]
-    public async Task ConditionalNode_Should_Skip_When_Condition_Is_False()
+    public async Task ConditionalStep_Should_Skip_When_Condition_Is_False()
     {
         var executors =
-            new List<INodeExecutor>();
+            new List<IStepExecutor>();
 
         var resolver =
-            new NodeExecutorResolver(
+            new StepExecutorResolver(
                 executors);
 
         executors.Add(
             WorkflowRuntimeFactory.CreateAgentExecutor());
 
         var executor =
-            new ConditionalNodeExecutor(
+            new ConditionalStepExecutor(
                 resolver);
 
-        var node =
-            new ConditionalNode(
+        var agent =                 
+            new FakeAgent(
+                "Researcher",
+                "Executed");        
+
+        var step =
+            new ConditionalStep(
                 "Condition",
                 new DelegateCondition(_ => false),
-                new FakeAgent(
-                    "Researcher",
-                    "Executed"));
+                new RunStep(agent));
 
         var result =
             await executor.ExecuteAsync(
-                node,
+                step,
                 new PipelineContext());
 
         result.Success.Should().BeTrue();
@@ -141,15 +151,18 @@ public class ConditionalNodeExecutorTest
             WorkflowRuntimeFactory
                 .CreateWithNestedWorkflowSupport();
 
+        var agent = 
+            new FakeAgent(
+                "Researcher",
+                "Executed");
+
         var workflow =
-            new WorkflowDefinition("Workflow")
+            new Workflow("Workflow")
                 .Add(
-                    new ConditionalNode(
+                    new ConditionalStep(
                         "Condition",
                         new DelegateCondition(_ => true),
-                        new FakeAgent(
-                            "Researcher",
-                            "Executed")));
+                    new RunStep(agent)));
 
         var result =
             await runtime.ExecuteAsync(
@@ -168,15 +181,19 @@ public class ConditionalNodeExecutorTest
             WorkflowRuntimeFactory
                 .CreateWithNestedWorkflowSupport();
 
+        var agent = 
+            new FakeAgent(
+                "Researcher",
+                "Executed");       
+
         var workflow =
-            new WorkflowDefinition("Workflow")
+            new Workflow("Workflow")
                 .Add(
-                    new ConditionalNode(
+                    new ConditionalStep(
                         "Condition",
                         new DelegateCondition(_ => false),
-                        new FakeAgent(
-                            "Researcher",
-                            "Executed")));
+                        new RunStep(agent)
+                    ));
 
         var result =
             await runtime.ExecuteAsync(
@@ -189,25 +206,25 @@ public class ConditionalNodeExecutorTest
     }
 
     [Fact]
-    public async Task ConditionalNode_Should_Preserve_Context_When_Skipped()
+    public async Task ConditionalStep_Should_Preserve_Context_When_Skipped()
     {
         var runtime =
             WorkflowRuntimeFactory
                 .CreateWithNestedWorkflowSupport();
 
         var workflow =
-            new WorkflowDefinition("Workflow")
+            new Workflow("Workflow")
                 .Add(
                     new FakeAgent(
                         "Step1",
                         "Research Complete"))
                 .Add(
-                    new ConditionalNode(
+                    new ConditionalStep(
                         "Condition",
                         new DelegateCondition(_ => false),
-                        new FakeAgent(
+                        new RunStep(new FakeAgent(
                             "Step2",
-                            "Should Not Execute")));
+                            "Should Not Execute"))));
 
         var result =
             await runtime.ExecuteAsync(
@@ -219,5 +236,4 @@ public class ConditionalNodeExecutorTest
         result.FinalOutput.Should().Be(
             "Research Complete");
     }
-
 }

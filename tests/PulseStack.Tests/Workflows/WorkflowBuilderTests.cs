@@ -1,10 +1,9 @@
 using FluentAssertions;
 using PulseStack.Abstractions.Agents;
-using PulseStack.Abstractions.Runtime.Pipeline;
-using PulseStack.Abstractions.Workflow.Steps;
-using PulseStack.Abstractions.Workflow.Nodes;
-using PulseStack.Abstractions.Workflow.Conditions;
-using PulseStack.Abstractions.Workflow.Routing;
+using PulseStack.Abstractions.Workflows;
+using PulseStack.Abstractions.Workflows.Steps;
+using PulseStack.Abstractions.Workflows.Conditions;
+using PulseStack.Abstractions.Workflows.Routing;
 using PulseStack.Tests.Fakes;
 using Xunit;
 
@@ -23,7 +22,7 @@ public class WorkflowBuilderTests
             builder.Build();
 
         workflow.Name.Should().Be("Research");
-        workflow.Nodes.Should().BeEmpty();
+        workflow.Steps.Should().BeEmpty();
     }
 
     [Fact]
@@ -40,15 +39,15 @@ public class WorkflowBuilderTests
                 .Run(agent)
                 .Build();
 
-        workflow.Nodes.Should().ContainSingle();
-        workflow.Nodes.Single().Should().BeSameAs(agent);
+        workflow.Steps.Should().ContainSingle();
+        workflow.Steps.Single().Should().BeSameAs(agent);
     }
 
     [Fact]
     public void WorkflowBuilder_Should_Add_Nested_Workflow()
     {
         var childWorkflow =
-            new WorkflowDefinition(
+            new Workflow(
                 "Child");
 
         var workflow =
@@ -57,8 +56,8 @@ public class WorkflowBuilderTests
                 .Workflow(childWorkflow)
                 .Build();
 
-        workflow.Nodes.Should().ContainSingle();
-        workflow.Nodes.Single().Should().BeSameAs(childWorkflow);
+        workflow.Steps.Should().ContainSingle();
+        workflow.Steps.Single().Should().BeSameAs(childWorkflow);
     }
 
     [Fact]
@@ -69,7 +68,7 @@ public class WorkflowBuilderTests
                     "Research")
                 .Build();
 
-        workflow.Should().BeOfType<WorkflowDefinition>();
+        workflow.Should().BeOfType<Workflow>();
     }
 
     [Fact]
@@ -97,7 +96,7 @@ public class WorkflowBuilderTests
                 .Run(new FakeAgent("B", "Done"))
                 .Build();
 
-        workflow.Nodes.Should().HaveCount(2);
+        workflow.Steps.Should().HaveCount(2);
     }
 
     [Fact]
@@ -124,16 +123,16 @@ public class WorkflowBuilderTests
     public void WorkflowBuilder_If_Should_Throw_When_Condition_Is_Null()
     {
         Action action = () => Workflow.Create("Test")
-            .If(null!, new FakeAgent("Test", "Done"));
+            .If(null!, new RunStep(new FakeAgent("Test", "Done")));
 
         action.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
-    public void WorkflowBuilder_If_Should_Throw_When_Node_Is_Null()
+    public void WorkflowBuilder_If_Should_Throw_When_Step_Is_Null()
     {
         Action action = () => Workflow.Create("Test")
-            .If(new DelegateCondition(_ => true), null!);
+            .If(new DelegateCondition(_ => true), (IWorkflowStep)null!);
 
         action.Should().Throw<ArgumentNullException>();
     }
@@ -142,30 +141,30 @@ public class WorkflowBuilderTests
     public void WorkflowBuilder_If_Should_Use_Default_Name()
     {
         var condition = new DelegateCondition(_ => true);
-        var thenNode = new FakeAgent("ApprovalStep", "Approved");
+        var thenStep = new FakeAgent("ApprovalStep", "Approved");
 
         var workflow = Workflow.Create("Research")
             .Run(new FakeAgent("ResearchStep", "Done"))
-            .If(condition, thenNode)           // overload without name
+            .If(condition, thenStep)           // overload without name
             .Build();
 
-        var conditional = workflow.Nodes.OfType<ConditionalNode>().Single();
+        var conditional = workflow.Steps.OfType<ConditionalStep>().Single();
         conditional.Name.Should().Be("If");
         conditional.Condition.Should().BeSameAs(condition);
-        conditional.Node.Should().BeSameAs(thenNode);
+        conditional.Step.Should().BeSameAs(thenStep);
     }
 
     [Fact]
     public void WorkflowBuilder_If_Should_Use_Custom_Name()
     {
         var condition = new DelegateCondition(_ => true);
-        var thenNode = new FakeAgent("ApprovalStep", "Approved");
+        var thenStep = new FakeAgent("ApprovalStep", "Approved");
 
         var workflow = Workflow.Create("Research")
-            .If("IsUserApproved", condition, thenNode)   // overload with name
+            .If("IsUserApproved", condition, thenStep)   // overload with name
             .Build();
 
-        var conditional = workflow.Nodes.OfType<ConditionalNode>().Single();
+        var conditional = workflow.Steps.OfType<ConditionalStep>().Single();
         conditional.Name.Should().Be("IsUserApproved");
     }
 
@@ -177,7 +176,7 @@ public class WorkflowBuilderTests
             .If("CheckPermission", new DelegateCondition(_ => false), new FakeAgent("If2", "Path2"))
             .Build();
 
-        workflow.Nodes.OfType<ConditionalNode>().Should().HaveCount(2);
+        workflow.Steps.OfType<ConditionalStep>().Should().HaveCount(2);
     }
 
     [Fact]
@@ -214,14 +213,14 @@ public class WorkflowBuilderTests
         var agent = new FakeAgent("ValidationStep", "Done");
 
         var workflow = Workflow.Create("Research")
-            .Retry(agent, 3)
+            .Retry(new RunStep(agent), 3)
             .Build();
 
-        var retryNode = workflow.Nodes.OfType<RetryNode>().Single();
+        var retryNode = workflow.Steps.OfType<RetryStep>().Single();
 
         retryNode.Name.Should().Be("Retry");
         retryNode.MaxAttempts.Should().Be(3);
-        retryNode.Node.Should().BeSameAs(agent);
+        retryNode.Step.Should().BeSameAs(agent);
     }
 
     [Fact]
@@ -230,25 +229,25 @@ public class WorkflowBuilderTests
         var agent = new FakeAgent("ValidationStep", "Done");
 
         var workflow = Workflow.Create("Research")
-            .Retry("Retry Validation", agent, 5)
+            .Retry("Retry Validation",new RunStep(agent), 5)
             .Build();
 
-        var retryNode = workflow.Nodes.OfType<RetryNode>().Single();
+        var retryNode = workflow.Steps.OfType<RetryStep>().Single();
 
         retryNode.Name.Should().Be("Retry Validation");
         retryNode.MaxAttempts.Should().Be(5);
-        retryNode.Node.Should().BeSameAs(agent);
+        retryNode.Step.Should().BeSameAs(agent);
     }
 
     [Fact]
     public void WorkflowBuilder_Retry_Should_Support_Chaining_Both_Overloads()
     {
         var workflow = Workflow.Create("Test")
-            .Retry(new FakeAgent("A", "Done"), 2)
-            .Retry("CustomRetry", new FakeAgent("B", "Done"), 4)
+            .Retry(new RunStep(new FakeAgent("A", "Done")), 2)
+            .Retry("CustomRetry", new RunStep(new FakeAgent("B", "Done")), 4)
             .Build();
 
-        workflow.Nodes.OfType<RetryNode>().Should().HaveCount(2);
+        workflow.Steps.OfType<RetryStep>().Should().HaveCount(2);
     }
 
     [Fact]
@@ -261,21 +260,21 @@ public class WorkflowBuilderTests
     [Fact]
     public void WorkflowBuilder_Retry_Should_Throw_When_Name_Is_Empty()
     {
-        Action action = () => Workflow.Create("Test").Retry("", new FakeAgent("A", "Done"), 3);
+        Action action = () => Workflow.Create("Test").Retry("", new RunStep(new FakeAgent("A", "Done")), 3);
         action.Should().Throw<ArgumentException>();
     }
 
     [Fact]
     public void WorkflowBuilder_Retry_Should_Throw_When_MaxAttempts_Is_Zero()
     {
-        Action action = () => Workflow.Create("Test").Retry(new FakeAgent("A", "Done"), 0);
+        Action action = () => Workflow.Create("Test").Retry(new RunStep(new FakeAgent("A", "Done")), 0);
         action.Should().Throw<ArgumentOutOfRangeException>();
     }
 
     [Fact]
     public void WorkflowBuilder_Retry_Should_Throw_When_MaxAttempts_Is_Negative()
     {
-        Action action = () => Workflow.Create("Test").Retry(new FakeAgent("A", "Done"), -1);
+        Action action = () => Workflow.Create("Test").Retry(new RunStep(new FakeAgent("A", "Done")), -1);
         action.Should().Throw<ArgumentOutOfRangeException>();
     }
 
@@ -285,12 +284,12 @@ public class WorkflowBuilderTests
         var workflow =
             Workflow.Create("Test")
                 .Retry(
-                    new FakeAgent("A", "Done"))
+                    new RunStep(new FakeAgent("A", "Done")))
                 .Build();
 
         var retry =
-            workflow.Nodes
-                .OfType<RetryNode>()
+            workflow.Steps
+                .OfType<RetryStep>()
                 .Single();
 
         retry.MaxAttempts.Should().Be(3);
@@ -302,7 +301,7 @@ public class WorkflowBuilderTests
          Action action =
             () => Workflow.Create("Test")
                 .Retry(null!,
-                    new FakeAgent("A", "Done"));
+                    new RunStep(new FakeAgent("A", "Done")));
 
         action.Should()
             .Throw<ArgumentException>();
@@ -314,17 +313,17 @@ public class WorkflowBuilderTests
         Func<PipelineContext, IEnumerable<object>> itemsSelector = 
             _ => [1, 2, 3 ];
 
-        var processor = new FakeAgent("ProcessItem", "Processed");
+        var processor = new RunStep(new FakeAgent("ProcessItem", "Processed"));
 
         var workflow = Workflow.Create("Research")
             .ForEach(itemsSelector, processor)
             .Build();
 
-        var loopNode = workflow.Nodes.OfType<LoopNode>().Single();
+        var loopStep = workflow.Steps.OfType<LoopStep>().Single();
 
-        loopNode.Name.Should().Be("ForEach");
-        loopNode.Items.Should().BeSameAs(itemsSelector);
-        loopNode.Node.Should().BeSameAs(processor);
+        loopStep.Name.Should().Be("ForEach");
+        loopStep.Items.Should().BeSameAs(itemsSelector);
+        loopStep.Step.Should().BeSameAs(processor);
     }
 
     [Fact]
@@ -333,34 +332,34 @@ public class WorkflowBuilderTests
         Func<PipelineContext, IEnumerable<object>> itemsSelector = 
             _ => [];
 
-        var processor = new FakeAgent("ProcessItem", "Processed");
+        var processor = new RunStep(new FakeAgent("ProcessItem", "Processed"));
 
         var workflow = Workflow.Create("Research")
             .ForEach("Process Documents", itemsSelector, processor)
             .Build();
 
-        var loopNode = workflow.Nodes.OfType<LoopNode>().Single();
+        var loopStep = workflow.Steps.OfType<LoopStep>().Single();
 
-        loopNode.Name.Should().Be("Process Documents");
-        loopNode.Items.Should().BeSameAs(itemsSelector);
-        loopNode.Node.Should().BeSameAs(processor);
+        loopStep.Name.Should().Be("Process Documents");
+        loopStep.Items.Should().BeSameAs(itemsSelector);
+        loopStep.Step.Should().BeSameAs(processor);
     }
 
     [Fact]
     public void WorkflowBuilder_ForEach_Should_Support_Chaining_Both_Overloads()
     {
         var workflow = Workflow.Create("Test")
-            .ForEach(_ => [ "a", "b" ], new FakeAgent("A", "Done"))
-            .ForEach("CustomLoop", _ => new[] { 1, 2 }.Select(x => (object)x), new FakeAgent("B", "Done"))
+            .ForEach(_ => [ "a", "b" ], new RunStep(new FakeAgent("A", "Done")))
+            .ForEach("CustomLoop", _ => new[] { 1, 2 }.Select(x => (object)x), new RunStep(new FakeAgent("B", "Done")))
             .Build();
 
-        workflow.Nodes.OfType<LoopNode>().Should().HaveCount(2);
+        workflow.Steps.OfType<LoopStep>().Should().HaveCount(2);
     }
 
     [Fact]
     public void WorkflowBuilder_ForEach_Should_Throw_When_Items_Is_Null()
     {
-        Action action = () => Workflow.Create("Test").ForEach(null!, new FakeAgent("A", "Done"));
+        Action action = () => Workflow.Create("Test").ForEach(null!, new RunStep(new FakeAgent("A", "Done")));
         action.Should().Throw<ArgumentNullException>();
     }
 
@@ -374,80 +373,80 @@ public class WorkflowBuilderTests
     [Fact]
     public void WorkflowBuilder_ForEach_Should_Throw_When_Name_Is_Empty()
     {
-        Action action = () => Workflow.Create("Test").ForEach("", _ => [0], new FakeAgent("A", "Done"));
+        Action action = () => Workflow.Create("Test").ForEach("", _ => [0], new RunStep(new FakeAgent("A", "Done")));
         action.Should().Throw<ArgumentException>();
     }
 
     [Fact]
     public void WorkflowBuilder_ForEach_Should_Throw_When_Name_Is_Null()
     {
-        Action action = () => Workflow.Create("Test").ForEach(null!, _ => [0], new FakeAgent("A", "Done"));
+        Action action = () => Workflow.Create("Test").ForEach(null!, _ => [0], new RunStep(new FakeAgent("A", "Done")));
         action.Should().Throw<ArgumentException>();
     }
 
     [Fact]
     public void WorkflowBuilder_Parallel_Should_Use_Default_Name()
     {
-        var node1 = new FakeAgent("A", "Done");
-        var node2 = new FakeAgent("B", "Done");
+        var step1 = new RunStep(new FakeAgent("A", "Done"));
+        var step2 = new RunStep(new FakeAgent("B", "Done"));
 
         var workflow = Workflow.Create("Test")
-            .Parallel(node1, node2)
+            .Parallel(step1, step2)
             .Build();
 
-        var parallel = workflow.Nodes.OfType<ParallelNode>().Single();
+        var parallel = workflow.Steps.OfType<ParallelStep>().Single();
 
         parallel.Name.Should().Be("Parallel");
-        parallel.Nodes.Should().HaveCount(2);
-        parallel.Nodes.Should().Contain(node1);
-        parallel.Nodes.Should().Contain(node2);
+        parallel.Steps.Should().HaveCount(2);
+        parallel.Steps.Should().Contain(step1);
+        parallel.Steps.Should().Contain(step2);
     }
 
     [Fact]
     public void WorkflowBuilder_Parallel_Should_Use_Custom_Name()
     {
-        var node1 = new FakeAgent("Summarizer", "Done");
-        var node2 = new FakeAgent("Classifier", "Done");
+        var step1 = new RunStep(new FakeAgent("Summarizer", "Done"));
+        var step2 = new RunStep(new FakeAgent("Classifier", "Done"));
 
         var workflow = Workflow.Create("Test")
-            .Parallel("Analysis", node1, node2)
+            .Parallel("Analysis", step1, step2)
             .Build();
 
-        var parallel = workflow.Nodes.OfType<ParallelNode>().Single();
+        var parallel = workflow.Steps.OfType<ParallelStep>().Single();
         parallel.Name.Should().Be("Analysis");
-        parallel.Nodes.Should().HaveCount(2);
+        parallel.Steps.Should().HaveCount(2);
     }
 
     [Fact]
     public void WorkflowBuilder_Parallel_Should_Support_Chaining_Both_Overloads()
     {
         var workflow = Workflow.Create("Test")
-            .Parallel(new FakeAgent("A", "Done"))
-            .Parallel("Custom", new FakeAgent("B", "Done"), new FakeAgent("C", "Done"))
+            .Parallel(new RunStep(new FakeAgent("A", "Done")))
+            .Parallel("Custom", new RunStep(new FakeAgent("B", "Done")), new RunStep(new FakeAgent("C", "Done")))
             .Build();
 
-        workflow.Nodes.OfType<ParallelNode>().Should().HaveCount(2);
+        workflow.Steps.OfType<ParallelStep>().Should().HaveCount(2);
     }
 
     [Fact]
     public void WorkflowBuilder_Parallel_Should_Throw_When_Array_Is_Empty()
     {
         Action action = () => Workflow.Create("Test")
-            .Parallel(Array.Empty<IPipelineNode>());
+            .Parallel(Array.Empty<IWorkflowStep>());
         action.Should().Throw<ArgumentException>();
     }
 
     [Fact]
     public void WorkflowBuilder_Parallel_Should_Throw_When_Node_Is_Null()
     {
-        Action action = () => Workflow.Create("Test").Parallel(new FakeAgent("A", "Done"), null!);
+        Action action = () => Workflow.Create("Test").Parallel(new RunStep(new FakeAgent("A", "Done")), null!);
         action.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
     public void WorkflowBuilder_Parallel_Should_Throw_When_Name_Is_Empty()
     {
-        Action action = () => Workflow.Create("Test").Parallel("", new FakeAgent("A", "Done"));
+        Action action = () => Workflow.Create("Test").Parallel("", new RunStep(new FakeAgent("A", "Done")));
         action.Should().Throw<ArgumentException>();
     }
 
@@ -458,7 +457,7 @@ public class WorkflowBuilderTests
             () => Workflow.Create("Test")
                 .Parallel(
                     name:null!,
-                    nodes: new FakeAgent("A", "Done"));
+                    steps: new RunStep(new FakeAgent("A", "Done")));
 
         action.Should()
             .Throw<ArgumentException>();
@@ -467,32 +466,32 @@ public class WorkflowBuilderTests
     [Fact]
     public void WorkflowBuilder_Parallel_Should_Preserve_Node_Order()
     {
-        var node1 =
-            new FakeAgent("A", "Done");
+        var step1 =
+            new RunStep(new FakeAgent("A", "Done"));
 
-        var node2 =
-            new FakeAgent("B", "Done");
+        var step2 =
+            new RunStep(new FakeAgent("B", "Done"));
 
-        var node3 =
-            new FakeAgent("C", "Done");
+        var step3 =
+            new RunStep(new FakeAgent("C", "Done"));
 
         var workflow =
             Workflow.Create("Test")
-                .Parallel(node1, node2, node3)
+                .Parallel(step1, step2, step3)
                 .Build();
 
         var parallel =
-            workflow.Nodes
-                .OfType<ParallelNode>()
+            workflow.Steps
+                .OfType<ParallelStep>()
                 .Single();
 
-        parallel.Nodes.Should().ContainInOrder(
-            node1,
-            node2,
-            node3);
+        parallel.Steps.Should().ContainInOrder(
+            step1,
+            step2,
+            step3);
     }
 
-    [Fact]
+    [Fact]  
     public void WorkflowBuilder_Switch_Should_Use_Default_Name()
     {
         var cases = new[]
@@ -505,12 +504,12 @@ public class WorkflowBuilderTests
             .Switch(ctx => "Approved", cases)
             .Build();
 
-        var switchNode = workflow.Nodes.OfType<SwitchNode>().Single();
+        var switchNode = workflow.Steps.OfType<SwitchStep>().Single();
 
         switchNode.Name.Should().Be("Switch");
         switchNode.Selector.Should().NotBeNull();
         switchNode.Cases.Should().BeEquivalentTo(cases);
-        switchNode.DefaultNode.Should().BeNull();
+        switchNode.DefaultStep.Should().BeNull();
     }
 
     [Fact]
@@ -521,16 +520,16 @@ public class WorkflowBuilderTests
             new SwitchCase("admin", new FakeAgent("AdminPath", "Admin"))
         };
 
-        var defaultNode = new FakeAgent("Default", "Default Path");
+        var defaultStep = new RunStep(new FakeAgent("Default", "Default Path"));
 
         var workflow = Workflow.Create("Test")
-            .Switch("UserRoleRouter", ctx => ctx.Items["Role"]?.ToString(), cases, defaultNode)
+            .Switch("UserRoleRouter", ctx => ctx.Items["Role"]?.ToString(), cases, defaultStep)
             .Build();
 
-        var switchNode = workflow.Nodes.OfType<SwitchNode>().Single();
+        var switchNode = workflow.Steps.OfType<SwitchStep>().Single();
 
         switchNode.Name.Should().Be("UserRoleRouter");
-        switchNode.DefaultNode.Should().BeSameAs(defaultNode);
+        switchNode.DefaultStep.Should().BeSameAs(defaultStep);
     }
 
     [Fact]
@@ -543,7 +542,7 @@ public class WorkflowBuilderTests
             .Switch("Decision", _ => "yes", new[] { case1, case2 })
             .Build();
 
-        var switchNode = workflow.Nodes.OfType<SwitchNode>().Single();
+        var switchNode = workflow.Steps.OfType<SwitchStep>().Single();
         switchNode.Cases.Should().ContainInOrder(case1, case2);
     }
 
@@ -557,7 +556,7 @@ public class WorkflowBuilderTests
             .Switch("Another", ctx => "B", cases)
             .Build();
 
-        workflow.Nodes.OfType<SwitchNode>().Should().HaveCount(2);
+        workflow.Steps.OfType<SwitchStep>().Should().HaveCount(2);
     }
 
     [Fact]
@@ -594,7 +593,7 @@ public class WorkflowBuilderTests
     {
         var cases = new[]
         {
-            new SwitchCase("A", new FakeAgent("A", "Done"))
+            new SwitchCase("A", new RunStep(new FakeAgent("A", "Done")))
         };
 
         Action action = () => Workflow.Create("Test")
@@ -609,10 +608,11 @@ public class WorkflowBuilderTests
     [Fact]
     public void WorkflowBuilder_Switch_Should_Preserve_Default_Node()
     {
-        var defaultNode =
-            new FakeAgent(
-                "Default",
-                "Done");
+        var defaultStep =
+            new RunStep(
+                new FakeAgent(
+                    "Default",
+                    "Done"));
 
         var workflow =
             Workflow.Create("Test")
@@ -621,18 +621,18 @@ public class WorkflowBuilderTests
                     [
                         new SwitchCase(
                             "A",
-                            new FakeAgent("A", "Done"))
+                            new RunStep(new FakeAgent("A", "Done")))
                     ],
-                    defaultNode)
+                    defaultStep)
                 .Build();
 
-        var node =
-            workflow.Nodes
-                .OfType<SwitchNode>()
+        var step =
+            workflow.Steps
+                .OfType<SwitchStep>()
                 .Single();
 
-        node.DefaultNode
+        step.DefaultStep
             .Should()
-            .BeSameAs(defaultNode);
+            .BeSameAs(defaultStep);
     }
 }

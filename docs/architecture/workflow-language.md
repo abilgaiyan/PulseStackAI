@@ -84,7 +84,7 @@ What is the latest result?
 
 PulseStackAI represents this through the Pipeline Context.
 
-The context carries the current state of the workflow from one node to the next.
+The context carries the current state of the workflow from one step to the next.
 
 Nodes read from it.
 

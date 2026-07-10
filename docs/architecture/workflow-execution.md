@@ -120,11 +120,11 @@ It simply describes what should happen.
 
 # 3. Node
 
-A node is a single piece of work.
+A step is a single piece of work.
 
-Every node has one responsibility.
+Every step has one responsibility.
 
-A node might:
+A step might:
 
 * ask an AI agent to summarize a document,
 * execute a tool,
@@ -158,7 +158,7 @@ As a workflow executes, PulseStackAI continuously keeps track of:
 * shared information,
 * execution progress.
 
-Every node can use this information when performing its work.
+Every step can use this information when performing its work.
 
 The runtime manages this state automatically.
 
@@ -172,7 +172,7 @@ Business processes are simply a sequence of decisions.
 
 After one step finishes, something else happens.
 
-Sometimes another node executes.
+Sometimes another step executes.
 
 Sometimes work branches into multiple paths.
 
@@ -192,7 +192,7 @@ A workflow is not one intelligent AI.
 
 It is a team working together.
 
-One node gathers information.
+One step gathers information.
 
 Another analyzes it.
 
@@ -202,7 +202,7 @@ Another stores it.
 
 PulseStackAI coordinates the team.
 
-Each node focuses on one responsibility.
+Each step focuses on one responsibility.
 
 Together, they accomplish the business objective.
 

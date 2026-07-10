@@ -1,6 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
 using PulseStack.Abstractions.Runtime.Pipeline;
-using PulseStack.Abstractions.Workflow.Nodes;
 using PulseStack.Agents.Runtime.Composition;
 
 namespace PulseStack.Agents.DependencyInjection;
@@ -21,7 +20,7 @@ public static class WorkflowServiceCollectionExtensions
         this IServiceCollection services)
     {
         services.AddSingleton<IWorkflowRuntime, WorkflowRuntime>();
-        services.AddSingleton<INodeExecutorResolver, NodeExecutorResolver>();
+        services.AddSingleton<IStepExecutorResolver, StepExecutorResolver>();
 
         return services;
     }
@@ -29,14 +28,14 @@ public static class WorkflowServiceCollectionExtensions
     private static IServiceCollection AddWorkflowNodeExecutors(
         this IServiceCollection services)
     {
-        services.AddSingleton<INodeExecutor, AgentNodeExecutor>();
-        services.AddSingleton<INodeExecutor, PipelineNodeExecutor>();
-        services.AddSingleton<INodeExecutor, WorkflowNodeExecutor>();
-        services.AddSingleton<INodeExecutor, ConditionalNodeExecutor>();
-        services.AddSingleton<INodeExecutor, RetryNodeExecutor>();
-        services.AddSingleton<INodeExecutor, ParallelNodeExecutor>();
-        services.AddSingleton<INodeExecutor, LoopNodeExecutor>();
-        services.AddSingleton<INodeExecutor, SwitchNodeExecutor>();
+        services.AddSingleton<IStepExecutor, RunStepExecutor>();
+        services.AddSingleton<IStepExecutor, PipelineStepExecutor>();
+        services.AddSingleton<IStepExecutor, WorkflowStepExecutor>();
+        services.AddSingleton<IStepExecutor, ConditionalStepExecutor>();
+        services.AddSingleton<IStepExecutor, RetryStepExecutor>();
+        services.AddSingleton<IStepExecutor, ParallelStepExecutor>();
+        services.AddSingleton<IStepExecutor, LoopStepExecutor>();
+        services.AddSingleton<IStepExecutor, SwitchStepExecutor>();
 
         return services;
     }

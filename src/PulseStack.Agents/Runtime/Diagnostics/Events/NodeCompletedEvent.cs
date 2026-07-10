@@ -4,7 +4,7 @@ namespace PulseStack.Agents.Runtime.Diagnostics.Events;
 public sealed record NodeCompletedEvent(
     Guid ExecutionId,
     DateTimeOffset Timestamp,
-    string NodeName,
+    string StepName,
     string NodeType,
     bool Success)
     : IRuntimeEvent
@@ -12,7 +12,7 @@ public sealed record NodeCompletedEvent(
     public IReadOnlyDictionary<string, object?> Metadata
         => new Dictionary<string, object?>
         {
-            ["NodeName"] = NodeName,
+            ["StepName"] = StepName,
             ["NodeType"] = NodeType,
             ["Success"] = Success
         };

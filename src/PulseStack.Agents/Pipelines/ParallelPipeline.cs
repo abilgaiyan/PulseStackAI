@@ -11,7 +11,7 @@ namespace PulseStack.Agents.Pipelines;
 /// centralized orchestration runtime.
 /// </summary>
 public sealed class ParallelPipeline
-    : IAgentPipeline, IPipelineNode
+    : IAgentPipeline
 {
     private readonly List<IAgent> _agents = [];
 

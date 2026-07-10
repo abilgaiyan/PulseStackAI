@@ -1,23 +1,23 @@
 using FluentAssertions;
-using PulseStack.Abstractions.Workflow.Nodes;
+using PulseStack.Abstractions.Workflows.Steps;
 using Xunit;
 
 namespace PulseStack.Tests.Architecture;
 
-public class NodeExecutionResultTests
+public class StepExecutionResultTests
 {
     [Fact]
     public void Should_Create_Result()
     {
         var result =
-            new NodeExecutionResult
+            new StepExecutionResult
             {
-                NodeName = "TestNode",
+                StepName = "TestWorkflowStep",
                 Success = true,
                 Output = "Completed"
             };
 
-        result.NodeName.Should().Be("TestNode");
+        result.StepName.Should().Be("TestWorkflowStep");
         result.Success.Should().BeTrue();
         result.Output.Should().Be("Completed");
     }

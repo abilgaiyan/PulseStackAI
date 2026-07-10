@@ -9,7 +9,7 @@ public class NodeExecutionContractsTests
     [Fact]
     public void NodeExecutor_Should_Be_Interface()
     {
-        typeof(INodeExecutor)
+        typeof(IStepExecutor)
             .IsInterface
             .Should()
             .BeTrue();
@@ -18,7 +18,7 @@ public class NodeExecutionContractsTests
     [Fact]
     public void NodeExecutionStrategy_Should_Be_Interface()
     {
-        typeof(INodeExecutionStrategy)
+        typeof(IStepExecutionStrategy)
             .IsInterface
             .Should()
             .BeTrue();

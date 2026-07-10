@@ -1,6 +1,7 @@
 using FluentAssertions;
-using PulseStack.Abstractions.Workflow.Steps;
-using PulseStack.Abstractions.Workflow.Nodes;
+using PulseStack.Abstractions.Agents;
+using PulseStack.Abstractions.Workflows.Steps;
+using PulseStack.Abstractions.Workflows;
 using PulseStack.Tests.Fakes;
 using Xunit;
 
@@ -9,7 +10,7 @@ namespace PulseStack.Tests.Workflows.Builders;
 public class ParallelBuilderTests
 {
     [Fact]
-    public void ParallelBuilder_Should_Create_ParallelNode_With_Multiple_Children()
+    public void ParallelBuilder_Should_Create_ParallelStep_With_Multiple_Children()
     {
         var agent1 = new FakeAgent("Summarizer", "Summary");
         var agent2 = new FakeAgent("Classifier", "Classified");
@@ -23,11 +24,17 @@ public class ParallelBuilderTests
             .End()
             .Build();
 
-        var parallelNode = workflow.Nodes.OfType<ParallelNode>().Single();
+        var ParallelStep = workflow.Steps.OfType<ParallelStep>().Single();
 
-        parallelNode.Name.Should().Be("AnalysisPhase");
-        parallelNode.Nodes.Should().HaveCount(3);
-        parallelNode.Nodes.Should().ContainInOrder(agent1, agent2, agent3);
+        ParallelStep.Steps.Should().HaveCount(3);
+
+        var runSteps = ParallelStep.Steps
+            .Cast<RunStep>()
+            .ToList();
+
+        runSteps.Select(x => x.Agent)
+            .Should()
+            .ContainInOrder(agent1, agent2, agent3);
     }
 
     [Fact]
@@ -39,7 +46,7 @@ public class ParallelBuilderTests
             .End();
 
         action.Should().Throw<InvalidOperationException>()
-              .WithMessage("Parallel block requires at least one node.");
+              .WithMessage("Parallel block requires at least one step.");
     }
 
     [Fact]
@@ -52,7 +59,7 @@ public class ParallelBuilderTests
             .End()
             .Build();
 
-        var parallel = workflow.Nodes.OfType<ParallelNode>().Single();
+        var parallel = workflow.Steps.OfType<ParallelStep>().Single();
         parallel.Name.Should().Be("Parallel");   // or default we set
     }
 
@@ -68,8 +75,8 @@ public class ParallelBuilderTests
             .Run(new FakeAgent("Final", "Done"))
             .Build();
 
-        workflow.Nodes.Should().HaveCount(3);
-        workflow.Nodes[1].Should().BeOfType<ParallelNode>();
+        workflow.Steps.Should().HaveCount(3);
+        workflow.Steps[1].Should().BeOfType<ParallelStep>();
     }
 
     [Fact]
@@ -92,10 +99,23 @@ public class ParallelBuilderTests
                 .Build();
 
         var parallel =
-            workflow.Nodes.OfType<ParallelNode>().Single();
+            workflow.Steps.OfType<ParallelStep>().Single();
 
-        parallel.Nodes.Should().ContainSingle();
+        parallel.Steps.Should().ContainSingle();
 
-        parallel.Nodes[0].Should().BeSameAs(child);
+        parallel.Steps[0].Should().BeSameAs(child);
+    }
+
+    private static RunStep ShouldBeRunStep(
+        IWorkflowStep step,
+        IAgent expected)
+    {
+        var runStep = step.Should()
+            .BeOfType<RunStep>()
+            .Subject;
+
+        runStep.Agent.Should().BeSameAs(expected);
+
+        return runStep;
     }
 }

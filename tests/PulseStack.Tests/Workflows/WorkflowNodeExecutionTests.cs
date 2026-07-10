@@ -1,7 +1,8 @@
 using FluentAssertions;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
-using PulseStack.Abstractions.Workflow.Nodes;
+using PulseStack.Abstractions.Workflows;
+using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Agents.Runtime.Composition;
 using PulseStack.Agents.Runtime.Diagnostics;
 using PulseStack.Agents.Pipelines;
@@ -20,10 +21,10 @@ public class WorkflowNodeExecutionTests
 
         var executor = WorkflowRuntimeFactory.CreateAgentExecutor();
 
-        var agent =
-            new FakeAgent(
+        var workflowStep =
+            new RunStep(new FakeAgent(
                 "Researcher",
-                "Done");
+                "Done"));
 
         var context =
             new PipelineContext();
@@ -32,14 +33,14 @@ public class WorkflowNodeExecutionTests
 
         var result =
             await executor.ExecuteAsync(
-                agent,
+                workflowStep,
                 context);
 
         // Assert
 
         result.Success.Should().BeTrue();
 
-        result.NodeName.Should().Be("Researcher");
+        result.StepName.Should().Be("Researcher");
 
         result.Output.Should().Be("Done");
     }
@@ -50,7 +51,7 @@ public class WorkflowNodeExecutionTests
         // Arrange
 
         var workflow =
-            new WorkflowDefinition("Workflow")
+            new Workflow("Workflow")
                 .Add(
                     new FakeAgent(
                         "Researcher",
@@ -77,38 +78,32 @@ public class WorkflowNodeExecutionTests
 
         result.FinalOutput.Should().Be("Research Complete");
 
-        result.Nodes.Should().ContainSingle();
+        result.Steps.Should().ContainSingle();
 
-        var node =
-            result.Nodes.Single();
+        var step =
+            result.Steps.Single();
 
-        node.NodeName.Should().Be("Researcher");
+        step.StepName.Should().Be("Researcher");
 
-        node.Success.Should().BeTrue();
+        step.Success.Should().BeTrue();
 
-        node.Output.Should().Be("Research Complete");
+        step.Output.Should().Be("Research Complete");
     }
 
     [Fact]
-    public async Task Workflow_Should_Execute_Pipeline_Node()
+    public async Task Workflow_Should_Execute_RunStep()
     {
         // Arrange
 
         var dispatcher =
             new RuntimeEventDispatcher();
 
-        var pipeline =
-            new SequentialPipeline(
-                "Research Pipeline",
-                dispatcher)
+        var workflow =
+        new Workflow("Workflow")
             .Add(
                 new FakeAgent(
                     "Researcher",
                     "Research Complete"));
-
-        var workflow =
-            new WorkflowDefinition("Workflow")
-                .Add(pipeline);
 
         
         var runtime = WorkflowRuntimeFactory.Create();
@@ -133,15 +128,15 @@ public class WorkflowNodeExecutionTests
         result.FinalOutput.Should().Be(
             "Research Complete");
 
-        result.Nodes.Should().ContainSingle();
+        result.Steps.Should().ContainSingle();
 
-        var node =
-            result.Nodes.Single();
+        var step =
+            result.Steps.Single();
 
-        node.NodeName.Should().Be(
-            "Research Pipeline");
+        step.StepName.Should().Be(
+            "Researcher");
 
-        node.Success.Should().BeTrue();
+        step.Success.Should().BeTrue();
     }
 
     [Fact]
@@ -151,12 +146,12 @@ public class WorkflowNodeExecutionTests
             WorkflowRuntimeFactory.Create();
 
         var executor =
-            new WorkflowNodeExecutor(
+            new WorkflowStepExecutor(
                 new Lazy<IWorkflowRuntime>(
                     () => runtime));
 
         var workflow =
-            new WorkflowDefinition("Research")
+            new Workflow("Research")
                 .Add(
                     new FakeAgent(
                         "Researcher",
@@ -198,12 +193,12 @@ public class WorkflowNodeExecutionTests
                 dispatcher);
 
         var executor =
-            new WorkflowNodeExecutor(
+            new WorkflowStepExecutor(
                 new Lazy<IWorkflowRuntime>(
                     () => runtime));
 
         var workflow =
-            new WorkflowDefinition("Nested")
+            new Workflow("Nested")
                 .Add(
                     new FakeAgent(
                         "Child",
@@ -214,7 +209,7 @@ public class WorkflowNodeExecutionTests
                 workflow,
                 new PipelineContext());
 
-        result.NodeName.Should().Be("Nested");
+        result.StepName.Should().Be("Nested");
         result.Success.Should().BeTrue();
         result.Output.Should().Be("Nested Output");
         result.Usage.Should().NotBeNull();
@@ -232,14 +227,14 @@ public class WorkflowNodeExecutionTests
                 .CreateWithNestedWorkflowSupport();
 
         var childWorkflow =
-            new WorkflowDefinition("Research")
+            new Workflow("Research")
                 .Add(
                     new FakeAgent(
                         "Researcher",
                         "Research Complete"));
 
         var parentWorkflow =
-            new WorkflowDefinition("Parent")
+            new Workflow("Parent")
                 .Add(childWorkflow);
 
                 var context =
@@ -258,15 +253,15 @@ public class WorkflowNodeExecutionTests
 
         result.FinalOutput.Should().Be("Research Complete");
 
-        result.Nodes.Should().ContainSingle();
+        result.Steps.Should().ContainSingle();
 
-        var node = result.Nodes.Single();
+        var step = result.Steps.Single();
 
-        node.NodeName.Should().Be("Research");
+        step.StepName.Should().Be("Research");
 
-        node.Success.Should().BeTrue();
+        step.Success.Should().BeTrue();
 
-        node.Output.Should().Be("Research Complete");
+        step.Output.Should().Be("Research Complete");
     }
 
     [Fact]
@@ -277,21 +272,21 @@ public class WorkflowNodeExecutionTests
       var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
 
         var researchWorkflow =
-            new WorkflowDefinition("Research")
+            new Workflow("Research")
                 .Add(
                     new FakeAgent(
                         "Researcher",
                         "Research Complete"));
 
         var summaryWorkflow =
-            new WorkflowDefinition("Summary")
+            new Workflow("Summary")
                 .Add(
                     new FakeAgent(
                         "Summarizer",
                         "Summary Complete"));
 
         var parentWorkflow =
-            new WorkflowDefinition("Parent")
+            new Workflow("Parent")
                 .Add(researchWorkflow)
                 .Add(summaryWorkflow);
 
@@ -312,13 +307,13 @@ public class WorkflowNodeExecutionTests
 
         result.Success.Should().BeTrue();
 
-        result.Nodes.Should().HaveCount(2);
+        result.Steps.Should().HaveCount(2);
 
-        result.Nodes[0].NodeName.Should().Be("Research");
+        result.Steps[0].StepName.Should().Be("Research");
 
-        result.Nodes[1].NodeName.Should().Be("Summary");
+        result.Steps[1].StepName.Should().Be("Summary");
 
-        result.Nodes.All(x => x.Success)
+        result.Steps.All(x => x.Success)
             .Should()
             .BeTrue();
 
@@ -334,14 +329,14 @@ public class WorkflowNodeExecutionTests
         var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
 
         var childWorkflow =
-            new WorkflowDefinition("Research")
+            new Workflow("Research")
                 .Add(
                     new FakeAgent(
                         "Researcher",
                         "Research Complete"));
 
         var parentWorkflow =
-            new WorkflowDefinition("Parent")
+            new Workflow("Parent")
                 .Add(childWorkflow);
 
         var context =
@@ -367,9 +362,9 @@ public class WorkflowNodeExecutionTests
         result.FinalOutput.Should().Be(
             "Research Complete");
 
-        result.Nodes.Should().ContainSingle();
+        result.Steps.Should().ContainSingle();
 
-        result.Nodes.Single().Output.Should().Be(
+        result.Steps.Single().Output.Should().Be(
             "Research Complete");
     }
 
@@ -381,15 +376,15 @@ public class WorkflowNodeExecutionTests
         var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
         
         // Create first workflow that produces output
-        var firstWorkflow = new WorkflowDefinition("FirstWorkflow")
+        var firstWorkflow = new Workflow("FirstWorkflow")
             .Add(new FakeAgent("Agent1", "Initial Result"));
         
         // Create second workflow that consumes output from first
-        var secondWorkflow = new WorkflowDefinition("SecondWorkflow")
+        var secondWorkflow = new Workflow("SecondWorkflow")
             .Add(new ContextAwareFakeAgent("Agent2"));
         
         // Create parent workflow that chains them together
-        var parentWorkflow = new WorkflowDefinition("Parent")
+        var parentWorkflow = new Workflow("Parent")
             .Add(firstWorkflow)
             .Add(secondWorkflow);
         
@@ -407,17 +402,17 @@ public class WorkflowNodeExecutionTests
         result.Success.Should().BeTrue();
         
         // Verify output flows between workflows
-        result.Nodes.Should().HaveCount(2);
+        result.Steps.Should().HaveCount(2);
         
         // First workflow output should be available as input to second
-        var firstNode = result.Nodes[0];
-        firstNode.NodeName.Should().Be("FirstWorkflow");
+        var firstNode = result.Steps[0];
+        firstNode.StepName.Should().Be("FirstWorkflow");
         firstNode.Success.Should().BeTrue();
         firstNode.Output.Should().Be("Initial Result");
         
         // Second workflow should process the output from first
-        var secondNode = result.Nodes[1];
-        secondNode.NodeName.Should().Be("SecondWorkflow");
+        var secondNode = result.Steps[1];
+        secondNode.StepName.Should().Be("SecondWorkflow");
         secondNode.Success.Should().BeTrue();
         secondNode.Output.Should().Be("Received: Initial Result");
         

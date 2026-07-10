@@ -1,7 +1,8 @@
 using FluentAssertions;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
-using PulseStack.Abstractions.Workflow.Nodes;
+using PulseStack.Abstractions.Workflows;
+using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Abstractions.Runtime.Usage;
 using PulseStack.Agents.Runtime.Composition;
 using PulseStack.Tests.Fakes;
@@ -9,7 +10,7 @@ using Xunit;
 
 namespace PulseStack.Tests.Workflows;
 
-public class LoopNodeExecutorTests
+public class LoopStepExecutorTests
 {
     [Fact]
     public async Task LoopNode_Should_Execute_For_Each_Item()
@@ -18,9 +19,9 @@ public class LoopNodeExecutorTests
             WorkflowRuntimeFactory.Create();
 
         var workflow =
-            new WorkflowDefinition("Workflow")
+            new Workflow("Workflow")
                 .Add(
-                    new LoopNode(
+                    new LoopStep(
                         "Loop",
                         _ => new object[]
                         {
@@ -28,9 +29,9 @@ public class LoopNodeExecutorTests
                             "B",
                             "C"
                         },
-                        new FakeAgent(
+                        new RunStep(new FakeAgent(
                             "Researcher",
-                            "Executed")));
+                            "Executed"))));
 
         var context = new PipelineContext();
 
@@ -46,10 +47,10 @@ public class LoopNodeExecutorTests
         // Verify loop executed for all items
         context.Items["CurrentItem"].Should().Be("C"); // Last item
     
-        result.Nodes.Should().ContainSingle();
-        var loopNode = result.Nodes.Single();
-        loopNode.NodeName.Should().Be("Loop");
-        loopNode.Success.Should().BeTrue();
+        result.Steps.Should().ContainSingle();
+        var loopStep = result.Steps.Single();
+        loopStep.StepName.Should().Be("Loop");
+        loopStep.Success.Should().BeTrue();
     }
 
     [Fact]
@@ -59,16 +60,16 @@ public class LoopNodeExecutorTests
             WorkflowRuntimeFactory.Create();
 
         var workflow =
-            new WorkflowDefinition("Workflow")
+            new Workflow("Workflow")
                 .Add(
-                    new LoopNode(
+                    new LoopStep(
                         "Loop",
                         _ => new object[]
                         {
                             "Doc1"
                         },
-                        new LoopAwareFakeAgent(
-                            "Researcher")));
+                        new RunStep(new LoopAwareFakeAgent(
+                            "Researcher"))));
 
         var context =
             new PipelineContext();
@@ -91,7 +92,7 @@ public class LoopNodeExecutorTests
     public async Task LoopNode_Should_Stop_On_Failure()
     {
         var executors =
-            new List<INodeExecutor>();
+            new List<IStepExecutor>();
 
         var alwaysFailExecutor =
             new AlwaysFailNodeExecutor();
@@ -99,13 +100,13 @@ public class LoopNodeExecutorTests
         executors.Add(alwaysFailExecutor);
 
         var resolver =
-            new NodeExecutorResolver(executors);
+            new StepExecutorResolver(executors);
 
         var loopExecutor =
-            new LoopNodeExecutor(resolver);
+            new LoopStepExecutor(resolver);
 
-        var node =
-            new LoopNode(
+        var step =
+            new LoopStep(
                 "Loop",
                 _ => new object[]
                 {
@@ -113,18 +114,18 @@ public class LoopNodeExecutorTests
                     "B",
                     "C"
                 },
-                new FakeAgent(
+                new RunStep(new FakeAgent(
                     "Researcher",
-                    "Executed"));    
+                    "Executed")));    
             
 
         var result =
             await loopExecutor.ExecuteAsync(
-                node,
+                step,
                 new PipelineContext());
 
         result.Success.Should().BeFalse();
-        result.NodeName.Should().Be("Loop");
+        result.StepName.Should().Be("Loop");
         alwaysFailExecutor.Attempts.Should().Be(1);
 
     }
@@ -142,7 +143,7 @@ public class LoopNodeExecutorTests
             };
 
         var executors =
-            new List<INodeExecutor>
+            new List<IStepExecutor>
             {
                 new FakeNodeExecutor(
                     success: false,
@@ -151,30 +152,30 @@ public class LoopNodeExecutorTests
             };
 
         var resolver =
-            new NodeExecutorResolver(
+            new StepExecutorResolver(
                 executors);
 
         var loopExecutor =
-            new LoopNodeExecutor(
+            new LoopStepExecutor(
                 resolver);
 
-        var node =
-            new LoopNode(
+        var step =
+            new LoopStep(
                 "Loop",
                 _ => new object[]
                 {
                     "A"
                 },
-                new FakeAgent(
+                new RunStep(new FakeAgent(
                     "Researcher",
-                    "Executed"));
+                    "Executed")));
 
         var result =
             await loopExecutor.ExecuteAsync(
-                node,
+                step,
                 new PipelineContext());
 
-        result.NodeName.Should().Be("Loop");
+        result.StepName.Should().Be("Loop");
         result.Success.Should().BeFalse();
         result.Output.Should().Be("Failed Child");
         result.Usage.Should().BeSameAs(usage);
@@ -187,13 +188,13 @@ public class LoopNodeExecutorTests
             WorkflowRuntimeFactory.Create();
 
         var workflow =
-            new WorkflowDefinition("Workflow")
+            new Workflow("Workflow")
                 .Add(
-                    new LoopNode(
+                    new LoopStep(
                         "Loop",
                         _ => [],
-                        new LoopAwareFakeAgent(
-                            "Researcher")));
+                        new RunStep(new LoopAwareFakeAgent(
+                            "Researcher"))));
 
         var context =
             new PipelineContext();
@@ -205,12 +206,12 @@ public class LoopNodeExecutorTests
 
         result.Success.Should().BeTrue();
         
-        result.Nodes.Should().ContainSingle();
+        result.Steps.Should().ContainSingle();
 
         var loopResult =
-            result.Nodes.Single();
+            result.Steps.Single();
 
-        loopResult.NodeName.Should().Be("Loop");
+        loopResult.StepName.Should().Be("Loop");
 
         loopResult.Success.Should().BeTrue();
 
@@ -227,17 +228,17 @@ public class LoopNodeExecutorTests
             WorkflowRuntimeFactory.Create();
 
         var workflow =
-            new WorkflowDefinition("Workflow")
+            new Workflow("Workflow")
                 .Add(
-                    new LoopNode(
+                    new LoopStep(
                         "Loop",
                         _ => new object[]
                         {
                             "Item1",
                             "Item2"
                         },
-                        new LoopAwareFakeAgent(
-                            "Researcher")));
+                        new RunStep(new LoopAwareFakeAgent(
+                            "Researcher"))));
 
         var context =
             new PipelineContext();
@@ -249,9 +250,9 @@ public class LoopNodeExecutorTests
 
         result.Success.Should().BeTrue();
 
-        result.Nodes.Should().ContainSingle();
+        result.Steps.Should().ContainSingle();
 
-        result.Nodes[0].NodeName.Should().Be("Loop");
+        result.Steps[0].StepName.Should().Be("Loop");
 
         context.Items["CurrentItem"]
             .Should().Be("Item2");
@@ -268,13 +269,13 @@ public class LoopNodeExecutorTests
         var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
         
         // Create a nested workflow
-        var nestedWorkflow = new WorkflowDefinition("ProcessItem")
+        var nestedWorkflow = new Workflow("ProcessItem")
             .Add(new FakeAgent("Step1", "Step1 Done"))
             .Add(new LoopAwareFakeAgent("Step2"));
         
-        var workflow = new WorkflowDefinition("Main")
+        var workflow = new Workflow("Main")
             .Add(
-                new LoopNode(
+                new LoopStep(
                     "Loop",
                     _ => new object[] { "Item1", "Item2" },
                     nestedWorkflow));

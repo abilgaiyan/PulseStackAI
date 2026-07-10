@@ -1,9 +1,10 @@
 using FluentAssertions;
 using PulseStack.Tests.Fakes;
 using PulseStack.Abstractions.Agents;
+using PulseStack.Abstractions.Workflows;
 using PulseStack.Agents.Runtime.Composition;
 using PulseStack.Abstractions.Runtime.Pipeline;
-using PulseStack.Abstractions.Workflow.Nodes;
+using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Agents.Runtime.Diagnostics;
 
 using Xunit;
@@ -18,10 +19,10 @@ public class WorkflowRuntimeTests
         // Arrange
 
         var workflow =
-            new WorkflowDefinition(
+            new Workflow(
                 "Workflow")
             .Add(
-                new TestNode(
+                new TestWorkflowStep(
                     "Research"));
 
         var dispatcher = new RuntimeEventDispatcher();
@@ -49,10 +50,10 @@ public class WorkflowRuntimeTests
 
         result.Success.Should().BeTrue();
 
-        result.Nodes.Should().ContainSingle();
+        result.Steps.Should().ContainSingle();
 
-        result.Nodes[0]
-            .NodeName
+        result.Steps[0]
+            .StepName
             .Should()
             .Be("Research");
 
@@ -72,16 +73,16 @@ public class WorkflowRuntimeTests
         var dispatcher = new RuntimeEventDispatcher();            
 
         var workflow =
-            new WorkflowDefinition(
+            new Workflow(
                 "Workflow")
             .Add(
-                new TestNode(
+                new TestWorkflowStep(
                     "First"))
             .Add(
-                new TestNode(
+                new TestWorkflowStep(
                     "Second"))
             .Add(
-                new TestNode(
+                new TestWorkflowStep(
                     "Third"));
 
         var runtime =
@@ -113,26 +114,28 @@ public class WorkflowRuntimeTests
                 "Third"
             ]);
     }
-    private sealed class TestNode
-        : IPipelineNode
+    private sealed class TestWorkflowStep
+        : IWorkflowStep
     {
-        public TestNode(
+        public TestWorkflowStep(
             string name)
         {
             Name = name;
         }
 
         public string Name { get; }
+
+        public IReadOnlyList<IWorkflowStep> Children => [];
     }
 
     [Fact]
     public async Task Workflow_Should_Throw_When_No_Executor_Exists()
     {
         var workflow =
-            new WorkflowDefinition(
+            new Workflow(
                 "Workflow")
             .Add(
-                new TestNode(
+                new TestWorkflowStep(
                     "Unknown"));
 
         var dispatcher = new RuntimeEventDispatcher();

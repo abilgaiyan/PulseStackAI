@@ -1,6 +1,6 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
-using PulseStack.Abstractions.Workflow.Conditions;
+using PulseStack.Abstractions.Workflows.Conditions;
 using PulseStack.Abstractions.Tools;
 using PulseStack.Agents.Builders;
 using PulseStack.Agents.Pipelines;
