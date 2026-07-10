@@ -38,7 +38,7 @@ public class ParallelBuilderTests
     }
 
     [Fact]
-    public void ParallelBuilder_Should_Throw_When_No_Nodes_Are_Added()
+    public void ParallelBuilder_Should_Throw_When_No_Steps_Are_Added()
     {
         Action action = () => Workflow.Create("Test")
             .Parallel("EmptyParallel")
@@ -64,7 +64,7 @@ public class ParallelBuilderTests
     }
 
     [Fact]
-    public void ParallelBuilder_Can_Be_Used_After_Other_Nodes()
+    public void ParallelBuilder_Can_Be_Used_After_Other_Steps()
     {
         var workflow = Workflow.Create("Main")
             .Run(new FakeAgent("Initial", "Done"))

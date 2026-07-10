@@ -5,14 +5,14 @@ public sealed record WorkflowStartedEvent(
     Guid ExecutionId,
     DateTimeOffset Timestamp,
     string WorkflowName,
-    int NodeCount)
+    int StepCount)
     : IRuntimeEvent
 {
     public IReadOnlyDictionary<string, object?> Metadata
         => new Dictionary<string, object?>
         {
             ["WorkflowName"] = WorkflowName,
-            ["NodeCount"] = NodeCount
+            ["StepCount"] = StepCount
         };
 }
 

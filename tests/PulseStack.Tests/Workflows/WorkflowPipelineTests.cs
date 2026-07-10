@@ -60,13 +60,11 @@ public class WorkflowTests
             .Add(first)
             .Add(second);
 
-        workflow.Steps[0]
-            .Should()
-            .Be(first);
+        var steps = workflow.Steps.OfType<RunStep>().ToList();    
 
-        workflow.Steps[1]
-            .Should()
-            .Be(second);
+        steps[0].Agent.Should().Be(first);
+
+        steps[1].Agent.Should().Be(second);
     }
 
 }

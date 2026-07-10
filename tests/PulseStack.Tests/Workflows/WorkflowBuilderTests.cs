@@ -39,8 +39,9 @@ public class WorkflowBuilderTests
                 .Run(agent)
                 .Build();
 
-        workflow.Steps.Should().ContainSingle();
-        workflow.Steps.Single().Should().BeSameAs(agent);
+        var steps = workflow.Steps.OfType<RunStep>().ToList(); 
+        steps.Should().ContainSingle();
+        steps[0].Agent.Should().BeSameAs(agent);
     }
 
     [Fact]
@@ -141,7 +142,7 @@ public class WorkflowBuilderTests
     public void WorkflowBuilder_If_Should_Use_Default_Name()
     {
         var condition = new DelegateCondition(_ => true);
-        var thenStep = new FakeAgent("ApprovalStep", "Approved");
+        var thenStep = new RunStep(new FakeAgent("ApprovalStep", "Approved"));
 
         var workflow = Workflow.Create("Research")
             .Run(new FakeAgent("ResearchStep", "Done"))
@@ -216,11 +217,11 @@ public class WorkflowBuilderTests
             .Retry(new RunStep(agent), 3)
             .Build();
 
-        var retryNode = workflow.Steps.OfType<RetryStep>().Single();
+        var retryStep = workflow.Steps.OfType<RetryStep>().Single();
 
-        retryNode.Name.Should().Be("Retry");
-        retryNode.MaxAttempts.Should().Be(3);
-        retryNode.Step.Should().BeSameAs(agent);
+        retryStep.Name.Should().Be("Retry");
+        retryStep.MaxAttempts.Should().Be(3);
+        retryStep.Step.As<RunStep>().Agent.Should().BeSameAs(agent);
     }
 
     [Fact]
@@ -232,11 +233,11 @@ public class WorkflowBuilderTests
             .Retry("Retry Validation",new RunStep(agent), 5)
             .Build();
 
-        var retryNode = workflow.Steps.OfType<RetryStep>().Single();
+        var retryStep = workflow.Steps.OfType<RetryStep>().Single();
 
-        retryNode.Name.Should().Be("Retry Validation");
-        retryNode.MaxAttempts.Should().Be(5);
-        retryNode.Step.Should().BeSameAs(agent);
+        retryStep.Name.Should().Be("Retry Validation");
+        retryStep.MaxAttempts.Should().Be(5);
+        retryStep.Step.Should().BeSameAs(agent);
     }
 
     [Fact]
@@ -251,7 +252,7 @@ public class WorkflowBuilderTests
     }
 
     [Fact]
-    public void WorkflowBuilder_Retry_Should_Throw_When_Node_Is_Null()
+    public void WorkflowBuilder_Retry_Should_Throw_When_Step_Is_Null()
     {
         Action action = () => Workflow.Create("Test").Retry(null!, 3);
         action.Should().Throw<ArgumentNullException>();
@@ -364,7 +365,7 @@ public class WorkflowBuilderTests
     }
 
     [Fact]
-    public void WorkflowBuilder_ForEach_Should_Throw_When_Node_Is_Null()
+    public void WorkflowBuilder_ForEach_Should_Throw_When_Step_Is_Null()
     {
         Action action = () => Workflow.Create("Test").ForEach(_ => [0], null!);
         action.Should().Throw<ArgumentNullException>();
@@ -437,7 +438,7 @@ public class WorkflowBuilderTests
     }
 
     [Fact]
-    public void WorkflowBuilder_Parallel_Should_Throw_When_Node_Is_Null()
+    public void WorkflowBuilder_Parallel_Should_Throw_When_Step_Is_Null()
     {
         Action action = () => Workflow.Create("Test").Parallel(new RunStep(new FakeAgent("A", "Done")), null!);
         action.Should().Throw<ArgumentNullException>();
@@ -464,7 +465,7 @@ public class WorkflowBuilderTests
     }
 
     [Fact]
-    public void WorkflowBuilder_Parallel_Should_Preserve_Node_Order()
+    public void WorkflowBuilder_Parallel_Should_Preserve_Step_Order()
     {
         var step1 =
             new RunStep(new FakeAgent("A", "Done"));
@@ -504,12 +505,12 @@ public class WorkflowBuilderTests
             .Switch(ctx => "Approved", cases)
             .Build();
 
-        var switchNode = workflow.Steps.OfType<SwitchStep>().Single();
+        var switchStep = workflow.Steps.OfType<SwitchStep>().Single();
 
-        switchNode.Name.Should().Be("Switch");
-        switchNode.Selector.Should().NotBeNull();
-        switchNode.Cases.Should().BeEquivalentTo(cases);
-        switchNode.DefaultStep.Should().BeNull();
+        switchStep.Name.Should().Be("Switch");
+        switchStep.Selector.Should().NotBeNull();
+        switchStep.Cases.Should().BeEquivalentTo(cases);
+        switchStep.DefaultStep.Should().BeNull();
     }
 
     [Fact]
@@ -526,10 +527,10 @@ public class WorkflowBuilderTests
             .Switch("UserRoleRouter", ctx => ctx.Items["Role"]?.ToString(), cases, defaultStep)
             .Build();
 
-        var switchNode = workflow.Steps.OfType<SwitchStep>().Single();
+        var switchStep = workflow.Steps.OfType<SwitchStep>().Single();
 
-        switchNode.Name.Should().Be("UserRoleRouter");
-        switchNode.DefaultStep.Should().BeSameAs(defaultStep);
+        switchStep.Name.Should().Be("UserRoleRouter");
+        switchStep.DefaultStep.Should().BeSameAs(defaultStep);
     }
 
     [Fact]
@@ -542,8 +543,8 @@ public class WorkflowBuilderTests
             .Switch("Decision", _ => "yes", new[] { case1, case2 })
             .Build();
 
-        var switchNode = workflow.Steps.OfType<SwitchStep>().Single();
-        switchNode.Cases.Should().ContainInOrder(case1, case2);
+        var switchStep = workflow.Steps.OfType<SwitchStep>().Single();
+        switchStep.Cases.Should().ContainInOrder(case1, case2);
     }
 
     [Fact]
@@ -606,7 +607,7 @@ public class WorkflowBuilderTests
     }
 
     [Fact]
-    public void WorkflowBuilder_Switch_Should_Preserve_Default_Node()
+    public void WorkflowBuilder_Switch_Should_Preserve_Default_Step()
     {
         var defaultStep =
             new RunStep(

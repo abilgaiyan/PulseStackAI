@@ -58,7 +58,7 @@ internal sealed class WorkflowRuntime
             }
 
             _eventDispatcher.Dispatch(
-                new NodeStartedEvent(
+                new StepstartedEvent(
                     executionId,
                     DateTimeOffset.UtcNow,
                     step.Name,
@@ -71,7 +71,7 @@ internal sealed class WorkflowRuntime
                     cancellationToken);
 
             _eventDispatcher.Dispatch(
-                new NodeCompletedEvent(
+                new StepCompletedEvent(
                     executionId,
                     DateTimeOffset.UtcNow,
                     step.Name,

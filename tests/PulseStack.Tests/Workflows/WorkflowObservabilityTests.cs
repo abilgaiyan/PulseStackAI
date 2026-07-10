@@ -50,7 +50,7 @@ public class WorkflowObservabilityTests
     }
 
     [Fact]
-    public async Task Workflow_Should_Emit_NodeStartedEvent()
+    public async Task Workflow_Should_Emit_StepstartedEvent()
     {
         var observer =
             new RecordingRuntimeObserver();
@@ -64,13 +64,13 @@ public class WorkflowObservabilityTests
             new PipelineContext());
 
         observer.Events
-            .OfType<NodeStartedEvent>()
+            .OfType<StepstartedEvent>()
             .Should()
             .ContainSingle();
     }
 
    [Fact]
-    public async Task Workflow_Should_Emit_NodeCompletedEvent()
+    public async Task Workflow_Should_Emit_StepCompletedEvent()
     {
         var observer =
             new RecordingRuntimeObserver();
@@ -84,7 +84,7 @@ public class WorkflowObservabilityTests
             new PipelineContext());
 
         observer.Events
-            .OfType<NodeCompletedEvent>()
+            .OfType<StepCompletedEvent>()
             .Should()
             .ContainSingle();
     }

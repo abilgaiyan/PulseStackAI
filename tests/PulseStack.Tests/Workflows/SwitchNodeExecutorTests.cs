@@ -11,10 +11,10 @@ using Xunit;
 
 namespace PulseStack.Tests.Workflows;
 
-public class SwitchNodeExecutorTests
+public class SwitchStepExecutorTests
 {
     [Fact]
-    public async Task SwitchNode_Should_Execute_Matching_Case()
+    public async Task SwitchStep_Should_Execute_Matching_Case()
     {
         var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
 
@@ -36,7 +36,7 @@ public class SwitchNodeExecutorTests
     }
 
     [Fact]
-    public async Task SwitchNode_Should_Return_Own_Name_And_Preserve_Child_Result()
+    public async Task SwitchStep_Should_Return_Own_Name_And_Preserve_Child_Result()
     {
         var usage =
             new AIUsage
@@ -50,7 +50,7 @@ public class SwitchNodeExecutorTests
         var executors =
             new List<IStepExecutor>
             {
-                new FakeNodeExecutor(
+                new FakeStepExecutor(
                     success: false,
                     output: "Rejected",
                     usage: usage)
@@ -89,7 +89,7 @@ public class SwitchNodeExecutorTests
     }
 
     [Fact]
-    public async Task SwitchNode_Should_Execute_Default_Case()
+    public async Task SwitchStep_Should_Execute_Default_Case()
     {
         var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
 
@@ -112,7 +112,7 @@ public class SwitchNodeExecutorTests
     }
 
     [Fact]
-    public async Task SwitchNode_Should_Return_Success_When_No_Match_And_No_Default()
+    public async Task SwitchStep_Should_Return_Success_When_No_Match_And_No_Default()
     {
         var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
 
@@ -133,7 +133,7 @@ public class SwitchNodeExecutorTests
     }
 
     [Fact]
-    public async Task SwitchNode_Should_Match_Case_Insensitively()
+    public async Task SwitchStep_Should_Match_Case_Insensitively()
     {
         var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
 
@@ -152,11 +152,11 @@ public class SwitchNodeExecutorTests
     }
 
     [Fact]
-    public async Task SwitchNode_Should_Use_Selector_From_Context()
+    public async Task SwitchStep_Should_Use_Selector_From_Context()
     {
         var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
         
-        var switchNode = new SwitchStep(
+        var switchStep = new SwitchStep(
                 name: "RoleRouter",
                 selector: ctx => ctx.Items.TryGetValue("UserRole", out var role) 
                                ? role?.ToString() 
@@ -168,7 +168,7 @@ public class SwitchNodeExecutorTests
                 defaultStep: new RunStep(new FakeAgent("GuestStep", "Guest Processed")));
 
         var workflow = new Workflow("TestWorkflow")
-            .Add(switchNode);
+            .Add(switchStep);
 
         var context = new PipelineContext();
         context.Items["UserRole"] = "admin";
@@ -179,7 +179,7 @@ public class SwitchNodeExecutorTests
 
         var step = result.Steps.Single();
 
-        step.StepName.Should().Be(switchNode.Name);
+        step.StepName.Should().Be(switchStep.Name);
 
         step.Success.Should().BeTrue();
         step.Output.Should().Be("Admin Processed"); 
@@ -188,7 +188,7 @@ public class SwitchNodeExecutorTests
     }
 
     [Fact]
-    public async Task Workflow_Should_Execute_Switch_Node()
+    public async Task Workflow_Should_Execute_Switch_Step()
     {
         var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
 
@@ -214,7 +214,7 @@ public class SwitchNodeExecutorTests
     }
 
     [Fact]
-    public async Task Workflow_Should_Execute_Default_Switch_Node()
+    public async Task Workflow_Should_Execute_Default_Switch_Step()
     {
         var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
 
@@ -240,7 +240,7 @@ public class SwitchNodeExecutorTests
     }
 
     [Fact]
-    public async Task SwitchNode_Should_Handle_Null_Selector_Result()
+    public async Task SwitchStep_Should_Handle_Null_Selector_Result()
     {
         var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
 
@@ -263,7 +263,7 @@ public class SwitchNodeExecutorTests
     }
 
     [Fact]
-    public async Task SwitchNode_Should_Handle_Null_Selector_Result_Without_Default()
+    public async Task SwitchStep_Should_Handle_Null_Selector_Result_Without_Default()
     {
         var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
 
@@ -284,7 +284,7 @@ public class SwitchNodeExecutorTests
     }    
 
     [Fact]
-    public async Task SwitchNode_Should_Handle_Null_From_Context_Selector()
+    public async Task SwitchStep_Should_Handle_Null_From_Context_Selector()
     {
         var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
 
@@ -310,14 +310,14 @@ public class SwitchNodeExecutorTests
     }    
 
     [Fact]
-    public async Task SwitchNode_Should_Select_First_Matching_Case_When_Duplicates_Exist()
+    public async Task SwitchStep_Should_Select_First_Matching_Case_When_Duplicates_Exist()
     {
         var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
 
         var firstCase  = new RunStep(new FakeAgent("FirstApprover",  "First Approved Path"));
         var secondCase = new RunStep(new FakeAgent("SecondApprover", "Second Approved Path"));
 
-        var switchNode = new SwitchStep(
+        var switchStep = new SwitchStep(
                 name: "DuplicateCaseSwitch",
                 selector: _ => "Approved",
                 cases: [
@@ -327,7 +327,7 @@ public class SwitchNodeExecutorTests
                 ]);
         var workflow = new Workflow("TestWorkflow")
             .Add(new RunStep(new FakeAgent("Step1", "Initial Output")))
-            .Add(switchNode);
+            .Add(switchStep);
 
         var result = await runtime.ExecuteAsync(workflow, new PipelineContext());
 

@@ -13,7 +13,7 @@ namespace PulseStack.Tests.Workflows;
 public class LoopStepExecutorTests
 {
     [Fact]
-    public async Task LoopNode_Should_Execute_For_Each_Item()
+    public async Task LoopStep_Should_Execute_For_Each_Item()
     {
         var runtime =
             WorkflowRuntimeFactory.Create();
@@ -54,7 +54,7 @@ public class LoopStepExecutorTests
     }
 
     [Fact]
-    public async Task LoopNode_Should_Pass_Current_Item()
+    public async Task LoopStep_Should_Pass_Current_Item()
     {
         var runtime =
             WorkflowRuntimeFactory.Create();
@@ -89,13 +89,13 @@ public class LoopStepExecutorTests
     }
 
     [Fact]
-    public async Task LoopNode_Should_Stop_On_Failure()
+    public async Task LoopStep_Should_Stop_On_Failure()
     {
         var executors =
             new List<IStepExecutor>();
 
         var alwaysFailExecutor =
-            new AlwaysFailNodeExecutor();
+            new AlwaysFailStepExecutor();
 
         executors.Add(alwaysFailExecutor);
 
@@ -131,7 +131,7 @@ public class LoopStepExecutorTests
     }
 
     [Fact]
-    public async Task LoopNode_Should_Return_Own_Name_And_Preserve_Failed_Child_Result()
+    public async Task LoopStep_Should_Return_Own_Name_And_Preserve_Failed_Child_Result()
     {
         var usage =
             new AIUsage
@@ -145,7 +145,7 @@ public class LoopStepExecutorTests
         var executors =
             new List<IStepExecutor>
             {
-                new FakeNodeExecutor(
+                new FakeStepExecutor(
                     success: false,
                     output: "Failed Child",
                     usage: usage)
@@ -182,7 +182,7 @@ public class LoopStepExecutorTests
     }
 
     [Fact]
-    public async Task LoopNode_Should_Return_Success_When_Empty()
+    public async Task LoopStep_Should_Return_Success_When_Empty()
     {
        var runtime =
             WorkflowRuntimeFactory.Create();
@@ -222,7 +222,7 @@ public class LoopStepExecutorTests
     }
 
     [Fact]
-    public async Task Workflow_Should_Execute_Loop_Node()
+    public async Task Workflow_Should_Execute_Loop_Step()
     {
         var runtime =
             WorkflowRuntimeFactory.Create();
@@ -262,7 +262,7 @@ public class LoopStepExecutorTests
     }
 
     [Fact]
-    public async Task Workflow_Should_Execute_Nested_Loop_Node()
+    public async Task Workflow_Should_Execute_Nested_Loop_Step()
     {
           // Arrange
     

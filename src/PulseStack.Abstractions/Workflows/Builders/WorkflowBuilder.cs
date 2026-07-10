@@ -183,7 +183,7 @@ public sealed class WorkflowBuilder
         ValidateName(name);
         ArgumentNullException.ThrowIfNull(steps);
 
-        ValidateNodes(steps);
+        ValidateSteps(steps);
 
         var parallel = 
             new ParallelStep(
@@ -260,7 +260,7 @@ public sealed class WorkflowBuilder
             1);
     }
 
-    private static void ValidateNodes(
+    private static void ValidateSteps(
         IReadOnlyList<IWorkflowStep> steps)
     {
          if (steps.Count == 0)
@@ -273,7 +273,7 @@ public sealed class WorkflowBuilder
             if (steps[i] is null)
                 throw new ArgumentNullException(
                     nameof(steps),
-                     $"Node at index {i} cannot be null.");
+                     $"Step at index {i} cannot be null.");
         }
 
     }

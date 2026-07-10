@@ -14,7 +14,7 @@ namespace PulseStack.Tests.Workflows;
 public class WorkflowRuntimeTests
 {
     [Fact]
-    public async Task Workflow_Should_Execute_Node()
+    public async Task Workflow_Should_Execute_Step()
     {
         // Arrange
 
@@ -29,7 +29,7 @@ public class WorkflowRuntimeTests
         var runtime =
             new WorkflowRuntime(
                 [
-                    new FakeNodeExecutor()
+                    new FakeStepExecutor()
                 ], dispatcher);
 
         var context =
@@ -63,7 +63,7 @@ public class WorkflowRuntimeTests
     }
 
    [Fact]
-   public async Task Workflow_Should_Execute_Nodes_In_Order()
+   public async Task Workflow_Should_Execute_Steps_In_Order()
    {
         // Arrange
 
@@ -88,7 +88,7 @@ public class WorkflowRuntimeTests
         var runtime =
             new WorkflowRuntime(
                 [
-                    new FakeNodeExecutor(
+                    new FakeStepExecutor(
                         executionOrder)
                 ], dispatcher);
 

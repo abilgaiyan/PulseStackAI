@@ -8,8 +8,8 @@ namespace PulseStack.Abstractions.Workflows.Builders;
 /// Base class for all nested workflow language blocks.
 ///
 /// A CompositeWorkflowBuilder represents a temporary language scope.
-/// It collects child nodes while the workflow is being authored.
-/// When End() is called, the collected nodes are packaged into a
+/// It collects child steps while the workflow is being authored.
+/// When End() is called, the collected steps are packaged into a
 /// concrete workflow step and returned to the parent builder.
 ///
 /// Builders never execute workflows.

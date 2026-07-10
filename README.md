@@ -205,7 +205,7 @@ PulseStackAI already supports:
 * Usage tracking
 * Runtime diagnostics
 * Provider abstraction
-* Extensible execution nodes
+* Extensible execution steps
 
 And we're just getting started.
 

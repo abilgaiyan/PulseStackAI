@@ -22,18 +22,18 @@ internal sealed class RetryStepExecutor
         PipelineContext context,
         CancellationToken cancellationToken = default)
     {
-        var retryNode =
+        var retryStep =
             (RetryStep)step;
 
         StepExecutionResult? lastResult = null;
 
         for (var attempt = 1;
-            attempt <= retryNode.MaxAttempts;
+            attempt <= retryStep.MaxAttempts;
             attempt++)
         {
             lastResult =
                 await ExecuteStepAsync(
-                    retryNode.Step,
+                    retryStep.Step,
                     context,
                     cancellationToken);
 
@@ -41,7 +41,7 @@ internal sealed class RetryStepExecutor
             {
                 return new StepExecutionResult
                 {
-                    StepName = retryNode.Name,
+                    StepName = retryStep.Name,
                     Success = lastResult.Success,
                     Output = lastResult.Output,
                     Usage = lastResult.Usage
@@ -51,7 +51,7 @@ internal sealed class RetryStepExecutor
 
         return new StepExecutionResult
         {
-            StepName = retryNode.Name,
+            StepName = retryStep.Name,
             Success = lastResult!.Success,
             Output = lastResult.Output,
             Usage = lastResult.Usage

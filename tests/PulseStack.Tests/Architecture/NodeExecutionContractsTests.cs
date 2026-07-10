@@ -4,10 +4,10 @@ using Xunit;
 
 namespace PulseStack.Tests.Architecture;
 
-public class NodeExecutionContractsTests
+public class StepExecutionContractsTests
 {
     [Fact]
-    public void NodeExecutor_Should_Be_Interface()
+    public void StepExecutor_Should_Be_Interface()
     {
         typeof(IStepExecutor)
             .IsInterface
@@ -16,7 +16,7 @@ public class NodeExecutionContractsTests
     }
 
     [Fact]
-    public void NodeExecutionStrategy_Should_Be_Interface()
+    public void StepExecutionStrategy_Should_Be_Interface()
     {
         typeof(IStepExecutionStrategy)
             .IsInterface

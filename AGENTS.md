@@ -110,7 +110,7 @@ Workflow logic never depends on provider implementations.
 
 ### Composition over inheritance.
 
-Complex behavior should emerge from composing small workflow nodes.
+Complex behavior should emerge from composing small workflow steps.
 
 Prefer:
 
@@ -119,7 +119,7 @@ Prefer:
 * ParallelStep
 * LoopStep
 * SwitchStep
-* WorkflowNode
+* WorkflowStep
 
 Avoid deep inheritance hierarchies.
 

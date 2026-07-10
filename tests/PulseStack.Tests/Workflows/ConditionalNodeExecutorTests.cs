@@ -75,7 +75,7 @@ public class ConditionalStepExecutorTest
                 executors);
 
         executors.Add(
-            new FakeNodeExecutor(
+            new FakeStepExecutor(
                 success: false,
                 output: "Child Output",
                 usage: childUsage));
@@ -145,7 +145,7 @@ public class ConditionalStepExecutorTest
     }
 
     [Fact]
-    public async Task Workflow_Should_Execute_Conditional_Node()
+    public async Task Workflow_Should_Execute_Conditional_Step()
     {
         var runtime =
             WorkflowRuntimeFactory
@@ -175,7 +175,7 @@ public class ConditionalStepExecutorTest
     }
 
     [Fact]
-    public async Task Workflow_Should_Skip_Conditional_Node()
+    public async Task Workflow_Should_Skip_Conditional_Step()
     {
         var runtime =
             WorkflowRuntimeFactory

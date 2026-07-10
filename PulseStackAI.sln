@@ -189,7 +189,7 @@ Global
 		{E3FB6171-999C-4F1A-A2F9-FB58CE682165}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
+		HideSolutionStep = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{27A20C06-1CF4-4D94-8E61-8255A80D41AA} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}

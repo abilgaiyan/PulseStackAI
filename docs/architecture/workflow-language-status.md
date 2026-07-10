@@ -380,7 +380,7 @@ Followed by:
 - RepeatStep
 - RouteStep
 
-After the model is complete, the runtime will gradually migrate from Pipeline Nodes to Workflow Steps.
+After the model is complete, the runtime will gradually migrate from Pipeline Steps to Workflow Steps.
 
 ---
 

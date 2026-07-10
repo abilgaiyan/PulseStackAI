@@ -12,10 +12,10 @@ using Xunit;
 
 namespace PulseStack.Tests.Workflows;
 
-public class WorkflowNodeExecutionTests
+public class WorkflowStepExecutionTests
 {
     [Fact]
-    public async Task AgentNodeExecutor_Should_Execute_Agent()
+    public async Task AgentStepExecutor_Should_Execute_Agent()
     {
         // Arrange
 
@@ -46,7 +46,7 @@ public class WorkflowNodeExecutionTests
     }
 
     [Fact]
-    public async Task Workflow_Should_Execute_Real_Agent_Node()
+    public async Task Workflow_Should_Execute_Real_Agent_Step()
     {
         // Arrange
 
@@ -140,7 +140,7 @@ public class WorkflowNodeExecutionTests
     }
 
     [Fact]
-    public async Task WorkflowNodeExecutor_Should_Execute_Nested_Workflow()
+    public async Task WorkflowStepExecutor_Should_Execute_Nested_Workflow()
     {
         var runtime =
             WorkflowRuntimeFactory.Create();
@@ -169,7 +169,7 @@ public class WorkflowNodeExecutionTests
     }
 
     [Fact]
-    public async Task WorkflowNodeExecutor_Should_Return_Own_Name_And_Preserve_Child_Usage()
+    public async Task WorkflowStepExecutor_Should_Return_Own_Name_And_Preserve_Child_Usage()
     {
         var usage =
             new AIUsage
@@ -186,7 +186,7 @@ public class WorkflowNodeExecutionTests
         var runtime =
             new WorkflowRuntime(
                 [
-                    new FakeNodeExecutor(
+                    new FakeStepExecutor(
                         output: "Nested Output",
                         usage: usage)
                 ],
@@ -405,16 +405,16 @@ public class WorkflowNodeExecutionTests
         result.Steps.Should().HaveCount(2);
         
         // First workflow output should be available as input to second
-        var firstNode = result.Steps[0];
-        firstNode.StepName.Should().Be("FirstWorkflow");
-        firstNode.Success.Should().BeTrue();
-        firstNode.Output.Should().Be("Initial Result");
+        var firstStep = result.Steps[0];
+        firstStep.StepName.Should().Be("FirstWorkflow");
+        firstStep.Success.Should().BeTrue();
+        firstStep.Output.Should().Be("Initial Result");
         
         // Second workflow should process the output from first
-        var secondNode = result.Steps[1];
-        secondNode.StepName.Should().Be("SecondWorkflow");
-        secondNode.Success.Should().BeTrue();
-        secondNode.Output.Should().Be("Received: Initial Result");
+        var secondStep = result.Steps[1];
+        secondStep.StepName.Should().Be("SecondWorkflow");
+        secondStep.Success.Should().BeTrue();
+        secondStep.Output.Should().Be("Received: Initial Result");
         
         // Final output should reflect the chained processing
         result.FinalOutput.Should().Be("Received: Initial Result");

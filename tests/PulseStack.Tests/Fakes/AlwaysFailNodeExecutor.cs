@@ -5,7 +5,7 @@ using PulseStack.Abstractions.Workflows;
 
 namespace PulseStack.Tests.Fakes;
 
-internal sealed class AlwaysFailNodeExecutor
+internal sealed class AlwaysFailStepExecutor
     : IStepExecutor
 {
     private int _attempts;
@@ -14,7 +14,7 @@ internal sealed class AlwaysFailNodeExecutor
 
     public bool CanExecute(
         IWorkflowStep step)
-        => step is Workflow;
+        => true;
 
     public Task<StepExecutionResult> ExecuteAsync(
         IWorkflowStep step,

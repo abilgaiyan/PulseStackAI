@@ -10,7 +10,7 @@ public static class WorkflowServiceCollectionExtensions
         this IServiceCollection services)
     {
         services.AddWorkflowRuntimeInfrastructure();
-        services.AddWorkflowNodeExecutors();
+        services.AddWorkflowStepExecutors();
         services.AddLazyWorkflowRuntime();
 
         return services;
@@ -25,7 +25,7 @@ public static class WorkflowServiceCollectionExtensions
         return services;
     }
 
-    private static IServiceCollection AddWorkflowNodeExecutors(
+    private static IServiceCollection AddWorkflowStepExecutors(
         this IServiceCollection services)
     {
         services.AddSingleton<IStepExecutor, RunStepExecutor>();

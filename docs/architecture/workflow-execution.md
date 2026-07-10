@@ -61,7 +61,7 @@ Workflow
 
 ↓
 
-Node
+Step
 
 ↓
 
@@ -118,7 +118,7 @@ It simply describes what should happen.
 
 ---
 
-# 3. Node
+# 3. Step
 
 A step is a single piece of work.
 
@@ -133,11 +133,11 @@ A step might:
 * repeat a task,
 * choose between multiple paths.
 
-Nodes do not need to understand the entire workflow.
+Steps do not need to understand the entire workflow.
 
 They simply perform their own job and return the result.
 
-Small, focused nodes are easier to understand, easier to test, and easier to reuse.
+Small, focused steps are easier to understand, easier to test, and easier to reuse.
 
 ---
 

@@ -8,10 +8,10 @@ using Xunit;
 
 namespace PulseStack.Tests.Workflows;
 
-public class PipelineNodeExecutorTests
+public class PipelineStepExecutorTests
 {
     // [Fact]
-    // public async Task PipelineNodeExecutor_Should_Execute_SequentialPipeline()
+    // public async Task PipelineStepExecutor_Should_Execute_SequentialPipeline()
     // {
     //     // Arrange
 

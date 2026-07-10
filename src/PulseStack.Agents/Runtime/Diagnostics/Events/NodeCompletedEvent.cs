@@ -1,11 +1,11 @@
 
 namespace PulseStack.Agents.Runtime.Diagnostics.Events;
 
-public sealed record NodeCompletedEvent(
+public sealed record StepCompletedEvent(
     Guid ExecutionId,
     DateTimeOffset Timestamp,
     string StepName,
-    string NodeType,
+    string StepType,
     bool Success)
     : IRuntimeEvent
 {
@@ -13,7 +13,7 @@ public sealed record NodeCompletedEvent(
         => new Dictionary<string, object?>
         {
             ["StepName"] = StepName,
-            ["NodeType"] = NodeType,
+            ["StepType"] = StepType,
             ["Success"] = Success
         };
 }

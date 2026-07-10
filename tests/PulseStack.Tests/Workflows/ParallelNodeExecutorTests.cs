@@ -12,7 +12,7 @@ namespace PulseStack.Tests.Workflows;
 public class ParallelStepExecutorTests
 {
     [Fact]
-    public async Task ParallelStep_Should_Execute_All_Nodes()
+    public async Task ParallelStep_Should_Execute_All_Steps()
     {
         var runtime =
             WorkflowRuntimeFactory.Create();
@@ -81,7 +81,7 @@ public class ParallelStepExecutorTests
                 executors);
 
         executors.Add(
-            new FakeNodeExecutor(
+            new FakeStepExecutor(
                 output: "A",
                 usage: new AIUsage
                 {

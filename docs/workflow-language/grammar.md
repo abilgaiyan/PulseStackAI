@@ -55,7 +55,7 @@ The runtime coordinates workflow execution, evaluates conditions, executes agent
 
 ---
 
-Implementation concepts such as **nodes**, **graphs**, **execution trees**, or **ASTs** belong to the model and runtime.
+Implementation concepts such as **steps**, **graphs**, **execution trees**, or **ASTs** belong to the model and runtime.
 
 They do **not** belong to the Workflow Language.
 

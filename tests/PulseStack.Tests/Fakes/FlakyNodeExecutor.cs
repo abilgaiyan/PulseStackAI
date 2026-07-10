@@ -5,7 +5,7 @@ using PulseStack.Abstractions.Workflows;
 
 namespace PulseStack.Tests.Fakes;
 
-internal sealed class FlakyNodeExecutor : IStepExecutor
+internal sealed class FlakyStepExecutor : IStepExecutor
 {
     private int _attempts;
 

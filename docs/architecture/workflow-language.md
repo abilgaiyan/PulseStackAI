@@ -86,9 +86,9 @@ PulseStackAI represents this through the Pipeline Context.
 
 The context carries the current state of the workflow from one step to the next.
 
-Nodes read from it.
+Steps read from it.
 
-Nodes contribute to it.
+Steps contribute to it.
 
 The runtime manages it.
 
@@ -114,7 +114,7 @@ Not:
 
 Not:
 
-> How do I execute nodes in parallel?
+> How do I execute steps in parallel?
 
 Those are runtime responsibilities.
 

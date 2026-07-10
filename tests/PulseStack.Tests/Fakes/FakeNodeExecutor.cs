@@ -6,7 +6,7 @@ using PulseStack.Abstractions.Runtime.Usage;
 
 namespace PulseStack.Tests.Fakes;
 
-public sealed class FakeNodeExecutor
+public sealed class FakeStepExecutor
     : IStepExecutor
 {
     private readonly List<string>? _executionOrder;
@@ -14,7 +14,7 @@ public sealed class FakeNodeExecutor
     private readonly string? _output;
     private readonly AIUsage? _usage;
 
-    public FakeNodeExecutor(
+    public FakeStepExecutor(
         List<string>? executionOrder = null,
         bool success = true,
         string? output = null,

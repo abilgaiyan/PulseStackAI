@@ -11,7 +11,7 @@ namespace PulseStack.Tests.Workflows;
 public class RetryStepExecutorTests
 {
     [Fact]
-    public async Task RetryNode_Should_Execute_Successfully()
+    public async Task RetryStep_Should_Execute_Successfully()
     {
                 var executors =
             new List<IStepExecutor>();
@@ -27,7 +27,7 @@ public class RetryStepExecutorTests
             new RetryStepExecutor(
                 resolver);
 
-        var retryNode = new RetryStep(
+        var retryStep = new RetryStep(
             "Retry",
             new RunStep(new FakeAgent(
                 "Researcher",
@@ -35,7 +35,7 @@ public class RetryStepExecutorTests
 
         var result =
                     await executor.ExecuteAsync(
-                        retryNode,
+                        retryStep,
                         new PipelineContext());
 
         result.Success.Should().BeTrue();
@@ -44,7 +44,7 @@ public class RetryStepExecutorTests
     }
 
     [Fact]
-    public async Task RetryNode_Should_Return_Own_Name_And_Preserve_Final_Child_Result()
+    public async Task RetryStep_Should_Return_Own_Name_And_Preserve_Final_Child_Result()
     {
         var usage =
             new AIUsage
@@ -63,7 +63,7 @@ public class RetryStepExecutorTests
                 executors);
 
         executors.Add(
-            new FakeNodeExecutor(
+            new FakeStepExecutor(
                 output: "Retried Output",
                 usage: usage));
 
@@ -90,7 +90,7 @@ public class RetryStepExecutorTests
     }
     
     [Fact]
-    public async Task RetryNode_Should_Retry_Until_Success()
+    public async Task RetryStep_Should_Retry_Until_Success()
     {
         var executors =
             new List<IStepExecutor>();
@@ -100,7 +100,7 @@ public class RetryStepExecutorTests
                 executors);
 
         var flakyExecutor =
-            new FlakyNodeExecutor();
+            new FlakyStepExecutor();
 
         executors.Add(flakyExecutor);
 
@@ -129,7 +129,7 @@ public class RetryStepExecutorTests
     }
 
     [Fact]
-    public async Task RetryNode_Should_Stop_After_Max_Attempts()
+    public async Task RetryStep_Should_Stop_After_Max_Attempts()
     {
         var executors =
             new List<IStepExecutor>();
@@ -139,7 +139,7 @@ public class RetryStepExecutorTests
                 executors);
 
         var failingExecutor =
-            new AlwaysFailNodeExecutor();
+            new AlwaysFailStepExecutor();
 
         executors.Add(failingExecutor);
 
