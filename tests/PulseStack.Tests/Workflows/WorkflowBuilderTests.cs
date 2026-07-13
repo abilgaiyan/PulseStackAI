@@ -237,7 +237,7 @@ public class WorkflowBuilderTests
 
         retryStep.Name.Should().Be("Retry Validation");
         retryStep.MaxAttempts.Should().Be(5);
-        retryStep.Step.Should().BeSameAs(agent);
+        retryStep.Step.As<RunStep>().Agent.Should().BeSameAs(agent);
     }
 
     [Fact]

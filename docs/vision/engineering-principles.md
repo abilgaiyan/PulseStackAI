@@ -210,6 +210,18 @@ Every significant architectural decision must be understandable without reading 
 
 ---
 
+# Reduce uncertainty before implementation.
+
+Every phase of the engineering lifecycle exists to eliminate uncertainty for the phase that follows. We 
+
+iterate on ideas before we iterate on code because changing architecture is far less expensive than 
+
+rewriting implementation. By the time development begins, the team's effort should be focused on 
+
+expressing well-understood decisions rather than discovering them.
+
+---
+
 # Decision Checklist
 
 Before implementing a feature, ask:
