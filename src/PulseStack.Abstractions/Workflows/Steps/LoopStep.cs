@@ -12,7 +12,7 @@ public sealed class LoopStep
 
     public IWorkflowStep Step { get; }
 
-    public IReadOnlyList<IWorkflowStep> Children => [];
+    public IReadOnlyList<IWorkflowStep> Children => [Step];
 
     public LoopStep(
         string name,

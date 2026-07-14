@@ -19,7 +19,7 @@ public class WorkflowStepExecutionTests
     {
         // Arrange
 
-        var executor = WorkflowRuntimeFactory.CreateAgentExecutor();
+        var executor = WorkflowTestRuntimeFactory.CreateAgentExecutor();
 
         var workflowStep =
             new RunStep(new FakeAgent(
@@ -57,7 +57,7 @@ public class WorkflowStepExecutionTests
                         "Researcher",
                         "Research Complete"));
 
-        var runtime = WorkflowRuntimeFactory.Create();
+        var runtime = WorkflowTestRuntimeFactory.Create();
 
         var context =
             new PipelineContext
@@ -106,7 +106,7 @@ public class WorkflowStepExecutionTests
                     "Research Complete"));
 
         
-        var runtime = WorkflowRuntimeFactory.Create();
+        var runtime = WorkflowTestRuntimeFactory.Create();
         
         var context =
             new PipelineContext
@@ -143,7 +143,7 @@ public class WorkflowStepExecutionTests
     public async Task WorkflowStepExecutor_Should_Execute_Nested_Workflow()
     {
         var runtime =
-            WorkflowRuntimeFactory.Create();
+            WorkflowTestRuntimeFactory.Create();
 
         var executor =
             new WorkflowStepExecutor(
@@ -223,7 +223,7 @@ public class WorkflowStepExecutionTests
         // Arrange
 
       var runtime =
-            WorkflowRuntimeFactory
+            WorkflowTestRuntimeFactory
                 .CreateWithNestedWorkflowSupport();
 
         var childWorkflow =
@@ -269,7 +269,7 @@ public class WorkflowStepExecutionTests
     {
         // Arrange
 
-      var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
+      var runtime = WorkflowTestRuntimeFactory.CreateWithNestedWorkflowSupport();
 
         var researchWorkflow =
             new Workflow("Research")
@@ -326,7 +326,7 @@ public class WorkflowStepExecutionTests
     {
         // Arrange
 
-        var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
+        var runtime = WorkflowTestRuntimeFactory.CreateWithNestedWorkflowSupport();
 
         var childWorkflow =
             new Workflow("Research")
@@ -373,7 +373,7 @@ public class WorkflowStepExecutionTests
     {
         // Arrange
         
-        var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
+        var runtime = WorkflowTestRuntimeFactory.CreateWithNestedWorkflowSupport();
         
         // Create first workflow that produces output
         var firstWorkflow = new Workflow("FirstWorkflow")

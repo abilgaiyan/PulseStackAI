@@ -11,7 +11,7 @@ public sealed class ParallelStep : IWorkflowStep
     public IReadOnlyList<IWorkflowStep> Steps
         => _steps;
 
-    public IReadOnlyList<IWorkflowStep> Children => [];
+    public IReadOnlyList<IWorkflowStep> Children => Steps;
 
     public ParallelStep(
         string name)

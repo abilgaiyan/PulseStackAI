@@ -3,7 +3,7 @@ using PulseStack.Abstractions.Workflows.Steps;
 namespace PulseStack.Abstractions.Workflows.Builders;
 
 public sealed class ParallelBuilder
-    : CompositeWorkflowBuilder<WorkflowBuilder>
+    : CompositeWorkflowBuilder<ParallelBuilder, WorkflowBuilder>
 {
     private readonly string _name;
 
@@ -25,13 +25,7 @@ public sealed class ParallelBuilder
                 "Parallel block requires at least one step.");
         }
 
-        var parallel = new ParallelStep(_name);
-
-        foreach (var step in Steps)
-        {
-            parallel.Add(step);
-        }
-
-        return Parent.AddStep(parallel);
+        return Parent.AddStep(
+            CompileParallel(_name));
     }
 }

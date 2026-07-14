@@ -1,5 +1,6 @@
 using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Abstractions.Workflows.Conditions;
+using PulseStack.Abstractions.Workflows.Language;
 
 namespace PulseStack.Abstractions.Workflows.Builders;
 
@@ -9,27 +10,38 @@ namespace PulseStack.Abstractions.Workflows.Builders;
 /// actions can be authored.
 /// </summary>
 public sealed class ElseBuilder<TParent>
-    : CompositeWorkflowBuilder<TParent>
+     : CompositeWorkflowBuilder<ElseBuilder<TParent>, TParent>
     where TParent : IWorkflowBuilderParent<TParent>
 {
     private readonly ICondition _condition;
-    private readonly IReadOnlyList<IWorkflowStep> _thenSteps;
-
+    private readonly Workflow _thenWorkflow;
+    private readonly string _name;
     internal ElseBuilder(
         TParent parent,
+        string name,
         ICondition condition,
-        IReadOnlyList<IWorkflowStep> thenSteps)
+        Workflow thenWorkflow)
         : base(parent)
     {
         ArgumentNullException.ThrowIfNull(condition);
-        ArgumentNullException.ThrowIfNull(thenSteps);
+        ArgumentNullException.ThrowIfNull(thenWorkflow);
 
+        _name = name;
         _condition = condition;
-        _thenSteps = thenSteps;
+        _thenWorkflow = thenWorkflow;
     }
 
-    public override TParent End()
+   public override TParent End()
     {
-        throw new NotImplementedException();
+        if (Steps.Count == 0)
+            throw new InvalidOperationException(
+                "An Else block must contain at least one workflow step.");
+
+        return Parent.AddStep(
+            new ConditionalStep(
+                _name,
+                _condition,
+                _thenWorkflow,
+                CompileWorkflow(WorkflowKeywords.Else)));
     }
 }

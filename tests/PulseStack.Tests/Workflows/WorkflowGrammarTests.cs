@@ -9,7 +9,7 @@ using Xunit;
 
 namespace PulseStack.Tests.Workflows;
 
-public class WorkflowLanguageGrammarTests
+public class WorkflowGrammarTests
 {
     [Fact]
     public void End_Should_Return_To_Parent_Scope()
@@ -17,13 +17,12 @@ public class WorkflowLanguageGrammarTests
         var agent1 = new FakeAgent("Step1", "Done1");
         var agent2 = new FakeAgent("Step2", "Done2");
 
-        var workflow = Workflow.Create("MainWorkflow")
-            .Run(agent1)
-
-            .Test("ValidationBlock")
-                .Run(agent2)
-            .End()
-
+        var workflow = 
+            Workflow.Create("MainWorkflow")
+                .Run(agent1)
+                .Test("ValidationBlock")
+                    .Run(agent2)
+                .End()
             .Build();
 
         workflow.Steps.Should().HaveCount(2);
@@ -58,8 +57,8 @@ public class WorkflowLanguageGrammarTests
     public void If_Should_Return_IfConditionBuilder()
     {
         var builder =
-            Workflow.Create("Approval")
-                .If(new DelegateCondition(_ => true));
+                Workflow.Create("Approval")
+                    .If(new DelegateCondition(_ => true));
 
         builder.Should().BeOfType<IfConditionBuilder<WorkflowBuilder>>();
     }
@@ -70,7 +69,7 @@ public class WorkflowLanguageGrammarTests
         var builder =
             Workflow.Create("Approval")
                 .If(new DelegateCondition(_ => true))
-                .Then();
+                    .Then();
 
         builder.Should().BeOfType<ThenBuilder<WorkflowBuilder>>();
     }
@@ -81,7 +80,7 @@ public class WorkflowLanguageGrammarTests
         var builder =
             Workflow.Create("Approval")
                 .If(new DelegateCondition(_ => true))
-                .Then()
+                    .Then()
                 .Else();
 
         builder.Should().BeOfType<ElseBuilder<WorkflowBuilder>>();

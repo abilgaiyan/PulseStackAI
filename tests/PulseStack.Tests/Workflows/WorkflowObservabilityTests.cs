@@ -16,7 +16,7 @@ public class WorkflowObservabilityTests
             new RecordingRuntimeObserver();
 
         var runtime =
-            WorkflowRuntimeFactory.Create(
+            WorkflowTestRuntimeFactory.Create(
                 observer);
 
         await runtime.ExecuteAsync(
@@ -36,7 +36,7 @@ public class WorkflowObservabilityTests
             new RecordingRuntimeObserver();
 
         var runtime =
-            WorkflowRuntimeFactory.Create(
+            WorkflowTestRuntimeFactory.Create(
                 observer);
 
         await runtime.ExecuteAsync(
@@ -56,7 +56,7 @@ public class WorkflowObservabilityTests
             new RecordingRuntimeObserver();
 
         var runtime =
-            WorkflowRuntimeFactory.Create(
+            WorkflowTestRuntimeFactory.Create(
                 observer);
 
         await runtime.ExecuteAsync(
@@ -76,7 +76,7 @@ public class WorkflowObservabilityTests
             new RecordingRuntimeObserver();
 
         var runtime =
-            WorkflowRuntimeFactory.Create(
+            WorkflowTestRuntimeFactory.Create(
                 observer);
 
         await runtime.ExecuteAsync(

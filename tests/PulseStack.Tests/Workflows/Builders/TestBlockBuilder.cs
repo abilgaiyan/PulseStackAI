@@ -7,7 +7,7 @@ namespace PulseStack.Tests.Workflows.Builders;
 /// Test-only builder used to validate CompositeWorkflowBuilder and nested builder patterns.
 /// </summary>
 public sealed class TestBlockBuilder 
-    : CompositeWorkflowBuilder<WorkflowBuilder>
+    : CompositeWorkflowBuilder<TestBlockBuilder, WorkflowBuilder>
 {
     private readonly string _blockName;
 

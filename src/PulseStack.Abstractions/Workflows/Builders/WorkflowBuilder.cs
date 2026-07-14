@@ -2,6 +2,7 @@ using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Abstractions.Workflows.Conditions;
 using PulseStack.Abstractions.Workflows.Routing;
+using PulseStack.Abstractions.Workflows.Language;
 
 namespace PulseStack.Abstractions.Workflows.Builders;
 
@@ -49,7 +50,7 @@ public sealed class WorkflowBuilder
     public IfConditionBuilder<WorkflowBuilder> If(
         ICondition condition)
     {
-        return If("If", condition);
+        return If(WorkflowKeywords.If, condition);
     }
 
     /// <summary>
@@ -65,16 +66,17 @@ public sealed class WorkflowBuilder
 
         return new IfConditionBuilder<WorkflowBuilder>(
             this,
+            name,
             condition);
     }
 
     /// <summary>
-    /// Adds a conditional branch to the workflow (uses default name "If").
+    /// Adds a conditional branch to the workflow (uses default name WorkflowKeywords.If).
     /// </summary>
     [Obsolete("Use the Workflow Language syntax: If(...).Then()...End().")]
     public WorkflowBuilder If(
         ICondition condition,
-        IWorkflowStep thenStep) => If("If", condition, thenStep);
+        IWorkflowStep thenStep) => If(WorkflowKeywords.If, condition, thenStep);
 
     /// <summary>
     /// Adds a conditional branch to the workflow with a custom name.
@@ -101,7 +103,7 @@ public sealed class WorkflowBuilder
     public WorkflowBuilder If(
         ICondition condition,
         IAgent agent)
-        => If("If", condition, agent);
+        => If(WorkflowKeywords.If, condition, agent);
 
     [Obsolete("Use the Workflow Language syntax: If(...).Then()...End().")]
     public WorkflowBuilder If(

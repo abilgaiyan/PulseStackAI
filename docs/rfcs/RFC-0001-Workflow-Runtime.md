@@ -14,7 +14,7 @@
 
 This RFC proposes the introduction of a **declarative Workflow Runtime** as a new architectural layer within PulseStackAI.
 
-The Workflow Runtime enables developers to express business processes as declarative workflows while PulseStackAI manages orchestration and execution.
+The Workflow Runtime enables developers to describe business processes using a declarative Workflow Language (DSL) while PulseStackAI manages orchestration and execution.
 
 It complements the existing `AgentRuntime` and `PipelineRuntime` rather than replacing them, preserving backward compatibility while introducing a clear separation between **business intent** (Workflows) and **execution mechanics** (Pipelines).
 
@@ -74,19 +74,23 @@ This RFC formalizes the next stage in PulseStackAI's architectural evolution.
 
 # 6. Architectural Discovery
 
-During the evolution of PulseStackAI, two distinct architectural concepts emerged.
+During the evolution of PulseStackAI, three distinct architectural concepts emerged.
 
-The first is the **Workflow Model**, which describes business intent.
+The first is the Workflow Language, which allows developers to describe business intent using a declarative DSL.
 
-The second is the **Execution Runtime**, which manages execution through pipelines.
+The second is the Workflow Runtime, which interprets the Workflow Language and coordinates execution.
 
-Although these concepts are closely related, they represent different responsibilities and therefore belong to separate architectural boundaries.
+The third is the Execution Runtime, which executes individual workflow steps through pipelines, agents, and providers.
 
-Workflows describe **what** should happen.
+Although closely related, each layer has a distinct responsibility and evolves independently.
 
-Execution pipelines describe **how** execution occurs.
+Workflow Language describes what should happen.
 
-The Workflow Runtime becomes the bridge between these two models while preserving the existing execution infrastructure.
+Workflow Runtime coordinates how workflows are executed.
+
+Execution Runtime performs the actual execution.
+
+This separation forms the core architectural principle of PulseStackAI.
 
 ---
 
@@ -95,7 +99,7 @@ The Workflow Runtime becomes the bridge between these two models while preservin
 This RFC aims to:
 
 - Introduce a first-class declarative `Workflow` abstraction.
-- Introduce a fluent `WorkflowBuilder`.
+- Introduce a declarative `Workflow Language (DSL)` for describing business workflows..
 - Introduce a dedicated `WorkflowRuntime`.
 - Separate business intent from execution mechanics.
 - Introduce an extensible `IStepExecutor` execution model.
@@ -187,17 +191,48 @@ Infrastructure Layer
 
 ## Architectural Overview
 
-Workflow
-    ↓
+Business Layer
+────────────────────────────
+
+Workflow Language (DSL)
+
+↓
+
+Workflow Model
+
+────────────────────────────
+
+Runtime Layer
+
 Workflow Runtime
-    ↓
+
+↓
+
 Step Executors
-    ↓
+
+────────────────────────────
+
+Execution Layer
+
 Pipeline Runtime
-    ↓
+
+↓
+
 Agent Runtime
-    ↓
+
+↓
+
+Tool Runtime
+
+────────────────────────────
+
+Infrastructure
+
 Providers
+
+Memory
+
+Diagnostics
 
 The Workflow Runtime coordinates execution but does not execute business logic directly.
 
@@ -236,10 +271,11 @@ These remain responsibilities of the existing runtime.
 2. Validate Workflow
 3. Create WorkflowExecutionContext
 4. Resolve Step Executor
-5. Execute Workflow Step
-6. Update Shared Context
-7. Continue Until Complete
-8. Return Workflow Result
+5. Interpreting the Workflow Language
+6. Execute Workflow Step
+7. Update Shared Context
+8. Continue Until Complete
+9. Return Workflow Result
 
 ---
 
@@ -324,6 +360,20 @@ It preserves existing runtime components while introducing a higher abstraction.
 
 ---
 
+Alternative 4
+
+Embed orchestration directly into WorkflowBuilder.
+
+Rejected.
+
+The Builder belongs to the language layer.
+
+Execution belongs to the runtime.
+
+Keeping these responsibilities separate improves maintainability and allows future language features to evolve independently from execution.
+
+---
+
 # 17. Trade-offs
 
 Benefits
@@ -377,7 +427,15 @@ without redesigning the runtime.
 
 # 20. Decision
 
-The PulseStackAI architecture will introduce a dedicated Workflow Runtime responsible for executing declarative workflows.
+PulseStackAI introduces a declarative Workflow Language (DSL) for expressing business intent.
+
+The Workflow Runtime interprets the Workflow Language and coordinates execution through specialized Step Executors while leveraging the existing execution runtime.
+
+This establishes three distinct architectural layers:
+
+Workflow Language
+Workflow Runtime
+Execution Runtime
 
 The Workflow Runtime coordinates execution through specialized Step Executors while leveraging the existing execution runtime.
 

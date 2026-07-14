@@ -18,7 +18,8 @@ namespace PulseStack.Abstractions.Workflows.Builders;
 /// is being authored. Once End() is called, the builder
 /// disappears and only the resulting workflow step remains.
 /// </summary>
-public abstract class CompositeWorkflowBuilder<TParent> 
+public abstract class CompositeWorkflowBuilder<TBuilder, TParent>
+    where TBuilder : CompositeWorkflowBuilder<TBuilder, TParent>
     where TParent : IWorkflowBuilderParent<TParent>
 {
      /// <summary>
@@ -39,26 +40,31 @@ public abstract class CompositeWorkflowBuilder<TParent>
 
         Parent = parent;
     }
+    protected TBuilder This => (TBuilder)this;
 
     /// <summary>
     /// Executes a single declarative agent behavior within this nested block.
     /// </summary>
-    public CompositeWorkflowBuilder<TParent> Run(IAgent agent)
+   public TBuilder Run(IAgent agent)
     {
+        ArgumentNullException.ThrowIfNull(agent);
 
         AddStep(new RunStep(agent));
-        return this;
+
+        return This;
     }
 
     /// <summary>
     /// Implements a complete child workflow sequence directly within this nested block.
     /// </summary>
-    public CompositeWorkflowBuilder<TParent> Workflow(Workflow workflow)
+    public TBuilder Workflow(Workflow workflow)
     {
-        AddStep(workflow);
-        return this;
-    }
+        ArgumentNullException.ThrowIfNull(workflow);
 
+        AddStep(workflow);
+
+        return This;
+    }
      /// <summary>
     /// Adds a step to this scope.
     /// </summary>
@@ -69,6 +75,37 @@ public abstract class CompositeWorkflowBuilder<TParent>
         ArgumentNullException.ThrowIfNull(step);
 
         _steps.Add(step);
+    }
+
+   protected Workflow CompileWorkflow(
+        string name)
+    {
+        var workflow = new Workflow(name);
+
+        foreach (var step in Steps)
+        {
+            workflow.Add(step);
+        }
+
+        return workflow;
+    }
+
+    protected IReadOnlyList<IWorkflowStep> CompileSteps()
+    {
+        return Steps.ToArray();
+    }
+
+    protected ParallelStep CompileParallel(
+        string name)
+    {
+        var parallel = new ParallelStep(name);
+
+        foreach (var step in Steps)
+        {
+            parallel.Add(step);
+        }
+
+        return parallel;
     }
 
     /// <summary>

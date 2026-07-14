@@ -26,7 +26,7 @@ public class ConditionalStepExecutorTest
                 executors);
 
         executors.Add(
-            WorkflowRuntimeFactory.CreateAgentExecutor());
+            WorkflowTestRuntimeFactory.CreateAgentExecutor());
 
         var executor =
             new ConditionalStepExecutor(
@@ -117,7 +117,7 @@ public class ConditionalStepExecutorTest
                 executors);
 
         executors.Add(
-            WorkflowRuntimeFactory.CreateAgentExecutor());
+            WorkflowTestRuntimeFactory.CreateAgentExecutor());
 
         var executor =
             new ConditionalStepExecutor(
@@ -148,7 +148,7 @@ public class ConditionalStepExecutorTest
     public async Task Workflow_Should_Execute_Conditional_Step()
     {
         var runtime =
-            WorkflowRuntimeFactory
+            WorkflowTestRuntimeFactory
                 .CreateWithNestedWorkflowSupport();
 
         var agent = 
@@ -178,7 +178,7 @@ public class ConditionalStepExecutorTest
     public async Task Workflow_Should_Skip_Conditional_Step()
     {
         var runtime =
-            WorkflowRuntimeFactory
+            WorkflowTestRuntimeFactory
                 .CreateWithNestedWorkflowSupport();
 
         var agent = 
@@ -209,7 +209,7 @@ public class ConditionalStepExecutorTest
     public async Task ConditionalStep_Should_Preserve_Context_When_Skipped()
     {
         var runtime =
-            WorkflowRuntimeFactory
+            WorkflowTestRuntimeFactory
                 .CreateWithNestedWorkflowSupport();
 
         var workflow =
