@@ -14,15 +14,18 @@ public sealed class IfConditionBuilder<TParent>
 {
     private readonly TParent _parent;
     private readonly ICondition _condition;
+    private readonly string _name;
 
     internal IfConditionBuilder(
         TParent parent,
+         string name,
         ICondition condition)
     {
         ArgumentNullException.ThrowIfNull(parent);
         ArgumentNullException.ThrowIfNull(condition);
 
         _parent = parent;
+          _name = name;
         _condition = condition;
     }
 
@@ -30,6 +33,7 @@ public sealed class IfConditionBuilder<TParent>
     {
         return new ThenBuilder<TParent>(
             _parent,
+            _name,
             _condition);
     }
 }

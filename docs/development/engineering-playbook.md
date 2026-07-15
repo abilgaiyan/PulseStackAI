@@ -30,6 +30,18 @@ Our objective is not simply to build features.
 
 Our objective is to build a maintainable, extensible orchestration runtime.
 
+Every engineering artifact should reduce uncertainty for the next phase.
+
+Vision reduces uncertainty about purpose.
+
+Milestones reduce uncertainty about scope.
+
+RFCs reduce uncertainty about architecture.
+
+Implementation Plans reduce uncertainty about execution.
+
+Implementation should be the final confirmation of decisions—not the primary mechanism for discovering them.
+
 ---
 
 # Engineering Philosophy

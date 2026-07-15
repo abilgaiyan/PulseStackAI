@@ -13,7 +13,7 @@ internal sealed class FlakyStepExecutor : IStepExecutor
 
     public bool CanExecute(
         IWorkflowStep step)
-        => step is Workflow;
+        => true;
 
     public Task<StepExecutionResult> ExecuteAsync(
         IWorkflowStep step,

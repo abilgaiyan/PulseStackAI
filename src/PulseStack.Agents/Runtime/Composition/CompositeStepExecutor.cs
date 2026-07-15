@@ -7,14 +7,14 @@ namespace PulseStack.Agents.Runtime.Composition;
 internal abstract class CompositeStepExecutor
     : IStepExecutor
 {
-    private readonly IStepExecutorResolver _resolver;
+    protected IStepExecutorResolver Resolver { get; }
 
     protected CompositeStepExecutor(
         IStepExecutorResolver resolver)
     {
         ArgumentNullException.ThrowIfNull(resolver);
 
-        _resolver = resolver;
+        Resolver = resolver;
     }
 
     public abstract bool CanExecute(
@@ -31,7 +31,7 @@ internal abstract class CompositeStepExecutor
         CancellationToken cancellationToken = default)
     {
         var executor =
-            _resolver.Resolve(step);
+            Resolver.Resolve(step);
 
         return await executor.ExecuteAsync(
             step,

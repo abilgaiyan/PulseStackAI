@@ -16,7 +16,7 @@ public class LoopStepExecutorTests
     public async Task LoopStep_Should_Execute_For_Each_Item()
     {
         var runtime =
-            WorkflowRuntimeFactory.Create();
+            WorkflowTestRuntimeFactory.Create();
 
         var workflow =
             new Workflow("Workflow")
@@ -57,7 +57,7 @@ public class LoopStepExecutorTests
     public async Task LoopStep_Should_Pass_Current_Item()
     {
         var runtime =
-            WorkflowRuntimeFactory.Create();
+            WorkflowTestRuntimeFactory.Create();
 
         var workflow =
             new Workflow("Workflow")
@@ -185,7 +185,7 @@ public class LoopStepExecutorTests
     public async Task LoopStep_Should_Return_Success_When_Empty()
     {
        var runtime =
-            WorkflowRuntimeFactory.Create();
+            WorkflowTestRuntimeFactory.Create();
 
         var workflow =
             new Workflow("Workflow")
@@ -225,7 +225,7 @@ public class LoopStepExecutorTests
     public async Task Workflow_Should_Execute_Loop_Step()
     {
         var runtime =
-            WorkflowRuntimeFactory.Create();
+            WorkflowTestRuntimeFactory.Create();
 
         var workflow =
             new Workflow("Workflow")
@@ -266,7 +266,7 @@ public class LoopStepExecutorTests
     {
           // Arrange
     
-        var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
+        var runtime = WorkflowTestRuntimeFactory.CreateWithNestedWorkflowSupport();
         
         // Create a nested workflow
         var nestedWorkflow = new Workflow("ProcessItem")

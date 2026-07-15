@@ -4,28 +4,34 @@ using PulseStack.Abstractions.Runtime.Pipeline;
 
 namespace PulseStack.Abstractions.Workflows.Steps;
 
-public sealed class ConditionalStep
-    : IWorkflowStep
+public sealed class ConditionalStep : IWorkflowStep
 {
     public string Name { get; }
 
     public ICondition Condition { get; }
 
-    public IWorkflowStep Step { get; }
+    public IWorkflowStep ThenStep { get; }
 
-    public IReadOnlyList<IWorkflowStep> Children => [];
+    public IWorkflowStep? ElseStep { get; }
+
+    public IReadOnlyList<IWorkflowStep> Children =>
+        ElseStep is null
+            ? [ThenStep]
+            : [ThenStep, ElseStep];
 
     public ConditionalStep(
         string name,
         ICondition condition,
-        IWorkflowStep step)
+        IWorkflowStep thenStep,
+        IWorkflowStep? elseStep = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(condition);
-        ArgumentNullException.ThrowIfNull(step);
+        ArgumentNullException.ThrowIfNull(thenStep);
 
         Name = name;
         Condition = condition;
-        Step = step;
+        ThenStep = thenStep;
+        ElseStep = elseStep;
     }
 }

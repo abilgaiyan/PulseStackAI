@@ -16,7 +16,7 @@ public class SwitchStepExecutorTests
     [Fact]
     public async Task SwitchStep_Should_Execute_Matching_Case()
     {
-        var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
+        var runtime = WorkflowTestRuntimeFactory.CreateWithNestedWorkflowSupport();
 
         var workflow = new Workflow("TestWorkflow")
             .Add(new RunStep(new FakeAgent("Step1", "Research Complete")))
@@ -91,7 +91,7 @@ public class SwitchStepExecutorTests
     [Fact]
     public async Task SwitchStep_Should_Execute_Default_Case()
     {
-        var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
+        var runtime = WorkflowTestRuntimeFactory.CreateWithNestedWorkflowSupport();
 
         var workflow = new Workflow("TestWorkflow")
             .Add(new FakeAgent("Step1", "Research Complete"))
@@ -114,7 +114,7 @@ public class SwitchStepExecutorTests
     [Fact]
     public async Task SwitchStep_Should_Return_Success_When_No_Match_And_No_Default()
     {
-        var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
+        var runtime = WorkflowTestRuntimeFactory.CreateWithNestedWorkflowSupport();
 
         var workflow = new Workflow("TestWorkflow")
             .Add(new FakeAgent("Step1", "Initial Output"))
@@ -135,7 +135,7 @@ public class SwitchStepExecutorTests
     [Fact]
     public async Task SwitchStep_Should_Match_Case_Insensitively()
     {
-        var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
+        var runtime = WorkflowTestRuntimeFactory.CreateWithNestedWorkflowSupport();
 
         var workflow = new Workflow("TestWorkflow")
             .Add(new SwitchStep(
@@ -154,7 +154,7 @@ public class SwitchStepExecutorTests
     [Fact]
     public async Task SwitchStep_Should_Use_Selector_From_Context()
     {
-        var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
+        var runtime = WorkflowTestRuntimeFactory.CreateWithNestedWorkflowSupport();
         
         var switchStep = new SwitchStep(
                 name: "RoleRouter",
@@ -190,7 +190,7 @@ public class SwitchStepExecutorTests
     [Fact]
     public async Task Workflow_Should_Execute_Switch_Step()
     {
-        var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
+        var runtime = WorkflowTestRuntimeFactory.CreateWithNestedWorkflowSupport();
 
         var workflow = new Workflow("TestWorkflow")
             .Add(new SwitchStep(
@@ -216,7 +216,7 @@ public class SwitchStepExecutorTests
     [Fact]
     public async Task Workflow_Should_Execute_Default_Switch_Step()
     {
-        var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
+        var runtime = WorkflowTestRuntimeFactory.CreateWithNestedWorkflowSupport();
 
         var workflow = new Workflow("TestWorkflow")
             .Add(new FakeAgent("Step1", "Started"))
@@ -242,7 +242,7 @@ public class SwitchStepExecutorTests
     [Fact]
     public async Task SwitchStep_Should_Handle_Null_Selector_Result()
     {
-        var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
+        var runtime = WorkflowTestRuntimeFactory.CreateWithNestedWorkflowSupport();
 
         var workflow = new Workflow("TestWorkflow")
             .Add(new FakeAgent("Step1", "Initial Output"))
@@ -265,7 +265,7 @@ public class SwitchStepExecutorTests
     [Fact]
     public async Task SwitchStep_Should_Handle_Null_Selector_Result_Without_Default()
     {
-        var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
+        var runtime = WorkflowTestRuntimeFactory.CreateWithNestedWorkflowSupport();
 
         var workflow = new Workflow("TestWorkflow")
             .Add(new FakeAgent("Step1", "Initial Output"))
@@ -286,7 +286,7 @@ public class SwitchStepExecutorTests
     [Fact]
     public async Task SwitchStep_Should_Handle_Null_From_Context_Selector()
     {
-        var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
+        var runtime = WorkflowTestRuntimeFactory.CreateWithNestedWorkflowSupport();
 
         var workflow = new Workflow("TestWorkflow")
             .Add(new RunStep(new FakeAgent("Step1", "Started")))
@@ -312,7 +312,7 @@ public class SwitchStepExecutorTests
     [Fact]
     public async Task SwitchStep_Should_Select_First_Matching_Case_When_Duplicates_Exist()
     {
-        var runtime = WorkflowRuntimeFactory.CreateWithNestedWorkflowSupport();
+        var runtime = WorkflowTestRuntimeFactory.CreateWithNestedWorkflowSupport();
 
         var firstCase  = new RunStep(new FakeAgent("FirstApprover",  "First Approved Path"));
         var secondCase = new RunStep(new FakeAgent("SecondApprover", "Second Approved Path"));

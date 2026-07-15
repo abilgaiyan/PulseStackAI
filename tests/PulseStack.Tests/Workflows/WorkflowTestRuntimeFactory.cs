@@ -5,7 +5,7 @@ using PulseStack.Abstractions.Runtime.Pipeline;
 using PulseStack.Agents.Runtime;
 
 namespace PulseStack.Tests.Workflows;
-internal static class WorkflowRuntimeFactory
+internal static class WorkflowTestRuntimeFactory
 {
     public static RunStepExecutor CreateAgentExecutor()
     {

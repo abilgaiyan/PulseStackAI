@@ -15,7 +15,7 @@ public class ParallelStepExecutorTests
     public async Task ParallelStep_Should_Execute_All_Steps()
     {
         var runtime =
-            WorkflowRuntimeFactory.Create();
+            WorkflowTestRuntimeFactory.Create();
 
         var workflow =
             new Workflow("Workflow")
@@ -44,7 +44,7 @@ public class ParallelStepExecutorTests
     public async Task ParallelStep_Should_Aggregate_Output()
     {
         var runtime =
-            WorkflowRuntimeFactory.Create();
+            WorkflowTestRuntimeFactory.Create();
 
         var workflow =
             new Workflow("Workflow")

@@ -1,6 +1,5 @@
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
-using PulseStack.Abstractions.Workflows.Conditions;
 using PulseStack.Abstractions.Workflows.Steps;
 
 namespace PulseStack.Agents.Runtime.Composition;
@@ -26,32 +25,38 @@ internal sealed class ConditionalStepExecutor
         ArgumentNullException.ThrowIfNull(step);
         ArgumentNullException.ThrowIfNull(context);
 
-        var ConditionalStep =
+        var conditional =
             (ConditionalStep)step;
 
-        var shouldExecute =
-            await ConditionalStep.Condition.EvaluateAsync(
+        var shouldExecuteThen =
+            await conditional.Condition.EvaluateAsync(
                 context,
                 cancellationToken);
 
-        if (!shouldExecute)
+        var branch =
+            shouldExecuteThen
+                ? conditional.ThenStep
+                : conditional.ElseStep;
+
+        // No Else branch - condition evaluated false
+        if (branch is null)
         {
             return new StepExecutionResult
             {
-                StepName = ConditionalStep.Name,
+                StepName = conditional.Name,
                 Success = true
             };
         }
 
         var result =
             await ExecuteStepAsync(
-                ConditionalStep.Step,
+                branch,
                 context,
                 cancellationToken);
 
         return new StepExecutionResult
         {
-            StepName = ConditionalStep.Name,
+            StepName = conditional.Name,
             Success = result.Success,
             Output = result.Output,
             Usage = result.Usage

@@ -9,7 +9,7 @@ public sealed class RetryStep : IWorkflowStep
 
     public int MaxAttempts { get; }
 
-    public IReadOnlyList<IWorkflowStep> Children => [];
+    public IReadOnlyList<IWorkflowStep> Children => [Step];
 
     public RetryStep(
         string name,

@@ -21,7 +21,7 @@ public class RetryStepExecutorTests
                 executors);
 
         executors.Add(
-            WorkflowRuntimeFactory.CreateAgentExecutor());
+            WorkflowTestRuntimeFactory.CreateAgentExecutor());
 
         var executor =
             new RetryStepExecutor(
