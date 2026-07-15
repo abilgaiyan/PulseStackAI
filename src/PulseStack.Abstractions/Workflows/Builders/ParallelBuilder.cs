@@ -2,10 +2,11 @@ using PulseStack.Abstractions.Workflows.Steps;
 
 namespace PulseStack.Abstractions.Workflows.Builders;
 
+/// Represents a Parallel language scope.
 public sealed class ParallelBuilder
     : CompositeWorkflowBuilder<ParallelBuilder, WorkflowBuilder>
 {
-    private readonly string _name;
+    private readonly string _parallelName;
 
     public ParallelBuilder(
         WorkflowBuilder parent,
@@ -14,18 +15,16 @@ public sealed class ParallelBuilder
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        _name = name;
+        _parallelName = name;
     }
 
+    /// <summary>
+    /// Compiles the authored language scope into a ParallelStep
+    /// and returns to the parent workflow scope.
+    /// </summary>
     public override WorkflowBuilder End()
     {
-        if (Steps.Count == 0)
-        {
-            throw new InvalidOperationException(
-                "Parallel block requires at least one step.");
-        }
-
         return Parent.AddStep(
-            CompileParallel(_name));
+            CompileParallel(_parallelName));
     }
 }

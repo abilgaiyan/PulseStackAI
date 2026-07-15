@@ -1,5 +1,4 @@
 using PulseStack.Abstractions.Agents;
-using  PulseStack.Abstractions.Runtime.Pipeline;
 using PulseStack.Abstractions.Workflows.Steps;
 
 namespace PulseStack.Abstractions.Workflows.Builders;
@@ -22,7 +21,7 @@ public abstract class CompositeWorkflowBuilder<TBuilder, TParent>
     where TBuilder : CompositeWorkflowBuilder<TBuilder, TParent>
     where TParent : IWorkflowBuilderParent<TParent>
 {
-     /// <summary>
+    /// <summary>
     /// Parent language scope.
     /// </summary>
     protected TParent Parent { get; }
@@ -65,19 +64,28 @@ public abstract class CompositeWorkflowBuilder<TBuilder, TParent>
 
         return This;
     }
-     /// <summary>
+
+    /// <summary>
     /// Adds a step to this scope.
     /// </summary>
     protected void AddStep(
         IWorkflowStep step)
     {
-        
         ArgumentNullException.ThrowIfNull(step);
 
         _steps.Add(step);
     }
 
-   protected Workflow CompileWorkflow(
+
+    #region Compiler
+    /// <summary>
+    /// Compiler helpers used by language builders.
+    ///
+    /// These methods translate temporary language scopes into
+    /// immutable workflow model objects consumed by the
+    /// Workflow Runtime.
+    /// </summary>
+    protected Workflow CompileWorkflow(
         string name)
     {
         var workflow = new Workflow(name);
@@ -90,15 +98,17 @@ public abstract class CompositeWorkflowBuilder<TBuilder, TParent>
         return workflow;
     }
 
-    protected IReadOnlyList<IWorkflowStep> CompileSteps()
-    {
-        return Steps.ToArray();
-    }
-
-    protected ParallelStep CompileParallel(
+   protected ParallelStep CompileParallel(
         string name)
     {
-        var parallel = new ParallelStep(name);
+        if (Steps.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "Parallel block requires at least one workflow step.");
+        }
+
+        var parallel =
+            new ParallelStep(name);
 
         foreach (var step in Steps)
         {
@@ -107,6 +117,8 @@ public abstract class CompositeWorkflowBuilder<TBuilder, TParent>
 
         return parallel;
     }
+
+    #endregion
 
     /// <summary>
     /// Terminates the local block configuration, packages the compiled step composition,
