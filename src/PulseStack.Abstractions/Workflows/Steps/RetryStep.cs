@@ -1,8 +1,9 @@
-using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Common.Identity;
 
 namespace PulseStack.Abstractions.Workflows.Steps;
 public sealed class RetryStep : IWorkflowStep
 {
+    public WorkflowStepId Id { get; } = WorkflowStepId.New();
     public string Name { get; }
 
     public IWorkflowStep Step { get; }

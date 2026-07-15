@@ -1,9 +1,10 @@
 using PulseStack.Abstractions.Agents;
-using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Common.Identity;
 
 namespace PulseStack.Abstractions.Workflows.Steps;
 public sealed class ParallelStep : IWorkflowStep
 {
+    public WorkflowStepId Id { get; } = WorkflowStepId.New();
     private readonly List<IWorkflowStep> _steps = [];
 
     public string Name { get; }

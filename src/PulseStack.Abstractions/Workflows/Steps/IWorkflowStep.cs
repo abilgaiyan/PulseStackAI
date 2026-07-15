@@ -1,13 +1,18 @@
+using PulseStack.Abstractions.Common.Identity;
+
 namespace PulseStack.Abstractions.Workflows.Steps;
 
-/// <summary>
-/// Represents the smallest meaningful unit of work within a workflow.
-/// A Workflow Step describes work. It never performs work.
-/// </summary>
 public interface IWorkflowStep
 {
     /// <summary>
+    /// Stable identity of this workflow step.
+    /// Generated during workflow construction and preserved for persistence.
+    /// </summary>
+    WorkflowStepId Id { get; }
+
+    /// <summary>
     /// Human-readable name of the step.
+    /// Used for diagnostics, documentation, and visual tooling.
     /// </summary>
     string Name { get; }
 

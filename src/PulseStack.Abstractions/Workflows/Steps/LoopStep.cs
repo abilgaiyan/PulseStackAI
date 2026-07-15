@@ -1,11 +1,12 @@
 using PulseStack.Abstractions.Agents;
-using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Common.Identity;
 
 namespace PulseStack.Abstractions.Workflows.Steps;
 
 public sealed class LoopStep
     : IWorkflowStep
 {
+    public WorkflowStepId Id { get; } = WorkflowStepId.New();
     public string Name { get; }
 
     public Func<PipelineContext, IEnumerable<object>> Items { get; }

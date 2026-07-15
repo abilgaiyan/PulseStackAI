@@ -46,7 +46,7 @@ public class ParallelBuilderTests
             .End();
 
         action.Should().Throw<InvalidOperationException>()
-              .WithMessage("Parallel block requires at least one step.");
+              .WithMessage("Parallel block requires at least one workflow step.");
     }
 
     [Fact]
