@@ -350,11 +350,16 @@ Builder updates
 ---
 
 ## Phase 1 — Persistence Contracts
+
 WorkflowDocument
 Serializer interfaces
 Store interfaces
 Mapper interfaces
-Phase 2 — JSON Serialization
+
+---
+
+## Phase 2 — JSON Serialization
+
 JSON serializer
 JSON deserializer
 Schema Definition
@@ -362,6 +367,7 @@ Schema Definition
 ---
 
 ## Phase 3 — Validation
+
 Structural validation
 Identity validation
 Schema validation
@@ -370,6 +376,7 @@ Version validation
 ---
 
 ## Phase 4 — Samples & Documentation
+
 Save workflow sample
 Load workflow sample
 Execute persisted workflow sample
