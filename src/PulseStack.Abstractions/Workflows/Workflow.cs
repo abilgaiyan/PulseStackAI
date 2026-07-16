@@ -1,7 +1,5 @@
 using PulseStack.Abstractions.Agents;
-using PulseStack.Abstractions.Common.Identity;
 using PulseStack.Abstractions.Workflows.Builders;
-using PulseStack.Abstractions.Workflows.Steps;
 
 namespace PulseStack.Abstractions.Workflows;
 
@@ -13,7 +11,10 @@ public sealed class Workflow : IWorkflowStep
 
     public WorkflowStepId Id { get; }
 
-    public string Name { get; }
+    public WorkflowDefinition Definition { get; }
+
+    public string Name
+        => Definition.Name;
 
     public IReadOnlyList<IWorkflowStep> Steps => _steps;
 
@@ -28,7 +29,7 @@ public sealed class Workflow : IWorkflowStep
 
         Id = WorkflowStepId.New();
 
-        Name = name;
+        Definition = new WorkflowDefinition(name);
     }
 
     public Workflow Add(

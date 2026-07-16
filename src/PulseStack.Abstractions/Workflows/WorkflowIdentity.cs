@@ -1,4 +1,4 @@
-namespace PulseStack.Abstractions.Common.Identity;
+namespace PulseStack.Abstractions.Workflows;
 
 public sealed record WorkflowIdentity(
     WorkflowId Id,

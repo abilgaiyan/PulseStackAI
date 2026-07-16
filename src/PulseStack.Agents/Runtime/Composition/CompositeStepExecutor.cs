@@ -1,6 +1,6 @@
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
-using PulseStack.Abstractions.Workflows.Steps;
+using PulseStack.Abstractions.Workflows;
 
 namespace PulseStack.Agents.Runtime.Composition;
 

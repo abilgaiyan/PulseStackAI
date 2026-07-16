@@ -135,9 +135,19 @@ Conversion occurs through a dedicated mapping layer.
 
 ```
 Workflow
-        ⇄
-WorkflowMapper
-        ⇄
+│
+├── Identity
+├── Definition
+└── Steps
+
+        │
+
+        ▼
+
+Workflow Mapper
+
+        ▼
+
 WorkflowDocument
 ```
 
@@ -152,7 +162,7 @@ Persist only declarative information.
 Examples:
 
 - Identity
-- Metadata
+- Definition
 - Workflow structure
 - Parameters
 - Configuration
@@ -192,7 +202,7 @@ Every workflow step receives:
 
 - WorkflowStepId
 
-Names remain descriptive metadata.
+Names remain descriptive Definition.
 
 Identity supports:
 

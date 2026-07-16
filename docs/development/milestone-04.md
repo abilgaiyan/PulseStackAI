@@ -104,7 +104,7 @@ await workflowRuntime.ExecuteAsync(loaded);
 
 ## In Scope
 WorkflowDocument
-WorkflowMetadata
+WorkflowDefinition
 WorkflowIdentity
 WorkflowStep identity
 Serialization contracts
@@ -182,7 +182,7 @@ Persist only declarative information.
 ## Persist:
 
 Structure
-Metadata
+Definition
 Identity
 Parameters
 Configuration
@@ -240,19 +240,20 @@ This milestone introduces several foundational domain concepts.
 
 Introduce a stable WorkflowId generated during workflow creation.
 
-Workflow names remain metadata.
+Workflow names remain Definition.
 
-## Workflow Metadata
+## Workflow Definition
 
-Separate descriptive information from identity.
+Introduce a dedicated `WorkflowDefinition` to describe the intrinsic characteristics of a workflow.
 
-Examples:
+The definition represents the business description of the workflow and remains independent of persistence and repository concerns.
 
-Name
-Description
-Category
-Tags
-Author
+Examples include:
+
+- Name
+- Description
+
+Repository-specific information such as authorship, timestamps, storage location, and audit history are intentionally excluded.
 
 ---
 
@@ -291,7 +292,7 @@ The following architectural limitations must be addressed before persistence imp
 
 Workflow lacks a stable identity.
 Workflow steps are not uniquely identifiable.
-Identity and metadata are currently coupled.
+Identity and Definition are currently coupled.
 Persistence model does not exist.
 Validation cannot uniquely identify workflow steps.
 Logging lacks stable workflow correlation identifiers.
@@ -309,7 +310,7 @@ Schema evolution and backward compatibility must be carefully managed.
 
 ## Domain Changes
 
-Identity and metadata refactoring may require updates to builders, tests, and runtime components.
+Identity and Definition refactoring may require updates to builders, tests, and runtime components.
 
 ## Future Workflow Evolution
 
@@ -329,7 +330,7 @@ Step Executor Architecture
 Introduces:
 
 Workflow Identity
-Workflow Metadata
+Workflow Definition
 WorkflowDocument
 Workflow Mapper
 Validation Pipeline
@@ -341,7 +342,7 @@ Validation Pipeline
 ## Phase 0 — Remove Architectural Barriers
 WorkflowId
 WorkflowStepId
-WorkflowMetadata
+WorkflowDefinition
 Identity separation
 Runtime review
 Builder updates
@@ -356,7 +357,7 @@ Mapper interfaces
 Phase 2 — JSON Serialization
 JSON serializer
 JSON deserializer
-Schema metadata
+Schema Definition
 
 ---
 

@@ -3,8 +3,6 @@ using PulseStack.Tests.Fakes;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Workflows;
 using PulseStack.Agents.Runtime.Composition;
-using PulseStack.Abstractions.Common.Identity;
-using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Agents.Runtime.Diagnostics;
 
 using Xunit;

@@ -1,4 +1,4 @@
-namespace PulseStack.Abstractions.Common.Identity;
+namespace PulseStack.Abstractions.Workflows;
 
 public readonly record struct WorkflowStepId(Guid Value)
 {

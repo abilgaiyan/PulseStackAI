@@ -1,7 +1,7 @@
 using PulseStack.Abstractions.Agents;
-using PulseStack.Abstractions.Common.Identity;
+using PulseStack.Abstractions.Workflows;
 
-namespace PulseStack.Abstractions.Workflows.Steps;
+namespace PulseStack.Abstractions.Workflows;
 
 public sealed class LoopStep
     : IWorkflowStep

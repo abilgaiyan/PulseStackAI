@@ -1,6 +1,6 @@
-using PulseStack.Abstractions.Common.Identity;
+using PulseStack.Abstractions.Workflows;
 
-namespace PulseStack.Abstractions.Workflows.Steps;
+namespace PulseStack.Abstractions.Workflows;
 
 public interface IWorkflowStep
 {

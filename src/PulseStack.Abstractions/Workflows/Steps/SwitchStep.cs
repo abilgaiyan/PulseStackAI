@@ -1,8 +1,8 @@
 using  PulseStack.Abstractions.Agents;
-using PulseStack.Abstractions.Common.Identity;
+using PulseStack.Abstractions.Workflows;
 using PulseStack.Abstractions.Workflows.Routing;
 
-namespace PulseStack.Abstractions.Workflows.Steps;
+namespace PulseStack.Abstractions.Workflows;
 
 public sealed class SwitchStep
     : IWorkflowStep
