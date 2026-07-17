@@ -424,18 +424,16 @@ Storage persists those representations.
 
 ```
 WorkflowDocument
-
         │
-
-────────┼────────────────────
-
         ▼
-
-Serializer
-
-↓
-
-JSON / YAML / XML
+IWorkflowSerializer
+        │
+        ▼
+Stream
+        │
+        ▼
+Transport Format
+(JSON / YAML / XML / BSON / ...)
 
 ────────┼────────────────────
 
