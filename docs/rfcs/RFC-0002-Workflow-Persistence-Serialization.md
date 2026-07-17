@@ -111,6 +111,207 @@ Those capabilities build upon this architecture.
 
 ---
 
+# Persistence Transformation Pipeline
+
+The Persistence Pipeline is intentionally representation-oriented rather than technology-oriented. It defines how PulseStackAI transforms domain aggregates into portable artifacts without coupling the domain model to any serialization format, storage provider, or execution environment. This ensures that the framework remains portable, extensible, and capable of supporting future technologies—including distributed repositories, A2A exchange, MCP resources, and graph-based persistence—without changing the core domain model.
+
+## Representation-Oriented Architecture
+
+Represents the executable domain model.
+
+Optimized for:
+
+Business behavior
+Runtime execution
+Domain invariants
+Business rules
+
+The aggregate is never persisted directly.
+
+## Aggregate Transformation Pipeline
+
+Workflow Aggregate
+        │
+        │
+        ▼
++----------------------+
+| IWorkflowMapper      |
++----------------------+
+        │
+        ▼
+WorkflowDocument
+        │
+        │
+        ▼
++----------------------+
+| IWorkflowValidator   |
++----------------------+
+        │
+        ▼
+Validated Document
+        │
+        ▼
++----------------------+
+| IWorkflowSerializer  |
++----------------------+
+        │
+        ▼
+JSON / YAML / XML
+        │
+        ▼
++----------------------+
+| IWorkflowStore       |
++----------------------+
+        │
+        ▼
+Persistence Provider
+
+## Responsibilities
+
+Workflow Aggregate
+
+Workflow Mapper
+
+Workflow Document
+
+Serializer
+
+Store
+
+## Aggregate References
+
+A persistence document contains intrinsic business information and references to external aggregates.
+
+Example:
+
+WorkflowDocument
+│
+├── Identity
+├── Definition
+├── Steps
+│
+└── RunStepDocument
+        │
+        └── AgentReference
+
+The workflow does not embed an executable agent.
+
+Instead, it references another aggregate.
+
+Future aggregate references include:
+
+AgentReference
+PromptReference
+ToolReference
+MemoryReference
+WorkflowReference
+
+This keeps each aggregate independently versioned, reusable, and portable.
+
+> **Architectural Principle**
+>
+> Representation changes.
+> Meaning does not.
+
+## Workflow Document
+
+Represents the canonical portable description of a workflow.
+
+Optimized for:
+
+Portability
+Versioning
+Validation
+Interchange
+Long-term compatibility
+
+The document contains:
+
+Identity
+Definition
+Workflow structure
+References to external aggregates
+
+The document never contains:
+
+Executable runtime objects
+Delegates
+Services
+Dependency Injection
+Runtime state
+
+---
+## Workflow Mapper
+
+Transforms the Workflow Aggregate into a WorkflowDocument and reconstructs the aggregate from a WorkflowDocument.
+
+The mapper changes only the representation.
+
+It never changes the meaning of the workflow.
+
+Responsibilities:
+
+Aggregate → Document
+Document → Aggregate
+Resolve aggregate references
+Preserve business semantics
+
+The mapper has no knowledge of:
+
+JSON
+YAML
+Files
+Databases
+Cloud storage
+
+---
+
+### Serializer
+
+Transforms a WorkflowDocument into a transport format.
+
+Examples:
+
+JSON
+YAML
+XML
+
+The serializer has no knowledge of runtime behavior.
+
+Store
+
+Persists the serialized representation.
+
+Examples:
+
+Local files
+Azure Blob Storage
+SQL Database
+MongoDB
+Git Repository
+
+The store has no knowledge of workflow semantics.
+
+---
+
+## Conceptual Model
+
+A Workflow Aggregate is comparable to a fully assembled building.
+
+A WorkflowDocument is comparable to its architectural blueprint.
+
+The mapper translates between the assembled structure and its blueprint without changing the meaning.
+
+The serializer writes the blueprint into a transport format.
+
+The storage layer decides where the blueprint is persisted.
+
+Loading performs the reverse transformation.
+
+The blueprint never performs the work.
+
+The building does.
+
 # Architectural Decisions
 
 ## Decision 1 — Canonical WorkflowDocument
@@ -257,6 +458,16 @@ Storage providers are independent of serialization formats.
 
 ---
 
+## Decision 7 — Persistence Mirrors the Domain
+
+WorkflowDocument mirrors the Workflow Aggregate as closely as possible.
+
+The persistence model preserves the aggregate's identity, definition, and structure while excluding runtime behavior.
+
+This minimizes mapping complexity and simplifies schema evolution.
+
+---
+
 # Architecture
 
 ```
@@ -287,7 +498,6 @@ Load
         ▼
 Workflow Runtime
 ```
-
 ---
 
 # Alternatives Considered
@@ -322,6 +532,7 @@ WorkflowDocument
 
 Runtime
 ```
+---
 
 ### Rejected
 
