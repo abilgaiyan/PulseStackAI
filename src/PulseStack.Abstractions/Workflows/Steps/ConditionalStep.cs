@@ -1,7 +1,7 @@
 using PulseStack.Abstractions.Workflows.Conditions;
 using PulseStack.Abstractions.Workflows;
 
-namespace PulseStack.Abstractions.Workflows;
+namespace PulseStack.Abstractions.Workflows.Steps; 
 
 public sealed class ConditionalStep : IWorkflowStep
 {

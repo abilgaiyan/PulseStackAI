@@ -1,6 +1,6 @@
 using PulseStack.Abstractions.Runtime.Usage;
 
-namespace PulseStack.Abstractions.Workflows;
+namespace PulseStack.Abstractions.Workflows.Steps; 
 public sealed class StepExecutionResult
 {
     public string StepName { get; init; } = string.Empty;
