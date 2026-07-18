@@ -9,5 +9,6 @@ public interface IWorkflowMapper
         Workflow workflow);
 
     Workflow FromDocument(
-        WorkflowDocument document);
+        WorkflowDocument document,
+        IAgentResolver agentResolver);
 }

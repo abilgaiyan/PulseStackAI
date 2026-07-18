@@ -13,8 +13,8 @@ public sealed class WorkflowMapper : IWorkflowMapper
 
         return new WorkflowDocument
         {
-            Schema = "pulsestack.workflow",
-            SchemaVersion = "1.0",
+            Schema = WorkflowDocumentSchema.Name,
+            SchemaVersion = WorkflowDocumentSchema.Version,
 
             Identity = workflow.Identity,
             Definition = workflow.Definition,
@@ -32,6 +32,18 @@ public sealed class WorkflowMapper : IWorkflowMapper
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(agentResolver);
 
+        if (document.Schema != WorkflowDocumentSchema.Name)
+        {
+            throw new NotSupportedException(
+                $"Unsupported workflow schema '{document.Schema}'.");
+        }
+
+        if (document.SchemaVersion != WorkflowDocumentSchema.Version)
+        {
+            throw new NotSupportedException(
+                $"Unsupported workflow schema version '{document.SchemaVersion}'.");
+        }
+
         var workflow = new Workflow(
             document.Identity,
             document.Definition);
@@ -46,13 +58,21 @@ public sealed class WorkflowMapper : IWorkflowMapper
 
     private WorkflowStepDocument MapStep(IWorkflowStep step)
     {
+        ArgumentNullException.ThrowIfNull(step);
+
         return step switch
         {
             RunStep run => MapRunStep(run),
 
-            _ => throw new NotSupportedException(
-                $"Workflow step '{step.GetType().Name}' is not supported.")
+            _ => ThrowUnsupportedStep(step)
         };
+    }
+
+    private static WorkflowStepDocument ThrowUnsupportedStep(
+        IWorkflowStep step)
+    {
+        throw new NotSupportedException(
+            $"Workflow step '{step.GetType().FullName}' is not supported.");
     }
 
     private IWorkflowStep BuildStep(
@@ -63,10 +83,17 @@ public sealed class WorkflowMapper : IWorkflowMapper
         {
             RunStepDocument run => BuildRunStep(run, resolver),
 
-            _ => throw new NotSupportedException(
-                $"Workflow step '{document.Kind}' is not supported.")
+            _ => ThrowUnsupportedKind(document)
         };
     }
+
+     private static IWorkflowStep ThrowUnsupportedKind(
+       WorkflowStepDocument document)
+    {
+        throw new NotSupportedException(
+             $"Workflow document type '{document.GetType().FullName}' with kind '{document.Kind}' is not supported.");
+    }
+
 
    private RunStepDocument MapRunStep(RunStep step)
    {
@@ -76,9 +103,7 @@ public sealed class WorkflowMapper : IWorkflowMapper
             Kind = WorkflowStepKinds.Run,
             Name = step.Name,
             AgentReference = step.Agent.Name,
-            Children = step.Children
-                .Select(MapStep)
-                .ToList()
+            Children = MapChildren(step.Children)
         };
    }
 
@@ -90,4 +115,24 @@ public sealed class WorkflowMapper : IWorkflowMapper
 
         return new RunStep(agent);
     }
+
+    private IReadOnlyList<WorkflowStepDocument> MapChildren(
+        IEnumerable<IWorkflowStep> children)
+    {
+        ArgumentNullException.ThrowIfNull(children);
+
+        return children.Select(MapStep).ToList();
+    }
+
+    private IReadOnlyList<IWorkflowStep> BuildChildren(
+        IEnumerable<WorkflowStepDocument> children,
+        IAgentResolver resolver)
+    {
+        ArgumentNullException.ThrowIfNull(children);
+
+        return children
+            .Select(child => BuildStep(child, resolver))
+            .ToList();
+    }
+    
 }
