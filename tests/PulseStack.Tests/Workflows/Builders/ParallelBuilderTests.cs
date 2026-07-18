@@ -1,6 +1,7 @@
 using FluentAssertions;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Workflows;
+using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Tests.Fakes;
 using Xunit;
 

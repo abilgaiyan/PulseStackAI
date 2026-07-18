@@ -1,7 +1,7 @@
 using FluentAssertions;
 using Xunit;
 using PulseStack.Abstractions.Agents;
-using PulseStack.Abstractions.Workflows;
+using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Abstractions.Runtime.Pipeline;
 using PulseStack.Abstractions.Runtime.Usage;
 using PulseStack.Agents.Runtime.Composition;

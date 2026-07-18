@@ -3,6 +3,7 @@ using PulseStack.Abstractions.Agents;
 using PulseStack.Agents.Runtime.Composition;
 using PulseStack.Abstractions.Runtime.Pipeline;
 using PulseStack.Abstractions.Workflows;
+using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Abstractions.Workflows.Routing;
 using PulseStack.Abstractions.Runtime.Usage;
 using PulseStack.Tests.Fakes;

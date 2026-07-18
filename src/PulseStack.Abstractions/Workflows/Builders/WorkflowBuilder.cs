@@ -1,5 +1,5 @@
 using PulseStack.Abstractions.Agents;
-using PulseStack.Abstractions.Workflows;
+using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Abstractions.Workflows.Conditions;
 using PulseStack.Abstractions.Workflows.Routing;
 using PulseStack.Abstractions.Workflows.Language;

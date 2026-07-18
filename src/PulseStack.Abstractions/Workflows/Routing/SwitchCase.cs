@@ -1,4 +1,4 @@
-using PulseStack.Abstractions.Workflows;
+using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Abstractions.Agents;
 
 namespace PulseStack.Abstractions.Workflows.Routing;
