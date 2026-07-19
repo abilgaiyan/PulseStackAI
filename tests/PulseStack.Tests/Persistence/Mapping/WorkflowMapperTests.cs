@@ -99,12 +99,12 @@ public class WorkflowMapperTests
         };
 
         // Act
-        Action act = () => mapper.FromDocument(
+        Action action = () => mapper.FromDocument(
             document,
             new FakeAgentResolver());
 
         // Assert
-        act.Should()
+        action.Should()
         .Throw<NotSupportedException>()
         .WithMessage("*schema*");
         
@@ -124,12 +124,12 @@ public class WorkflowMapperTests
         };
 
         // Act
-        Action act = () => mapper.FromDocument(
+        Action action = () => mapper.FromDocument(
             document,
             new FakeAgentResolver());
 
         // Assert
-        act.Should()
+        action.Should()
         .Throw<NotSupportedException>()
         .WithMessage("*version*");
     }

@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace PulseStack.Core.Persistence.Serialization;
 
-internal static class WorkflowJsonOptions
+public static class WorkflowJsonOptions
 {
     public static readonly JsonSerializerOptions Default = Create();
 
