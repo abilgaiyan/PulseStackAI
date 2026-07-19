@@ -3,10 +3,14 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using PulseStack.Abstractions.Memory;
 using PulseStack.Abstractions.Tools;
 using PulseStack.Abstractions.Security;
+using PulseStack.Abstractions.Persistence.Mapping;
+using PulseStack.Abstractions.Persistence.Serialization;
 using PulseStack.Core.Memory;
 using PulseStack.Core.Resilience;
 using PulseStack.Core.Tools;
 using PulseStack.Core.Security;
+using PulseStack.Core.Persistence.Mapping;
+using PulseStack.Core.Persistence.Serialization;
 
 namespace PulseStack.Core.DependencyInjection;
 
@@ -42,6 +46,10 @@ public static class ServiceCollectionExtensions
 
             return registry;
         });
+
+        services.TryAddSingleton<IWorkflowMapper, WorkflowMapper>();
+        services.TryAddSingleton<IWorkflowSerializer, JsonWorkflowSerializer>();
+        services.TryAddSingleton<IWorkflowDeserializer, JsonWorkflowDeserializer>();
 
         return services;
     }
