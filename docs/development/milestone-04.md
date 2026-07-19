@@ -416,3 +416,8 @@ Samples and documentation are complete.
 Existing runtime behavior remains unchanged.
 
 ---
+
+## Workflow Mapping Layer Completed
+
+Introduced a canonical WorkflowMapper that translates between the runtime workflow model and the persistence document model. Runtime components are represented as references (for example, AgentReference) rather than serialized object instances, enabling format-agnostic persistence and future storage providers.
+---

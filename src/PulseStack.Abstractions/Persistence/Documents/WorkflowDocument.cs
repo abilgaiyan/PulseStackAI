@@ -22,6 +22,8 @@ public sealed record WorkflowDocument
     /// </summary>
     public required WorkflowIdentity Identity { get; init; }
 
+     public required WorkflowStepId Id { get; init; }
+
     /// <summary>
     /// Workflow definition.
     /// </summary>

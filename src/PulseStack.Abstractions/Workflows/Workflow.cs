@@ -8,11 +8,11 @@ public sealed class Workflow : IWorkflowStep
 {
     private readonly List<IWorkflowStep> _steps = [];
 
-    public WorkflowIdentity Identity { get; }
+    public WorkflowIdentity Identity { get; init; }
 
-    public WorkflowStepId Id { get; }
+    public WorkflowStepId Id { get; init; }
 
-    public WorkflowDefinition Definition { get; }
+    public WorkflowDefinition Definition { get; init; }
 
     public string Name
         => Definition.Name;
@@ -31,15 +31,6 @@ public sealed class Workflow : IWorkflowStep
         Id = WorkflowStepId.New();
 
         Definition = new WorkflowDefinition(name);
-    }
-
-    public Workflow(
-        WorkflowIdentity identity,
-        WorkflowDefinition definition)
-    {
-        Identity = identity;
-        Id = WorkflowStepId.New();
-        Definition = definition;
     }
 
     public Workflow(

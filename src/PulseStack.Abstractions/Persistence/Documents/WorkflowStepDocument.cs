@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using PulseStack.Abstractions.Workflows;
 
 namespace PulseStack.Abstractions.Persistence.Documents;
@@ -5,6 +6,8 @@ namespace PulseStack.Abstractions.Persistence.Documents;
 /// <summary>
 /// Base document for all workflow steps.
 /// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
+[JsonDerivedType(typeof(RunStepDocument), WorkflowStepKinds.Run)]
 public abstract record WorkflowStepDocument
 {
     public required WorkflowStepId Id { get; init; }

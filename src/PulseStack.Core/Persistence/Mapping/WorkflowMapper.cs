@@ -17,6 +17,7 @@ public sealed class WorkflowMapper : IWorkflowMapper
             SchemaVersion = WorkflowDocumentSchema.Version,
 
             Identity = workflow.Identity,
+            Id = workflow.Id, 
             Definition = workflow.Definition,
 
             Steps = workflow.Steps
@@ -46,6 +47,7 @@ public sealed class WorkflowMapper : IWorkflowMapper
 
         var workflow = new Workflow(
             document.Identity,
+            document.Id,
             document.Definition);
 
         foreach (var step in document.Steps)
