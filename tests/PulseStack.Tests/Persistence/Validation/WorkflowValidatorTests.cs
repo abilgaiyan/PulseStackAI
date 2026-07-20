@@ -1,11 +1,11 @@
 using Xunit;
 using FluentAssertions;
-using PulseStack.Abstractions.Persistence.Validation;
 using PulseStack.Abstractions.Persistence.Documents;
 using PulseStack.Abstractions.Workflows;
 using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Core.Persistence.Mapping;
 using PulseStack.Core.Persistence.Validation;
+using PulseStack.Core.Persistence.Validation.Diagnostics;
 using PulseStack.Tests.Fakes;
 
 namespace PulseStack.Tests.Persistence.Validation;
@@ -50,27 +50,16 @@ public class WorkflowValidatorTests
             e => e.Code == WorkflowDiagnosticDescriptors.WorkflowVersionMissing.Code);
     }
 
-     [Fact]
-    public async Task ValidateAsync_Should_ReturnError_When_WorkflowNameIsMissing()
+    [Fact]
+    public void Constructor_Should_Throw_When_NameIsEmpty()
     {
-        // Arrange
-        var validator = new WorkflowValidator();
-        var document = CreateValidDocument() with
-        {
-            Definition = new WorkflowDefinition("")
-        };
+        var action = () => new WorkflowDefinition("");
 
-        // Act
-        var result = await validator.ValidateAsync(document);
-
-        // Assert
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().ContainSingle(
-            e => e.Code == WorkflowDiagnosticDescriptors.WorkflowNameMissing.Code);
-        
+        action.Should()
+            .Throw<ArgumentException>();
     }
 
-     [Fact]
+    [Fact]
     public async Task ValidateAsync_Should_ReturnError_When_WorkflowHasNoSteps()
     {
         // Arrange
@@ -98,8 +87,6 @@ public class WorkflowValidatorTests
                 WorkflowId.Empty,
                 string.Empty),
 
-            Definition = new WorkflowDefinition(string.Empty),
-
             Steps = []
         };
 
@@ -107,17 +94,14 @@ public class WorkflowValidatorTests
 
         result.IsValid.Should().BeFalse();
 
-        result.Errors.Should().HaveCount(4);
+        result.Errors.Should().HaveCount(3);
 
         result.Errors.Should().Contain(e =>
             e.Code == WorkflowDiagnosticDescriptors.WorkflowIdMissing.Code);
 
         result.Errors.Should().Contain(e =>
             e.Code == WorkflowDiagnosticDescriptors.WorkflowVersionMissing.Code);
-
-        result.Errors.Should().Contain(e =>
-            e.Code == WorkflowDiagnosticDescriptors.WorkflowNameMissing.Code);
-
+        
         result.Errors.Should().Contain(e =>
             e.Code == WorkflowDiagnosticDescriptors.EmptyWorkflow.Code);
     }

@@ -115,7 +115,9 @@ public sealed class WorkflowMapper : IWorkflowMapper
     {
         var agent = resolver.Resolve(document.AgentReference);
 
-        return new RunStep(agent);
+        return new RunStep(
+            document.Id,
+            agent);
     }
 
     private IReadOnlyList<WorkflowStepDocument> MapChildren(

@@ -1,5 +1,6 @@
 using PulseStack.Abstractions.Persistence.Validation;
 using PulseStack.Abstractions.Workflows;
+using PulseStack.Core.Persistence.Validation.Diagnostics;
 
 namespace PulseStack.Core.Persistence.Validation;
 

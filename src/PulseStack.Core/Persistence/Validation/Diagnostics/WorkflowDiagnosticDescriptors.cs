@@ -1,4 +1,5 @@
-namespace PulseStack.Abstractions.Persistence.Validation;
+
+namespace PulseStack.Core.Persistence.Validation.Diagnostics;
 
 public static class WorkflowDiagnosticDescriptors
 {

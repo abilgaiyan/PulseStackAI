@@ -1,5 +1,6 @@
 using PulseStack.Abstractions.Persistence.Documents;
 using PulseStack.Abstractions.Persistence.Validation;
+using PulseStack.Core.Persistence.Validation.Diagnostics;
 
 namespace PulseStack.Core.Persistence.Validation;
 
@@ -14,7 +15,6 @@ public sealed class WorkflowValidator : IWorkflowValidator
         var context = new WorkflowValidationContext(cancellationToken);
 
         ValidateIdentity(document, context);
-        ValidateDefinition(document, context);
         ValidateStructure(document, context);
 
         return ValueTask.FromResult(context.CreateResult());
@@ -39,19 +39,6 @@ public sealed class WorkflowValidator : IWorkflowValidator
         }
     }
 
-    private static void ValidateDefinition(
-        WorkflowDocument document,
-        WorkflowValidationContext context)
-    {
-        context.ThrowIfCancellationRequested();
-
-        if (string.IsNullOrWhiteSpace(document.Definition.Name))
-        {
-            context.AddError(
-                WorkflowDiagnosticDescriptors.WorkflowNameMissing);
-        }
-    }
-
     private static void ValidateStructure(
         WorkflowDocument document,
         WorkflowValidationContext context)
@@ -68,13 +55,6 @@ public sealed class WorkflowValidator : IWorkflowValidator
         {
             ValidateStep(step, context);
         }
-    }
-
-    private static void AddError(
-        ICollection<WorkflowValidationError> errors,
-        WorkflowDiagnosticDescriptor descriptor)
-    {
-        errors.Add(descriptor.Create());
     }
 
     private static void ValidateStep(
