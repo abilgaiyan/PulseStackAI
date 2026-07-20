@@ -7,4 +7,6 @@ public readonly record struct WorkflowId(Guid Value)
 
     public override string ToString()
         => Value.ToString();
+
+     public static WorkflowId Empty => new(Guid.Empty);    
 }

@@ -3,7 +3,7 @@ using PulseStack.Abstractions.Persistence.Validation;
 
 namespace PulseStack.Core.Persistence.Validation;
 
-internal sealed class WorkflowValidator : IWorkflowValidator
+public sealed class WorkflowValidator : IWorkflowValidator
 {
     public ValueTask<WorkflowValidationResult> ValidateAsync(
         WorkflowDocument document,
