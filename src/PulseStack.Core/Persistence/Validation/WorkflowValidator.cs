@@ -11,58 +11,62 @@ public sealed class WorkflowValidator : IWorkflowValidator
     {
         ArgumentNullException.ThrowIfNull(document);
 
-        var errors = new List<WorkflowValidationError>();
+        var context = new WorkflowValidationContext(cancellationToken);
 
-        ValidateIdentity(document, errors);
-        ValidateDefinition(document, errors);
-        ValidateStructure(document, errors);
+        ValidateIdentity(document, context);
+        ValidateDefinition(document, context);
+        ValidateStructure(document, context);
 
-        return ValueTask.FromResult(
-            errors.Count == 0
-                ? WorkflowValidationResult.Success()
-                : WorkflowValidationResult.Failure(errors.ToArray()));
+        return ValueTask.FromResult(context.CreateResult());
     }
 
     private static void ValidateIdentity(
         WorkflowDocument document,
-        ICollection<WorkflowValidationError> errors)
+        WorkflowValidationContext context)
     {
+        context.ThrowIfCancellationRequested();
+
         if (document.Identity.Id == default)
         {
-            AddError(
-                errors,
+            context.AddError(
                 WorkflowDiagnosticDescriptors.WorkflowIdMissing);
         }
 
         if (string.IsNullOrWhiteSpace(document.Identity.Version))
         {
-            AddError(
-                errors,
+            context.AddError(
                 WorkflowDiagnosticDescriptors.WorkflowVersionMissing);
         }
     }
 
     private static void ValidateDefinition(
         WorkflowDocument document,
-        ICollection<WorkflowValidationError> errors)
+        WorkflowValidationContext context)
     {
+        context.ThrowIfCancellationRequested();
+
         if (string.IsNullOrWhiteSpace(document.Definition.Name))
         {
-            AddError(
-                errors,
+            context.AddError(
                 WorkflowDiagnosticDescriptors.WorkflowNameMissing);
         }
     }
 
     private static void ValidateStructure(
         WorkflowDocument document,
-        ICollection<WorkflowValidationError> errors)
+        WorkflowValidationContext context)
     {
+        context.ThrowIfCancellationRequested();
+
         if (document.Steps.Count == 0)
         {
-            AddError(
-                errors,
+            context.AddError(
                 WorkflowDiagnosticDescriptors.EmptyWorkflow);
+        }
+
+        foreach (var step in document.Steps)
+        {
+            ValidateStep(step, context);
         }
     }
 
@@ -71,5 +75,55 @@ public sealed class WorkflowValidator : IWorkflowValidator
         WorkflowDiagnosticDescriptor descriptor)
     {
         errors.Add(descriptor.Create());
+    }
+
+    private static void ValidateStep(
+        WorkflowStepDocument step,
+        WorkflowValidationContext context)
+    {
+        context.ThrowIfCancellationRequested();
+
+        ValidateStepIdentity(step, context);
+
+        ValidateStepDefinition(step, context);
+
+        foreach (var child in step.Children)
+        {
+            ValidateStep(child, context);
+        }
+    }
+
+    private static void ValidateStepIdentity(
+        WorkflowStepDocument step,
+        WorkflowValidationContext context)
+    {
+        context.ThrowIfCancellationRequested();
+
+        if (step.Id == default)
+        {
+            context.AddError(
+                WorkflowDiagnosticDescriptors.StepIdMissing);
+
+            return;
+        }
+
+        if (!context.VisitedStepIds.Add(step.Id))
+        {
+            context.AddError(
+                WorkflowDiagnosticDescriptors.DuplicateStepId);
+        }
+    }
+
+    private static void ValidateStepDefinition(
+        WorkflowStepDocument step,
+        WorkflowValidationContext context)
+    {
+        context.ThrowIfCancellationRequested();
+
+        if (string.IsNullOrWhiteSpace(step.Name))
+        {
+            context.AddError(
+                WorkflowDiagnosticDescriptors.StepNameMissing);
+        }
     }
 }
