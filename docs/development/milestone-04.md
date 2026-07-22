@@ -4,7 +4,7 @@
 |-------|-------|
 | **Milestone** | MS-004 |
 | **Title** | Workflow Persistence & Serialization |
-| **Status** | Draft |
+| **Status** | Complete |
 | **Owner** | PulseStackAI Core Team |
 | **Target Version** | v0.7.0 |
 | **Sprint** | Sprint 2 |

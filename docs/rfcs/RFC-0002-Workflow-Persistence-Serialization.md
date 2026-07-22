@@ -4,7 +4,7 @@
 |-------|-------|
 | **RFC** | RFC-0002 |
 | **Title** | Workflow Persistence & Serialization |
-| **Status** | In Progress |
+| **Status** | Complete |
 | **Authors** | PulseStackAI Core Team |
 | **Related Milestone** | MS-004 |
 | **Target Version** | v0.7.0 |

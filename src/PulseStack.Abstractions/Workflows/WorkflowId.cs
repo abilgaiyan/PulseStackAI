@@ -18,6 +18,9 @@ public readonly record struct WorkflowId(Guid Value)
     public static explicit operator WorkflowId(Guid value)
         => new(value);
 
+    public bool IsValid
+        => !IsEmpty;
+
     public void EnsureValid()
     {
         if (IsEmpty)

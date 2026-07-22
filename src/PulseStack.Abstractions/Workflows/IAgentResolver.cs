@@ -4,5 +4,5 @@ namespace PulseStack.Abstractions.Workflows;
 
 public interface IAgentResolver
 {
-    IAgent Resolve(string name);
+    IAgent Resolve(string agentReference);
 }

@@ -12,6 +12,12 @@ public abstract record WorkflowStepDocument
 {
     public required WorkflowStepId Id { get; init; }
 
+    /// <summary>
+    /// Canonical workflow language step kind.
+    ///
+    /// Must be one of the values defined in
+    /// <see cref="WorkflowStepKinds"/>.
+    /// </summary>
     public required string Kind { get; init; }
 
     public required string Name { get; init; }
