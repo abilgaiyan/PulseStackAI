@@ -1,7 +1,7 @@
 using FluentAssertions;
 using PulseStack.Abstractions.Agents;
-using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Abstractions.Workflows;
+using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Tests.Fakes;
 using Xunit;
 
@@ -46,7 +46,7 @@ public class ParallelBuilderTests
             .End();
 
         action.Should().Throw<InvalidOperationException>()
-              .WithMessage("Parallel block requires at least one step.");
+              .WithMessage("Parallel block requires at least one workflow step.");
     }
 
     [Fact]

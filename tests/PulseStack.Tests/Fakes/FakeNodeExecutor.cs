@@ -1,6 +1,7 @@
 using Microsoft.Extensions.AI;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Workflows;
 using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Abstractions.Runtime.Usage;
 

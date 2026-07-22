@@ -1,11 +1,11 @@
 using PulseStack.Abstractions.Workflows.Conditions;
-using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Workflows;
 
-
-namespace PulseStack.Abstractions.Workflows.Steps;
+namespace PulseStack.Abstractions.Workflows.Steps; 
 
 public sealed class ConditionalStep : IWorkflowStep
 {
+    public WorkflowStepId Id { get; } = WorkflowStepId.New();
     public string Name { get; }
 
     public ICondition Condition { get; }

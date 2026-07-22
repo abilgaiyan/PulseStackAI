@@ -5,7 +5,6 @@ using PulseStack.Abstractions.Workflows;
 using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Agents.Runtime.Composition;
 using PulseStack.Agents.Runtime.Diagnostics;
-using PulseStack.Agents.Pipelines;
 using PulseStack.Abstractions.Runtime.Usage;
 using PulseStack.Tests.Fakes;
 using Xunit;

@@ -350,3 +350,10 @@ We ask:
 Every milestone should leave PulseStackAI in a better state than we found it.
 
 That is our engineering culture.
+
+Every persistent aggregate in PulseStackAI is composed of four complementary concepts:
+
+Identity — A stable identifier and version.
+Definition — The intrinsic business description.
+Document — The portable persistence representation.
+Runtime Object — The executable or operational representation.

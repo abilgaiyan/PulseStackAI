@@ -3,8 +3,6 @@ using PulseStack.Tests.Fakes;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Workflows;
 using PulseStack.Agents.Runtime.Composition;
-using PulseStack.Abstractions.Runtime.Pipeline;
-using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Agents.Runtime.Diagnostics;
 
 using Xunit;
@@ -117,6 +115,7 @@ public class WorkflowRuntimeTests
     private sealed class TestWorkflowStep
         : IWorkflowStep
     {
+        public WorkflowStepId Id { get; } = WorkflowStepId.New();
         public TestWorkflowStep(
             string name)
         {

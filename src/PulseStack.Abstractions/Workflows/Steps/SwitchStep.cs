@@ -1,12 +1,13 @@
 using  PulseStack.Abstractions.Agents;
-using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Workflows;
 using PulseStack.Abstractions.Workflows.Routing;
 
-namespace PulseStack.Abstractions.Workflows.Steps;
+namespace PulseStack.Abstractions.Workflows.Steps; 
 
 public sealed class SwitchStep
     : IWorkflowStep
 {
+    public WorkflowStepId Id { get; } = WorkflowStepId.New();
     public string Name { get; }
 
     public Func<PipelineContext, string?> Selector { get; }
