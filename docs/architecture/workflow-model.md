@@ -1,231 +1,224 @@
-# The Workflow Model
+# Workflow Model
 
-The Workflow Model is the internal representation of a workflow.
+## Introduction
 
-It does not execute workflows.
+The Workflow Model defines the structural representation of the PulseStackAI Domain Model.
 
-It does not make decisions.
+While the Domain Model defines the business vocabulary of the framework, the Workflow Model explains how those concepts are represented, composed, and related to one another.
 
-It simply describes a workflow in a structured form that the runtime can understand.
+The Workflow Model remains independent of execution and persistence. It provides the structural foundation upon which the Workflow Runtime and Persistence subsystems operate.
 
-Think of it as a blueprint.
+The Workflow Model answers a single question:
 
-The Workflow Language is written for people.
-
-The Workflow Model is built for the framework.
+> **How are the concepts of PulseStackAI represented?**
 
 ---
 
-# Design Philosophy
+# Design Goals
 
-Every workflow passes through three independent layers.
+The Workflow Model is designed around several principles.
 
-```
-Workflow Language
+- Declarative
+- Composable
+- Hierarchical
+- Extensible
+- Portable
+- Independent of execution
 
-↓
-
-Workflow Model
-
-↓
-
-Workflow Runtime
-```
-
-Each layer has a single responsibility.
-
-| Layer | Responsibility |
-|--------|----------------|
-| Workflow Language | Express business intent |
-| Workflow Model | Represent the workflow structure |
-| Workflow Runtime | Execute the workflow |
-
-This separation keeps the language expressive, the model simple, and the runtime focused on execution.
+These principles allow workflows to evolve without affecting the runtime architecture.
 
 ---
 
-# The Structure of a Workflow
+# Aggregate Root
 
-When developers write workflows, they naturally think from top to bottom.
+The Workflow is the aggregate root of the model.
 
-The model represents the same workflow as a hierarchy of workflow steps.
+Every workflow owns:
 
-Think of it as boxes inside boxes.
+- Identity
+- Metadata
+- Workflow Steps
 
+```text
+Workflow
+│
+├── Identity
+├── Metadata
+└── Steps
 ```
+
+All workflow behavior originates from this root.
+
+---
+
+# Composition
+
+PulseStackAI follows the Composite Pattern.
+
+Every workflow consists of one or more workflow steps.
+
+Some workflow steps may themselves contain child workflow steps.
+
+```text
+Workflow
+│
+├── Run Step
+├── Conditional Step
+│      ├── True Branch
+│      └── False Branch
+│
+├── Parallel Step
+│      ├── Branch A
+│      ├── Branch B
+│      └── Branch C
+│
+└── Loop Step
+       └── Body
+```
+
+This recursive structure enables arbitrarily complex workflows while maintaining a consistent programming model.
+
+---
+
+# Workflow Hierarchy
+
+A workflow is itself a workflow step.
+
+This allows workflows to be nested and composed without introducing special execution semantics.
+
+```text
 Workflow
 
+↓
+
+Workflow Step
+
+↓
+
+Nested Workflow
+
+↓
+
+Workflow Step
+
+↓
+
+Run Step
+```
+
+This enables reusable workflow components.
+
+---
+
+# Identity Ownership
+
+Workflow identity belongs exclusively to the workflow.
+
+Workflow steps own their own identifiers.
+
+```text
+Workflow
+
+↓
+
+Workflow Identity
+
+Workflow Step
+
+↓
+
+Workflow Step Identity
+```
+
+Execution identifiers are intentionally excluded from the model.
+
+---
+
+# Metadata Ownership
+
+Metadata is descriptive rather than behavioral.
+
+Workflow metadata belongs to the workflow.
+
+Workflow step metadata belongs to individual workflow steps.
+
+Metadata never changes workflow semantics.
+
+---
+
+# Relationships
+
+The Workflow Model defines parent-child relationships.
+
+```text
+Workflow
 │
-
-├── Action
-
-├── Conditional
-
-│      ├── Workflow (Then)
-
-│      └── Workflow (Else)
-
-└── Action
+├── Workflow Step
+│      │
+│      ├── Workflow Step
+│      │      │
+│      │      └── Workflow Step
+│      │
+│      └── Workflow Step
 ```
 
-Every workflow is simply a collection of steps.
-
-Some steps perform work.
-
-Some steps decide where the workflow should go next.
+This recursive structure forms a workflow tree.
 
 ---
 
-# The Building Blocks
+# Structural Rules
 
-The Workflow Model is intentionally small.
+Every valid workflow satisfies several structural rules.
 
-It is built from a few simple building blocks.
+- A workflow has exactly one identity.
+- A workflow has exactly one metadata object.
+- A workflow contains one or more workflow steps.
+- Workflow steps belong to exactly one parent.
+- Child workflow steps inherit workflow context.
+- Workflow steps form an acyclic tree.
 
-## Workflow
-
-A workflow is a container.
-
-It holds an ordered collection of workflow steps.
-
-Every workflow has a clear beginning and a clear end.
-
----
-
-## Action
-
-An action represents one step in the workflow.
-
-For example:
-
-- Load a document
-- Execute an AI agent
-- Run a tool
-- Call another workflow
-
-An action represents work that should happen.
+These rules are enforced by the validation subsystem.
 
 ---
 
-## Conditional
+# Extensibility
 
-A conditional represents a business decision.
+New workflow step types extend the model without changing existing structures.
 
-Unlike the Workflow Language, the model does not contain words such as **If**, **Then**, or **Else**.
+Examples include:
 
-Instead, a conditional simply stores:
+- Human Approval Step
+- Delay Step
+- Event Step
+- Planner Step
+- Package Step
 
-- A name
-- A condition
-- A workflow for the true branch
-- An optional workflow for the false branch
-
-The model represents the business decision.
-
-The language describes how developers write that decision.
+Because every workflow step follows the same structural model, new capabilities integrate naturally into existing workflows.
 
 ---
 
-# From Language to Model
+# Relationship to the Runtime
 
-Builders act as the bridge between the Workflow Language and the Workflow Model.
+The Workflow Model describes workflow structure.
 
-Their responsibility is simple.
+The Workflow Runtime interprets that structure and executes it.
 
-> **Builders compile the Workflow Language into a Workflow composed of Workflow Steps.**
-
-For example:
-
-```
-.If(condition)
-
-    .Then()
-
-        .Run(...)
-
-    .Else()
-
-        .Run(...)
-
-.End()
-```
-
-becomes
-
-```
-Conditional
-
-├── Condition
-
-├── Then Workflow
-
-└── Else Workflow
-```
-
-Notice that the language contains **Then** and **Else**.
-
-The model does not.
-
-The model only represents the completed business decision.
+The runtime does not modify the model.
 
 ---
 
-# Design Principles
+# Relationship to Persistence
 
-## Immutable by Design
+Persistence serializes and reconstructs the Workflow Model.
 
-Once the Workflow Model has been created, it should not change.
-
-The runtime executes the model exactly as it was authored.
-
-Keeping the model immutable makes workflows predictable, thread-safe, and easier to reason about.
+Workflow Documents preserve the structure defined by this model without introducing execution behavior.
 
 ---
 
-## No Execution Logic
+# Summary
 
-The Workflow Model never executes anything.
+The Workflow Model provides the structural representation of the PulseStackAI Domain Model.
 
-It contains no orchestration logic, retry policies, provider selection, or runtime behavior.
+It explains how workflows are organized, how workflow steps compose recursively, and how identity, metadata, and hierarchy are represented independently of execution.
 
-Its only responsibility is to describe the workflow.
-
-Execution belongs entirely to the Workflow Runtime.
-
----
-
-## The Runtime Does Not Understand the Language
-
-The Workflow Runtime should never need to understand the Workflow Language.
-
-Whether a workflow is authored using:
-
-- the C# Workflow Language
-- a JSON document
-- YAML
-- a visual designer
-- another future language
-
-they should all produce exactly the same Workflow Model.
-
-The runtime always executes the model.
-
-It never executes the language.
-
----
-
-# A Guiding Principle
-
-The Workflow Language exists for developers.
-
-The Workflow Model exists for the framework.
-
-The Workflow Runtime exists for execution.
-
-Keeping these responsibilities separate allows each layer to evolve independently while preserving a simple mental model.
-
-The language expresses business intent.
-
-The model represents that intent.
-
-The runtime brings that intent to life.
+Subsequent architecture documents build upon this model to explain runtime execution and persistence.

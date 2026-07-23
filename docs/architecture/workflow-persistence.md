@@ -33,6 +33,26 @@ Each stage is replaceable without affecting the others, making the persistence a
 
 ---
 
+# Relationship to the Architecture
+
+The Persistence subsystem builds upon the Workflow Model.
+
+It does not introduce new business concepts. Instead, it provides a portable representation of the existing Workflow Model that can be validated, serialized, stored, and reconstructed.
+
+```text
+Domain Model
+        │
+        ▼
+Workflow Model
+        │
+        ▼
+Workflow Persistence
+
+Persistence consumes the Workflow Model without modifying its semantics.
+```
+
+---
+
 # Design Goals
 
 The persistence architecture is guided by the following principles.
@@ -92,7 +112,7 @@ without modifying the core framework.
 
 ---
 
-# Architecture
+# Persistence Pipeline
 
 The persistence pipeline consists of five independent stages.
 
@@ -211,6 +231,9 @@ This keeps storage providers lightweight and reusable.
 # Mapping
 
 Mapping is responsible for translating between runtime objects and persistence documents.
+Mapping is deterministic, reversible, and lossless.
+
+The WorkflowMapper preserves the semantic structure of the Workflow Model while transforming it into its persistence representation.
 
 ```
 Workflow
@@ -235,6 +258,15 @@ Validation ensures that a workflow document is internally consistent before seri
 The validator is composed of independent validation rules that contribute diagnostics to a shared validation context.
 
 This architecture makes it straightforward to introduce additional validation rules while preserving existing behavior.
+
+Validation rules include:
+
+• Identity validation
+• Metadata validation
+• Structural validation
+• Duplicate step detection
+• Recursive workflow validation
+• Reference validation
 
 ---
 
@@ -321,8 +353,19 @@ Potential storage providers include:
 * Amazon S3
 * Redis
 * MongoDB
+* Git repositories
 
 Because storage operates on streams, these providers can be implemented without changing the mapper, validator, or serializer.
+
+---
+
+# Persistence Boundary
+
+The Workflow serves as the in-memory representation of business intent.
+
+The WorkflowDocument serves as the persistence representation of that same model.
+
+Separating these representations allows persistence concerns—such as schemas, versioning, serialization, and storage—to evolve independently of the Workflow Model.
 
 ---
 
