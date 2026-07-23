@@ -65,3 +65,29 @@ MS-ECO-003 Project Templates
 MS-ECO-004 Visual Designer
 
 MS-ECO-005 Marketplace
+
+Future Architectural Enhancement
+
+Reference Resolution Layer
+
+Status:
+Planned
+
+Description:
+Introduce a resolver layer responsible for reconstructing runtime objects
+from persisted workflow references.
+
+Initial Components
+
+• IAgentResolver
+• IToolResolver
+• IPromptResolver
+• IWorkflowResolver
+
+Goals
+
+• Environment-independent workflow documents
+• Portable workflow packages
+• Dependency Injection integration
+• Runtime composition
+• Reference validation
