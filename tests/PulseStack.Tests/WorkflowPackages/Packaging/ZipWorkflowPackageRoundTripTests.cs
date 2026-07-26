@@ -1,7 +1,5 @@
 using Xunit;
 using FluentAssertions;
-using System.Text.Json;
-using System.IO.Compression;
 using PulseStack.Core.WorkflowPackages.Packaging;
 using PulseStack.Abstractions.Workflows;
 using PulseStack.Abstractions.Workflows.Steps;
@@ -27,9 +25,9 @@ public class ZipWorkflowPackageRoundTripTests
 
     private ZipWorkflowPackageReader CreatePackageReader()
         => new(_mapper, _deserializer, _agentResolver);
-        
+
     [Fact]
-    public async Task RoundTrip_ShouldPreservePackage()
+    public async Task BuildAndRead_ShouldPreserveWorkflowPackage()
     {
         // Arrange
         var originalPackage = CreatePackage(CreateWorkflowWithRunSteps());
@@ -41,10 +39,28 @@ public class ZipWorkflowPackageRoundTripTests
         var reconstructedPackage = await reader.ReadAsync(stream);
 
         // Assert
-        reconstructedPackage.Identity.Id.Should().Be(originalPackage.Identity.Id);
-        reconstructedPackage.Identity.Version.Should().Be(originalPackage.Identity.Version);
-        reconstructedPackage.Workflow.Definition.Name.Should().Be(originalPackage.Workflow.Definition.Name);
-        reconstructedPackage.Workflow.Steps.Should().HaveCount(2);
+        reconstructedPackage.Workflow.Definition.Description
+            .Should().Be(originalPackage.Workflow.Definition.Description);
+
+        reconstructedPackage.Workflow.Identity
+            .Should().Be(originalPackage.Workflow.Identity);
+
+        reconstructedPackage.Workflow.Steps
+            .Should().HaveCount(originalPackage.Workflow.Steps.Count);
+
+        var step1 = reconstructedPackage.Workflow.Steps[0]
+            .Should()
+            .BeOfType<RunStep>()
+            .Subject;
+
+        step1.Agent.Name.Should().Be("agent-alpha");
+
+        var step2 = reconstructedPackage.Workflow.Steps[1]
+            .Should()
+            .BeOfType<RunStep>()
+            .Subject;
+
+        step2.Agent.Name.Should().Be("agent-beta");            
     }
 
     // ====================== Helpers ======================
@@ -82,46 +98,4 @@ public class ZipWorkflowPackageRoundTripTests
         return workflow;
     }
 
-    /// <summary>
-    /// Creates a deliberately invalid package for negative tests.
-    /// </summary>
-    private async Task<MemoryStream> CreateInvalidPackageAsync(
-        bool includeManifest = true,
-        bool includeWorkflow = true)
-    {
-        var stream = new MemoryStream();
-
-        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
-        {
-            if (includeManifest)
-            {
-                var entry = archive.CreateEntry(WorkflowPackageConstants.ManifestEntry);
-                await using var entryStream = entry.Open();
-                await JsonSerializer.SerializeAsync(
-                    entryStream,
-                    new WorkflowPackageManifest
-                    {
-                        PackageId = WorkflowPackageId.New(),
-                        PackageVersion = "1.0.0",
-                        PackageFormatVersion = WorkflowPackageConstants.PackageFormatVersion,
-                        MinimumRuntimeVersion = WorkflowPackageConstants.MinimumRuntimeVersion,
-                        CreatedAt = DateTimeOffset.UtcNow,
-                        EntryWorkflow = WorkflowPackageConstants.WorkflowEntry
-                    },
-                    WorkflowPackageJsonOptions.Default);
-            }
-
-            if (includeWorkflow)
-            {
-                var entry = archive.CreateEntry(WorkflowPackageConstants.WorkflowEntry);
-                await using var entryStream = entry.Open();
-                await _serializer.SerializeAsync(
-                    _mapper.ToDocument(CreateWorkflowWithRunSteps()),
-                    entryStream);
-            }
-        }
-
-        stream.Position = 0;
-        return stream;
-    }
 }
