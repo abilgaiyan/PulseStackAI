@@ -9,7 +9,5 @@ public sealed record WorkflowPackage
 
     public required WorkflowPackageMetadata Metadata { get; init; }
 
-    public required WorkflowPackageManifest Manifest { get; init; }
-
     public required Workflow Workflow { get; init; }
 }

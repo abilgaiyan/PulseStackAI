@@ -16,14 +16,12 @@ public class WorkflowPackageTests
         // Arrange
         var identity = new WorkflowPackageIdentity(WorkflowPackageId.New());
         var metadata = new WorkflowPackageMetadata();
-        var manifest = new WorkflowPackageManifest();
         var workflow = CreateWorkflowWithRunSteps();
         // Act
         var package = new WorkflowPackage
         {
             Identity = identity,
             Metadata = metadata,
-            Manifest = manifest,
             Workflow = workflow
         };
 
@@ -31,8 +29,6 @@ public class WorkflowPackageTests
         package.Identity.Should().Be(identity);
 
         package.Metadata.Should().Be(metadata);
-
-        package.Manifest.Should().Be(manifest);
 
         package.Workflow.Should().Be(workflow);
        
@@ -44,14 +40,12 @@ public class WorkflowPackageTests
         // Arrange
         var identity = new WorkflowPackageIdentity(WorkflowPackageId.New());
         var metadata = new WorkflowPackageMetadata { Title = "Test" };
-        var manifest = new WorkflowPackageManifest();
         var workflow = CreateWorkflowWithRunSteps();
 
         var package1 = new WorkflowPackage
         {
             Identity = identity,
             Metadata = metadata,
-            Manifest = manifest,
             Workflow = workflow
         };
 
@@ -59,7 +53,6 @@ public class WorkflowPackageTests
         {
             Identity = identity,
             Metadata = metadata,
-            Manifest = manifest,
             Workflow = workflow
         };
 
@@ -80,7 +73,6 @@ public class WorkflowPackageTests
         {
             Identity = identity,
             Metadata = new WorkflowPackageMetadata { Title = "Package A" },
-            Manifest = new WorkflowPackageManifest(),
             Workflow = workflow
         };
 
@@ -88,7 +80,6 @@ public class WorkflowPackageTests
         {
             Identity = identity,
             Metadata = new WorkflowPackageMetadata { Title = "Package B" }, // Different
-            Manifest = new WorkflowPackageManifest(),
             Workflow = workflow
         };
 
@@ -108,7 +99,6 @@ public class WorkflowPackageTests
         {
             Identity = identity,
             Metadata = new WorkflowPackageMetadata { Title = "Package A" },
-            Manifest = new WorkflowPackageManifest(),
             Workflow = workflow
         };
 
