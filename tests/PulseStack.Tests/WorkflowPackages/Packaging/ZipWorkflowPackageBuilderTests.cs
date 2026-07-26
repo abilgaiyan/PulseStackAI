@@ -101,6 +101,8 @@ public class ZipWorkflowPackageBuilderTests
         exception.Which.Message.Should().Contain("WF300"); // Empty workflow
     }
 
+    // ====================== Happy Path ======================
+    
     [Fact]
     public async Task BuildAsync_ShouldResetStreamPosition()
     {
