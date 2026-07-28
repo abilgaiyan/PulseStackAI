@@ -1,50 +1,59 @@
-using PulseStack.Abstractions.Persistence.Storage;
-using PulseStack.Abstractions.Workflows;
-using System.IO;
+namespace PulseStack.Core.Persistence.Storage.Infrastructure;
 
-namespace PulseStack.Core.Persistence.Storage;
-
-public sealed class FileWorkflowStore : IWorkflowStore
+internal sealed class FileStreamStore<TKey>
+    where TKey : notnull
 {
-    private readonly DirectoryInfo _rootDirectory;
+      private readonly DirectoryInfo _rootDirectory;
+      private readonly Func<TKey, string> _pathResolver;
 
-    public FileWorkflowStore(string rootPath)
+    public FileStreamStore(
+        string rootPath,
+        Func<TKey, string> pathResolver)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rootPath);
+        ArgumentNullException.ThrowIfNull(pathResolver);
 
         _rootDirectory = Directory.CreateDirectory(rootPath);
+        _pathResolver = pathResolver;
     }
 
     public async ValueTask SaveAsync(
-        WorkflowId workflowId,
+        TKey key,
         Stream input,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
 
         cancellationToken.ThrowIfCancellationRequested();
-        workflowId.EnsureValid();
+        
 
         if (input.CanSeek)
         {
             input.Position = 0;
         }
 
-        var file = GetFile(workflowId);
+        var file = ResolveFile(key);
 
-        await using var output = file.Create();
+        file.Directory?.Create();
+        await using var output = new FileStream(
+            file.FullName,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.None,
+            bufferSize: 81920,
+            useAsync: true);
 
         await input.CopyToAsync(output, cancellationToken);
     }
 
     public async ValueTask<Stream?> LoadAsync(
-        WorkflowId workflowId,
+        TKey key,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(key);
         cancellationToken.ThrowIfCancellationRequested();
-        workflowId.EnsureValid();
-
-        var file = GetFile(workflowId);
+       
+        var file = ResolveFile(key);
 
         if (!file.Exists)
         {
@@ -55,6 +64,12 @@ public sealed class FileWorkflowStore : IWorkflowStore
 
         var memory = new MemoryStream();
 
+        if (input.CanSeek)
+        {
+            input.Position = 0;
+        }
+
+
         await input.CopyToAsync(memory, cancellationToken);
 
         memory.Position = 0;
@@ -63,13 +78,13 @@ public sealed class FileWorkflowStore : IWorkflowStore
     }
 
     public ValueTask DeleteAsync(
-        WorkflowId workflowId,
+        TKey key,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(key);
         cancellationToken.ThrowIfCancellationRequested();
-        workflowId.EnsureValid();
-
-        var file = GetFile(workflowId);
+      
+        var file = ResolveFile(key);
 
         if (file.Exists)
         {
@@ -80,20 +95,23 @@ public sealed class FileWorkflowStore : IWorkflowStore
     }
 
     public ValueTask<bool> ExistsAsync(
-        WorkflowId workflowId,
+        TKey key,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(key);
         cancellationToken.ThrowIfCancellationRequested();
-        workflowId.EnsureValid();
 
-        return ValueTask.FromResult(GetFile(workflowId).Exists);
+        return ValueTask.FromResult(ResolveFile(key).Exists);
     }
 
-    private FileInfo GetFile(WorkflowId workflowId)
+    private FileInfo ResolveFile(TKey key)
     {
+        var relativePath = _pathResolver(key);
+        ArgumentException.ThrowIfNullOrWhiteSpace(relativePath);
+        
         return new FileInfo(
             Path.Combine(
                 _rootDirectory.FullName,
-                $"{workflowId}.json"));
+                relativePath));
     }
 }

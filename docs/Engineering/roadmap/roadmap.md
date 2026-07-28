@@ -19,6 +19,26 @@ Platform Phase
 
 MS-005 Workflow Packages
 
+Chapter 1
+──────────────
+Package Domain Model
+
+Chapter 2
+──────────────
+Package Contracts
+
+Chapter 3
+──────────────
+Package Implementations
+
+Chapter 4
+──────────────
+Package Validation
+
+Chapter 5
+──────────────
+Package Storage & Showcase
+
 MS-006 Planner
 
 MS-007 Human Approval
@@ -66,6 +86,8 @@ MS-ECO-004 Visual Designer
 
 MS-ECO-005 Marketplace
 
+
+
 Future Architectural Enhancement
 
 Reference Resolution Layer
@@ -91,3 +113,20 @@ Goals
 • Dependency Injection integration
 • Runtime composition
 • Reference validation
+
+### Future Design Candidate: Reference Resolution Layer
+
+The current persistence model stores runtime component identifiers (for example, AgentId) rather than executable objects.
+
+A future Resolver Layer will be introduced to reconstruct runtime objects from these references during workflow loading.
+
+This capability is expected to support:
+
+- Workflow Packages
+- Shared Agent Libraries
+- Prompt Libraries
+- Tool Catalogs
+- Runtime Composition
+- Environment-specific registrations
+
+This design will be addressed as part of the Workflow Packages milestone.

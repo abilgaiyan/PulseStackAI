@@ -1,40 +1,40 @@
 using System.Collections.Concurrent;
-using PulseStack.Abstractions.Workflows;
-using PulseStack.Abstractions.Persistence.Storage;
 
-namespace PulseStack.Core.Persistence.Storage;
+namespace PulseStack.Core.Persistence.Storage.Infrastructure;
 
-public sealed class InMemoryWorkflowStore : IWorkflowStore
+internal sealed class InMemoryStreamStore<TKey>
+    where TKey : notnull
 {
-    private readonly ConcurrentDictionary<WorkflowId, byte[]> _workflows = new();
+    private readonly ConcurrentDictionary<TKey, byte[]> _storage = new();
 
     public async ValueTask SaveAsync(
-        WorkflowId workflowId,
+        TKey key,
         Stream input,
         CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        workflowId.EnsureValid();
-
         ArgumentNullException.ThrowIfNull(input);
+        cancellationToken.ThrowIfCancellationRequested();
 
         using var memory = new MemoryStream();
 
+        if (input.CanSeek)
+        {
+            input.Position = 0;
+        }
+        
         await input.CopyToAsync(memory, cancellationToken);
 
-        _workflows[workflowId] = memory.ToArray();
+        _storage[key] = memory.ToArray();
     }
 
     public ValueTask<Stream?> LoadAsync(
-        WorkflowId workflowId,
+        TKey key,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(key);
         cancellationToken.ThrowIfCancellationRequested();
-        
-        workflowId.EnsureValid();
 
-        if (!_workflows.TryGetValue(workflowId, out var bytes))
+        if (!_storage.TryGetValue(key, out var bytes))
         {
                 return ValueTask.FromResult<Stream?>(null);
         }
@@ -44,27 +44,24 @@ public sealed class InMemoryWorkflowStore : IWorkflowStore
     }
 
     public ValueTask DeleteAsync(
-        WorkflowId workflowId,
+        TKey key,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(key);
         cancellationToken.ThrowIfCancellationRequested();
-
-        workflowId.EnsureValid();
-
-        _workflows.TryRemove(workflowId, out _);
+        _storage.TryRemove(key, out _);
 
         return ValueTask.CompletedTask;
     }
 
     public ValueTask<bool> ExistsAsync(
-        WorkflowId workflowId,
+        TKey key,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(key);
         cancellationToken.ThrowIfCancellationRequested();
 
-        workflowId.EnsureValid();
-
         return ValueTask.FromResult(
-            _workflows.TryGetValue(workflowId, out _));
+            _storage.ContainsKey(key));
     }
 }

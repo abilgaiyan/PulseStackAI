@@ -4,11 +4,11 @@ using PulseStack.Abstractions.Workflows;
 using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Abstractions.Persistence.Documents;
 using PulseStack.Core.Persistence.Mapping;
-using PulseStack.Core.Persistence.Storage;
+using PulseStack.Core.Persistence.Storage.Workflows;
 using PulseStack.Core.Persistence.Serialization;
 using PulseStack.Tests.Fakes;
 
-namespace PulseStack.Tests.Persistence.Storage;
+namespace PulseStack.Tests.Persistence.Storage.Workflows;
 
 public class InMemoryWorkflowStoreTests
 {

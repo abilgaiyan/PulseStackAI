@@ -5,12 +5,14 @@ using PulseStack.Abstractions.Tools;
 using PulseStack.Abstractions.Security;
 using PulseStack.Abstractions.Persistence.Mapping;
 using PulseStack.Abstractions.Persistence.Serialization;
+using PulseStack.Abstractions.Persistence.Validation;
 using PulseStack.Core.Memory;
 using PulseStack.Core.Resilience;
 using PulseStack.Core.Tools;
 using PulseStack.Core.Security;
 using PulseStack.Core.Persistence.Mapping;
 using PulseStack.Core.Persistence.Serialization;
+using PulseStack.Core.Persistence.Validation;
 
 namespace PulseStack.Core.DependencyInjection;
 
@@ -50,7 +52,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IWorkflowMapper, WorkflowMapper>();
         services.TryAddSingleton<IWorkflowSerializer, JsonWorkflowSerializer>();
         services.TryAddSingleton<IWorkflowDeserializer, JsonWorkflowDeserializer>();
-
+        services.TryAddSingleton<IWorkflowValidator, WorkflowValidator>();
         return services;
     }
 }
