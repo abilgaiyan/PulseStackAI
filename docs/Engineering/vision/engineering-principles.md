@@ -222,6 +222,9 @@ expressing well-understood decisions rather than discovering them.
 
 ---
 
+Domain abstractions remain explicit and strongly typed, while infrastructure is generic and reusable.
+Prefer composition for infrastructure and keep public domain contracts explicit
+
 # Decision Checklist
 
 Before implementing a feature, ask:

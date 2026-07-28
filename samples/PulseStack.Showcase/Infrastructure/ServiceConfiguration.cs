@@ -30,6 +30,8 @@ internal static class ServiceConfiguration
             .UseOpenRouter(
                 apiKey: apiKey!,
                 model: "openai/gpt-4o-mini");
+        services.AddInMemoryWorkflowStorage();
+        services.AddFileWorkflowStorage("workflows");        
 
         return services.BuildServiceProvider();
     }
