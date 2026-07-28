@@ -1,5 +1,6 @@
 ﻿using PulseStack.Showcase.Infrastructure;
 using PulseStack.Showcase.Scenarios;
+using PulseStack.Showcase.Scenarios.Persistence;
 
 var services =
     ServiceConfiguration.Configure();
@@ -48,7 +49,8 @@ await ERPInvoiceLookupToolCallingScenario.RunAsync(services);
 // Persistence
 //
 
-//await WorkflowPersistenceScenario.RunAsync(services);
+await WorkflowPersistenceScenario.RunAsync(services);
+await WorkflowPackageScenario.RunAsync(services);
 
 Console.WriteLine();
 Console.WriteLine("Showcase complete.");

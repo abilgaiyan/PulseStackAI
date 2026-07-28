@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using PulseStack.Abstractions.Workflows;
 using PulseStack.Agents.Runtime.Observability;
 using PulseStack.Core.DependencyInjection;
 using PulseStack.Providers.OpenRouter.DependencyInjection;
@@ -24,15 +25,21 @@ internal static class ServiceConfiguration
         //         apiKey: Environment.GetEnvironmentVariable(
         //             "OPENROUTER_API_KEY")!,
         //         model: "openai/gpt-4o-mini");
-        services.AddPulseStack()
-            .AddOpenTelemetryRuntimeObserver()
-            .AddConsoleRuntimeObserver()
-            .UseOpenRouter(
-                apiKey: apiKey!,
-                model: "openai/gpt-4o-mini");
-        services.AddInMemoryWorkflowStorage();
-        services.AddFileWorkflowStorage("workflows");        
+       services
+        .AddPulseStack()
+        .AddOpenTelemetryRuntimeObserver()
+        .AddConsoleRuntimeObserver()
+        .UseOpenRouter(
+            apiKey: apiKey!,
+            model: "openai/gpt-4o-mini");
 
+        services.AddSingleton<IAgentResolver, AgentResolver>();
+
+        services.AddInMemoryWorkflowStorage();
+        services.AddFileWorkflowStorage("workflows");
+
+        services.AddInMemoryWorkflowPackageStorage();
+        services.AddFileWorkflowPackageStorage("packages");
         return services.BuildServiceProvider();
     }
 }

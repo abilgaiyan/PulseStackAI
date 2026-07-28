@@ -189,7 +189,7 @@ public class ZipWorkflowPackageBuilderTests
 
         manifest.EntryWorkflow.Should().Be(WorkflowPackageConstants.WorkflowEntry);
 
-        manifest.CreatedAt.Should().BeCloseTo(
+        manifest.BuiltAt.Should().BeCloseTo(
             DateTimeOffset.UtcNow,
             TimeSpan.FromSeconds(5));
     }

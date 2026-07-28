@@ -142,9 +142,10 @@ public sealed class ZipWorkflowPackageBuilder : IWorkflowPackageBuilder
         {
             PackageId = package.Identity.Id,
             PackageVersion = package.Identity.Version,
+            Metadata = package.Metadata,
             PackageFormatVersion = WorkflowPackageConstants.PackageFormatVersion,
             MinimumRuntimeVersion = WorkflowPackageConstants.MinimumRuntimeVersion,
-            CreatedAt = DateTimeOffset.UtcNow,
+            BuiltAt = DateTimeOffset.UtcNow,
             EntryWorkflow = WorkflowPackageConstants.WorkflowEntry
         };
     }

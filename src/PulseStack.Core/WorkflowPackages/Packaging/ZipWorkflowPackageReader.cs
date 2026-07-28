@@ -117,24 +117,10 @@ public sealed class ZipWorkflowPackageReader : IWorkflowPackageReader
                 manifest.PackageId,
                 manifest.PackageVersion),
 
-            Metadata = new WorkflowPackageMetadata(),
+            Metadata = manifest.Metadata,
+            
 
             Workflow = workflow
         };
     }
-
-    private static WorkflowPackageManifest CreateManifest(
-        WorkflowPackage package)
-    {
-        return new()
-        {
-            PackageId = package.Identity.Id,
-            PackageVersion = package.Identity.Version,
-            PackageFormatVersion = WorkflowPackageConstants.PackageFormatVersion,
-            MinimumRuntimeVersion = WorkflowPackageConstants.MinimumRuntimeVersion,
-            CreatedAt = DateTimeOffset.UtcNow,
-            EntryWorkflow = WorkflowPackageConstants.WorkflowEntry
-        };
-    }
-
 }

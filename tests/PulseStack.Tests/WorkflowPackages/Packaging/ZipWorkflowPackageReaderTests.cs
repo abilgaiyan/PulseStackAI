@@ -237,9 +237,15 @@ public class ZipWorkflowPackageReaderTests
                     {
                         PackageId = WorkflowPackageId.New(),
                         PackageVersion = "1.0.0",
+                        Metadata = new WorkflowPackageMetadata
+                        {
+                            Title = "Test Title",
+                            Tags = ["IT", "Marketing", "Finance"],
+                            Author ="PulseStack Core"
+                        },
                         PackageFormatVersion = WorkflowPackageConstants.PackageFormatVersion,
                         MinimumRuntimeVersion = WorkflowPackageConstants.MinimumRuntimeVersion,
-                        CreatedAt = DateTimeOffset.UtcNow,
+                        BuiltAt = DateTimeOffset.UtcNow,
                         EntryWorkflow = WorkflowPackageConstants.WorkflowEntry
                     },
                     WorkflowPackageJsonOptions.Default);
