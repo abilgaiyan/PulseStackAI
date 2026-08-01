@@ -1,24 +1,32 @@
 # PulseStackAI
 
-> **Workflow-Oriented AI Orchestration Framework for .NET**
+> **A Domain-Driven AI Application Platform for .NET**
 >
-> Build AI applications the way you design business workflows.
+> Build AI applications by describing **business intent**—not AI infrastructure.
+
+PulseStackAI helps developers build AI-powered business applications by separating **what the business needs** from **how AI technologies implement it**.
+
+Instead of building applications around providers, prompts, or orchestration code, PulseStackAI allows you to compose reusable AI capabilities into applications that remain readable, portable, and technology independent.
 
 ---
 
-## Every AI project starts the same way...
+# Every AI project starts the same way...
 
 You have a simple idea.
-
-> "Read this document."
-
-Or
 
 > "Review this contract."
 
 Or
 
+> "Summarize this meeting."
+
+Or
+
 > "Approve this expense."
+
+Or
+
+> "Research this customer."
 
 At first, it feels like a single prompt.
 
@@ -28,9 +36,9 @@ You need another model.
 
 Then tool calling.
 
-Then retries.
-
 Then memory.
+
+Then retries.
 
 Then logging.
 
@@ -38,13 +46,13 @@ Then observability.
 
 Then streaming.
 
-Then parallel execution.
-
-Then conditional routing.
-
 Then provider abstractions.
 
-Before long, you're no longer building your AI application.
+Then execution strategies.
+
+Before long...
+
+You're no longer building your AI application.
 
 You're building an AI framework.
 
@@ -52,44 +60,160 @@ You're building an AI framework.
 
 ---
 
-## There has to be a better way.
+# Think Like the Business
 
-What if AI applications were written the same way we describe business processes?
+Businesses don't think in terms of providers.
 
-Instead of thinking about providers...
+They think in terms of work.
 
-Think about workflows.
+> Review the contract.
 
-Instead of asking
+> Validate the policy.
 
-> "Which model should execute this?"
+> Research the customer.
 
-Ask
+> Approve the invoice.
 
-> "What should happen next?"
+These are business stories.
 
-Instead of writing infrastructure...
+The business doesn't care whether the work is performed by OpenAI, Azure OpenAI, MCP, Neo4j, or SQL Server.
 
-Describe intent.
+It cares that the work happens.
 
----
+PulseStackAI allows developers to express those business stories directly.
 
-## That's why PulseStackAI exists.
-
-PulseStackAI is a Workflow-Oriented AI Orchestration Framework for .NET.
-
-It allows developers to express business workflows while the framework handles orchestration, execution, resiliency, diagnostics, observability, and provider integration.
-
-You describe the workflow.
-
-PulseStackAI executes it.
+Everything else becomes implementation.
 
 ---
 
-## Imagine writing AI applications like this...
+# The PulseStackAI Philosophy
+
+PulseStackAI is built on one simple belief.
+
+> **AI applications are business systems.**
+
+Business intent should remain independent of the technologies that execute it.
+
+This separation allows applications to evolve without being rewritten every time the AI ecosystem changes.
+
+---
+
+# The Architecture at a Glance
+
+Every layer in PulseStackAI has exactly one responsibility.
+
+```text
+Business Story
+        │
+        ▼
+AI Asset Model
+        │
+        ▼
+Application Language
+        │
+        ▼
+Asset Configuration
+        │
+        ▼
+Runtime
+        │
+        ▼
+Execution
+```
+
+Each layer answers a different question.
+
+| Layer | Question |
+|--------|----------|
+| **Domain** | What problem are we solving? |
+| **AI Asset Model** | What reusable concepts exist? |
+| **Application Language** | How do we express business intent? |
+| **Asset Configuration** | Which implementation do we choose? |
+| **Runtime** | How is business intent executed? |
+
+Keeping these responsibilities separate makes applications easier to understand, test, maintain, and evolve.
+
+---
+
+# Core Principles
+
+PulseStackAI is guided by a small set of architectural principles.
+
+### Business Before Technology
+
+Business intent should not depend on AI providers or infrastructure.
+
+---
+
+### Everything Reusable is an Asset
+
+Agents, Workflows, Prompts, Tools, Knowledge, Policies, and Packages are reusable building blocks.
+
+Applications are composed from Assets.
+
+---
+
+### Business Intent is Expressed Through Composition
+
+Applications are created by composing reusable Assets rather than writing orchestration code.
+
+---
+
+### Providers Are Implementation Details
+
+Providers bring intelligence.
+
+They do not define the application.
+
+---
+
+### The Runtime Performs the Work
+
+The Runtime executes applications.
+
+It does not define them.
+
+---
+
+### Stable Language, Evolving Technology
+
+Models change.
+
+Providers change.
+
+Databases change.
+
+Business intent changes much more slowly.
+
+PulseStackAI keeps these concerns separate.
+
+---
+
+# Learn the Architecture
+
+The README is only the beginning.
+
+Each architectural concept is explained in detail in its own document.
+
+| Document | Purpose |
+|----------|---------|
+| **AI Asset Model** | Defines the reusable concepts that make up PulseStackAI. |
+| **Application Language** | Explains how business intent is expressed through composition. |
+| **Workflow Runtime** | Describes how applications are executed. |
+| **Workflow Persistence** | Explains how applications are stored, exchanged, and versioned. |
+| **Workflow Packages** | Describes packaging, distribution, and reuse. |
+| **Roadmap** | Shows the long-term vision of the platform. |
+
+Together these documents describe the complete architecture of PulseStackAI—from business intent to execution.
+
+---
+
+# A Simple Example
+
+Imagine describing an expense approval process.
 
 ```csharp
-var workflow =
+var application =
     Workflow.Create("Expense Approval")
 
         .Run(loadExpense)
@@ -102,145 +226,72 @@ var workflow =
             fraudCheck,
             policyValidation)
 
-        .Retry(finalSubmission)
+        .Run(finalSubmission)
 
         .Build();
 ```
 
-No orchestration code.
+Notice what isn't here.
 
-No execution loops.
+- No provider-specific code.
+- No execution loops.
+- No retry plumbing.
+- No infrastructure concerns.
 
-No retry plumbing.
+Just the business process.
 
-No provider-specific logic.
-
-Just the workflow.
-
----
-
-## That's the idea.
-
-The workflow becomes the application.
-
-The runtime becomes the infrastructure.
-
-The provider becomes an implementation detail.
+The Runtime takes care of everything else.
 
 ---
 
-## Design Philosophy
+# Project Status
 
-PulseStackAI is built around one simple belief.
+## Available Today
 
-> **AI applications are workflows.**
+- ✅ Workflow Runtime
+- ✅ Workflow Persistence
+- ✅ Workflow Packages
+- ✅ AI Asset Model
 
-Everything else follows from that.
+## Coming Next
 
-Workflows express business intent.
+- 🚧 Application Language
+- 🚧 AI Projects
+- 🚧 AI Libraries
+- 🚧 Asset Registry
+- 🚧 Visual Designer
+- 🚧 Marketplace
 
-The runtime executes that intent.
-
-Providers supply intelligence.
-
-Infrastructure stays hidden.
-
-Business logic stays visible.
-
----
-
-## Architecture
-
-```
-Every layer in PulseStackAI has exactly one responsibility.
-
-Builders construct workflows.
-
-Runtimes execute workflows.
-
-Providers communicate with AI models.
-
-Keeping these responsibilities separate makes applications easier to understand, test, and evolve.
-Developer
-
-↓
-
-Workflow Language
-
-↓
-
-Workflow Definition
-
-↓
-
-Workflow Runtime
-
-↓
-
-Agent Runtime
-
-↓
-
-AI Provider
-```
-
-Each layer has exactly one responsibility.
-
-That's what keeps applications understandable as they grow.
+PulseStackAI is evolving from a workflow runtime into a complete domain-driven AI application platform.
 
 ---
 
-## What you can build today
+# Our Vision
 
-PulseStackAI already supports:
+Software has traditionally been written around technology.
 
-* Sequential workflows
-* Conditional execution
-* Parallel execution
-* Retry policies
-* ForEach iteration
-* Switch routing
-* Nested workflows
-* Tool execution
-* Usage tracking
-* Runtime diagnostics
-* Provider abstraction
-* Extensible execution steps
+We believe AI applications should be written around business intent.
 
-And we're just getting started.
+Providers will evolve.
 
----
+Models will improve.
 
-## Where we're going
+Infrastructure will change.
 
-Today, PulseStackAI gives you a Workflow DSL.
+Business goals remain.
 
-Tomorrow, it becomes a complete Workflow Language for AI applications.
+PulseStackAI exists to keep those worlds separate.
 
-Imagine writing business processes instead of orchestration code.
+Our goal is simple:
 
-That's the future we're building.
+> **Allow developers to spend less time orchestrating AI and more time solving real business problems.**
 
 ---
 
-## Welcome to PulseStackAI.
+# Welcome to PulseStackAI
 
-AI is changing how software is built.
+If you're looking for another AI SDK, you're in the wrong place.
 
-We believe the next generation of applications won't be defined by prompts or providers.
+If you're looking for a better way to build AI-powered business applications, welcome.
 
-They'll be defined by workflows.
-
-Our mission is simple:
-
-Build AI applications the same way you design business systems.
-
-Declaratively.
-
-Compositionally.
-
-Observably.
-
-Provider independently.
-
-Welcome to PulseStackAI.
+Let's build software that speaks the language of the business first—and let the technology follow.
