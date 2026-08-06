@@ -6,9 +6,32 @@
 
 # AI Asset Model
 
-> **Everything reusable is an Asset.**
+> **Everything reusable is an AI Asset.**
 
- The AI Asset Model defines the canonical domain model for every reusable capability within PulseStackAI.
+ ---
+
+## Vision
+
+PulseStackAI is a Developer-Friendly AI Application Engineering Platform.
+
+Developers should build AI applications by composing reusable business capabilities rather than integrating low-level AI providers.
+
+To achieve this, PulseStackAI introduces the concept of an **AI Asset**.
+
+An AI Asset is the fundamental building block of every AI application.
+
+> **Anything a developer can intentionally create and reuse is an AI Asset.**
+
+This principle serves as the foundation of the PulseStackAI Application Language.
+
+The goal of PulseStackAI is not to abstract AI providers. The goal is to enable developers to engineer AI-powered business applications using reusable AI Assets.
+
+Examples:
+
+CLR → Types
+SQL → Tables
+HTML → Elements
+PulseStackAI → AI Assets
 
 ---
 
@@ -24,9 +47,40 @@ An Asset represents a reusable, versioned, immutable definition that can be comp
 
 The Asset Model intentionally remains independent of runtime execution, infrastructure technologies, and provider implementations.
 
+Assets describe business capabilities.
+
+Configuration selects concrete implementations.
+
+Technology choices such as OpenAI, Azure OpenAI, Neo4j, Oracle, SQL Server, or Azure AI Search are configuration concerns rather than Asset definitions.
+
+An Asset should remain reusable regardless of how it is ultimately executed.
+
 It answers a single question:
 
 > **What reusable capabilities exist within PulseStackAI?**
+
+''' 
+
+            AI Asset
+
+      What capability exists?
+
+               │
+
+               ▼
+
+        Asset Configuration
+
+ Which implementation is selected?
+
+               │
+
+               ▼
+
+         Runtime Execution
+
+   How is the capability executed?
+'''
 
 ---
 
@@ -50,7 +104,11 @@ Its goals are to:
 
 The AI Asset Model follows several fundamental principles.
 
-## Everything Reusable is an Asset
+## Reusable by Design
+
+Anything a developer can intentionally create and reuse is modeled as an Asset.
+
+Execution state is never modeled as an Asset.
 
 Reusable capabilities are represented as Assets.
 
@@ -104,39 +162,105 @@ Assets can be serialized, packaged, exchanged, and executed across different env
 
 ---
 
+## Configuration over Implementation
+
+Assets describe business capabilities.
+
+Configuration selects concrete implementations.
+
+Technology choices such as OpenAI, Azure OpenAI, Neo4j, Oracle, SQL Server, or Azure AI Search are configuration concerns rather than Asset definitions.
+
+An Asset remains reusable regardless of how it is implemented or executed.
+
+---
+
 # AI Asset Taxonomy
 
 The Asset Model defines the primary reusable concepts of PulseStackAI.
 
 ```
-Asset
+Foundation
 
-├── Project
+Prompt
 
-├── Library
+Tool
 
-├── Package
+Knowledge
 
-├── Workflow
+Memory
 
-├── Agent
+Policy
 
-├── Prompt
+Model
 
-├── Tool
+────────────────
 
-├── Knowledge
+Composition
 
-├── Policy
+Agent
 
-├── Provider
+Workflow
 
-└── Model
+────────────────
+
+Organization
+
+Package
+
+Library
+
+Project
+```
+
+Asset Categories
+```
+
+                    AI Application
+
+                           │
+
+                     AI Project
+
+                           │
+
+                  AI Asset Library
+
+                           │
+
+                ┌──────────┼──────────┐
+
+            Atomic      Composite   Container
+
+                │            │           │
+
+            Prompt       Workflow     Project
+
+            Tool         Agent        Library
+
+            Policy       Package
+
+            Model
+
+            Knowledge
+
+            Memory
 ```
 
 Each Asset contributes a reusable capability to the application.
 
 ---
+
+## Common Characteristics
+Every Asset:
+
+- Identity
+- Metadata
+- Version
+- Lifecycle
+- Composition
+- Configuration
+- Runtime Independence
+- Portability
 
 # Asset Identity
 
@@ -148,8 +272,7 @@ Identity includes:
 
 - Asset Identifier
 - Uniform Resource Name (URN)
-- Version
-- Display Name
+- Asset Version
 
 Identity exists independently of storage location or implementation.
 
@@ -157,7 +280,7 @@ Identity exists independently of storage location or implementation.
 
 # Asset Metadata
 
-Metadata describes an Asset without affecting its behavior.
+Metadata describes an Asset for humans without affecting its behavior.
 
 Examples include:
 
@@ -233,10 +356,6 @@ Published
 
 ↓
 
-Versioned
-
-↓
-
 Deprecated
 
 ↓
@@ -297,6 +416,10 @@ Application Language
 
 ↓
 
+Configuration
+
+↓
+
 Runtime
 
 ↓
@@ -326,8 +449,8 @@ New Asset types can be introduced without modifying the existing model.
 
 Examples include:
 
-- Planner
-- Human Approval
+- Plan
+- Approval Policy
 - Memory
 - Dataset
 - Evaluation
@@ -348,6 +471,55 @@ The AI Asset Model establishes the foundation for:
 - Visual Designer
 - Marketplace
 - Cross-platform Asset Exchange
+
+---
+
+# Architectural Boundary
+
+The AI Asset Model defines reusable engineering artifacts.
+
+The following concepts are intentionally **not** Assets:
+
+- Execution Context
+- Runtime State
+- Chat Messages
+- Provider Clients
+- Token Usage
+- Execution Results
+
+These concepts belong to the Runtime rather than the Application Model.
+
+---
+
+# The AI Application Engineering Stack
+
+PulseStackAI separates application engineering from runtime execution.
+
+Developer
+
+↓
+
+AI Project
+
+↓
+
+AI Assets
+
+↓
+
+Application Language
+
+↓
+
+Asset Configuration
+
+↓
+
+Runtime
+
+↓
+
+Providers
 
 ---
 

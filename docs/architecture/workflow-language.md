@@ -4,6 +4,52 @@
 
 ---
 
+## Workflow Composition
+
+Workflow
+
+↓
+
+Agent
+
+↓
+
+Foundation Assets
+
+A Workflow does not communicate.
+
+A Workflow does not reason.
+
+A Workflow does not retrieve knowledge.
+
+A Workflow does not invoke tools.
+
+Agents do.
+
+The Workflow coordinates them.
+
+Workflow
+
+↓
+
+Agent
+
+↓
+
+Prompt
+
+Tool
+
+Knowledge
+
+Memory
+
+Policy
+
+Model
+
+---
+
 ## Before writing code, think differently.
 
 Traditional software development teaches us to think in terms of classes, methods, APIs, and data structures.
@@ -133,11 +179,15 @@ Intent
 
 ↓
 
-What happens next?
+Agents collaborate
 
 ↓
 
 Current State
+
+↓
+
+Next Decision
 ```
 
 That's it.
