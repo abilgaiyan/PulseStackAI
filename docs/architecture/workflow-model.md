@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The Workflow Model defines the structural representation of the PulseStackAI Domain Model.
+Workflow Model represents the Workflow Asset within the AI Asset Model.
 
 While the Domain Model defines the business vocabulary of the framework, the Workflow Model explains how those concepts are represented, composed, and related to one another.
 
@@ -205,7 +205,56 @@ The Workflow Runtime interprets that structure and executes it.
 
 The runtime does not modify the model.
 
+Workflow Model
+
+↓
+
+Configuration
+
+↓
+
+Runtime
+
 ---
+
+# Relationship to the Application Language
+
+Workflow Language
+
+↓
+
+Defines Process
+
+↓
+
+Workflow Model
+
+↓
+
+Represents Process
+
+↓
+
+Runtime
+
+↓
+
+Executes Process
+
+---
+
+# Relationship to Agent
+Workflow
+
+↓
+
+Coordinates Agents
+
+Agents
+
+↓
+
+Compose Foundation Assets
 
 # Relationship to Persistence
 

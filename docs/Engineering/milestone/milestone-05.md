@@ -2,9 +2,9 @@
 
 > **Document Type:** Milestone
 > **Audience:** Contributors
-> **Status:** Draft
+> **Status:** Complete
 > **Owner:** PulseStackAI Team
-> **Last Reviewed:** 2026-07-23
+> **Last Reviewed:** 2026-07-28
 
 # Milestone: 005 - Workflow Packages
 
@@ -12,11 +12,11 @@
 | ---------------- | ----------------- |
 | **ID**           | MS-005            |
 | **Title**        | Workflow Packages |
-| **Status**       | Draft             |
+| **Status**       | Complete             |
 | **Version**      | v0.8.0            |
 | **Owner**        | PulseStackAI Team |
 | **Created**      | 2026-07-23        |
-| **Last Updated** | 2026-07-23        |
+| **Last Updated** | 2026-07-28        |
 
 ---
 
@@ -252,8 +252,8 @@ The packaging implementation should reuse existing persistence services wherever
 ## RFCs
 
 * RFC-0001 – Workflow Runtime
-* RFC-0002 – Workflow Persistence (planned)
-* RFC-0003 – Workflow Packages (planned)
+* RFC-0002 – Workflow Persistence 
+* RFC-0003 – Workflow Packages
 
 ## Runtime Services
 
