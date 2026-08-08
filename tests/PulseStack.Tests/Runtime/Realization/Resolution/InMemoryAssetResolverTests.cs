@@ -1,3 +1,4 @@
+using Xunit;
 using System.Diagnostics.CodeAnalysis;
 using FluentAssertions;
 using PulseStack.Abstractions.Assets;
