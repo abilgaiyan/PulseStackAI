@@ -1,12 +1,12 @@
 # PulseStackAI
 
-> **A Domain-Driven AI Application Platform for .NET**
+> **A Domain-Driven AI Application Engineering Platform for .NET**
 >
-> Build AI applications by describing **business intent**—not AI infrastructure.
+> Build intelligent business applications by describing **business intent**—not AI infrastructure.
 
-PulseStackAI helps developers build AI-powered business applications by separating **what the business needs** from **how AI technologies implement it**.
+PulseStackAI introduces a provider-independent **AI Application Language** built on reusable **AI Assets** and realized through a composable runtime.
 
-Instead of building applications around providers, prompts, or orchestration code, PulseStackAI allows you to compose reusable AI capabilities into applications that remain readable, portable, and technology independent.
+Instead of programming prompts, providers, and orchestration, developers compose business capabilities that remain readable, reusable, and technology independent.
 
 ---
 
@@ -96,6 +96,26 @@ Business intent should remain independent of the technologies that execute it.
 
 This separation allows applications to evolve without being rewritten every time the AI ecosystem changes.
 
+PulseStackAI
+
+──────────────────────────
+
+Language
+
+↓
+
+Assets
+
+↓
+
+Runtime
+
+| Pillar | Responsibility |
+| --- | --- |
+| **AI Application Language** | Expresses business intent. |
+| **AI Asset Model** | Defines reusable business capabilities. |
+| **Runtime** | Realizes and executes those capabilities. |
+
 ---
 
 # The Architecture at a Glance
@@ -103,28 +123,28 @@ This separation allows applications to evolve without being rewritten every time
 Every layer in PulseStackAI has exactly one responsibility.
 
 ```text
-Business Story
-        │
-        ▼
-AI Asset Model
+Business Intent
         │
         ▼
 Application Language
         │
         ▼
-Asset Configuration
+AI Asset Model
         │
         ▼
-Runtime
+Runtime Realization
         │
         ▼
-Execution
+Execution Runtime
+        │
+        ▼
+Provider Infrastructure
 ```
 
 Each layer answers a different question.
 
 | Layer | Question |
-|--------|----------|
+| --- | --- |
 | **Domain** | What problem are we solving? |
 | **AI Asset Model** | What reusable concepts exist? |
 | **Application Language** | How do we express business intent? |
@@ -135,7 +155,7 @@ Keeping these responsibilities separate makes applications easier to understand,
 
 ---
 
-# Core Principles
+# Architectural Principles
 
 PulseStackAI is guided by a small set of architectural principles.
 
@@ -195,14 +215,35 @@ The README is only the beginning.
 
 Each architectural concept is explained in detail in its own document.
 
-| Document | Purpose |
-|----------|---------|
-| **AI Asset Model** | Defines the reusable concepts that make up PulseStackAI. |
-| **Application Language** | Explains how business intent is expressed through composition. |
-| **Workflow Runtime** | Describes how applications are executed. |
-| **Workflow Persistence** | Explains how applications are stored, exchanged, and versioned. |
-| **Workflow Packages** | Describes packaging, distribution, and reuse. |
-| **Roadmap** | Shows the long-term vision of the platform. |
+```text
+Architecture
+
+Vision
+
+↓
+
+Application Language
+
+↓
+
+AI Asset Model
+
+↓
+
+Runtime
+
+↓
+
+Persistence
+
+↓
+
+Packages
+
+↓
+
+Roadmap
+```
 
 Together these documents describe the complete architecture of PulseStackAI—from business intent to execution.
 
@@ -246,21 +287,28 @@ The Runtime takes care of everything else.
 
 # Project Status
 
-## Available Today
+## Completed
 
 - ✅ Workflow Runtime
 - ✅ Workflow Persistence
 - ✅ Workflow Packages
+- ✅ AI Application Language
 - ✅ AI Asset Model
 
-## Coming Next
+## Current Milestone
 
-- 🚧 Application Language
-- 🚧 AI Projects
-- 🚧 AI Libraries
-- 🚧 Asset Registry
-- 🚧 Visual Designer
-- 🚧 Marketplace
+- 🚧 **MS-007 — Runtime Realization Architecture**
+
+Designing the execution architecture that realizes AI Assets into running business applications.
+
+## Planned
+
+- AI Projects
+- AI Libraries
+- Planner
+- Asset Registry
+- Visual Designer
+- Marketplace
 
 PulseStackAI is evolving from a workflow runtime into a complete domain-driven AI application platform.
 
@@ -288,9 +336,31 @@ Our goal is simple:
 
 ---
 
+# The PulseStackAI Way
+
+Think in Business Intent.
+
+Compose AI Assets.
+
+Realize Through Runtime.
+
+Hide Technology.
+
+Keep Providers Replaceable.
+
+Build for Change.
+
+---
+
 # Welcome to PulseStackAI
 
-If you're looking for another AI SDK, you're in the wrong place.
+PulseStackAI isn't another AI SDK.
+
+It's a language for building AI-powered business applications.
+
+We believe developers should think in business capabilities—not providers, prompts, or orchestration.
+
+Describe the intent. Compose the capabilities. Let the runtime realize the application.
 
 If you're looking for a better way to build AI-powered business applications, welcome.
 
