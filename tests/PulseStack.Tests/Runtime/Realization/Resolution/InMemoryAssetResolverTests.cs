@@ -1,4 +1,4 @@
-using Xunit;
+using System.Diagnostics.CodeAnalysis;
 using FluentAssertions;
 using PulseStack.Abstractions.Assets;
 using PulseStack.Core.Runtime.Realization.Resolution;
@@ -93,6 +93,7 @@ public sealed class InMemoryAssetResolverTests
 
     private sealed record TestAsset : Asset
     {
+        [SetsRequiredMembers]
         public TestAsset(AssetId id, AssetUrn urn)
         {
             Id = id;
