@@ -1,4 +1,5 @@
 using PulseStack.Abstractions.Assets;
+using PulseStack.Abstractions.Runtime.Realization.Resolution;
 
 namespace PulseStack.Core.Runtime.Realization.Resolution;
 
