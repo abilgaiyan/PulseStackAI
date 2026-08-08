@@ -90,7 +90,7 @@ public sealed class InMemoryAssetResolverTests
             id ?? AssetId.New(),
             new AssetUrn(urn));
 
-    private sealed class TestAsset : Asset
+    private sealed record TestAsset : Asset
     {
         public TestAsset(AssetId id, AssetUrn urn)
         {
