@@ -1,152 +1,201 @@
 # Architecture Overview
 
-PulseStackAI separates business workflow modeling from execution, allowing developers to express intent while the runtime manages orchestration, resilience, persistence, and AI provider integration.
-
-## Overview
-
-PulseStackAI is a modular, enterprise-grade AI orchestration framework for .NET that enables developers to build intelligent applications using composable workflows, agents, tools, and providers.
-
-Rather than exposing provider-specific APIs, PulseStackAI provides a unified programming model for designing, executing, and evolving AI-powered systems.
-
-The framework separates **workflow definition** from **workflow execution**, allowing business workflows to remain portable while the runtime manages orchestration, resilience, observability, persistence, and provider integration.
-
-This separation enables developers to focus on business logic while PulseStackAI manages the complexity of AI orchestration.
+> **PulseStackAI is a Domain-Driven AI Application Engineering Platform.**
+>
+> It separates **business intent** from **runtime execution**, allowing developers to build intelligent applications using a provider-independent language while the runtime manages realization, orchestration, resilience, and infrastructure.
 
 ---
 
-# Vision
+# Overview
 
-PulseStackAI is built around a simple architectural philosophy:
+PulseStackAI is organized around a simple architectural idea:
 
-> Developers express **business intent**. The runtime manages **execution**.
+> **Developers describe what an intelligent business application is.**
+>
+> **The runtime determines how that application is realized and executed.**
+
+Rather than exposing provider-specific APIs, prompts, or orchestration loops, PulseStackAI introduces a layered architecture that separates application definition from execution.
+
+This separation allows business applications to evolve independently of AI models, providers, protocols, and infrastructure.
+
+---
+
+# Architectural Vision
+
+Every AI application consists of two fundamentally different concerns.
+
+## Definition
+
+Defines:
+
+- Business intent
+- Business capabilities
+- AI Assets
+- Application composition
+
+Definition answers:
+
+> **What should the application do?**
+
+## Realization
+
+Responsible for:
+
+- Runtime composition
+- Execution
+- Provider interaction
+- Tool invocation
+- Memory access
+- Observability
+- Governance
+
+Realization answers:
+
+> **How is the application executed?**
+
+This separation is the foundation of the PulseStackAI architecture.
+
+---
+
+# Architectural Domains
+
+The platform is organized into four major architectural domains.
 
 ```text
-Developer
-
-↓
-
-Workflow Model
-
-↓
-
-Workflow Runtime
-
-↓
-
-AI Providers
+Business Domain
+        │
+        ▼
+Authoring Domain
+        │
+        ▼
+Runtime Domain
+        │
+        ▼
+Infrastructure Domain
 ```
 
-Business workflows remain independent of the underlying AI providers, enabling applications to evolve without rewriting orchestration logic.
-
----
-
-# Design Goals
-
-The architecture is guided by the following principles:
-
-- Clean Architecture
-- Provider Independence
-- Workflow-First Design
-- Extensibility
-- Enterprise Readiness
-- Observability
-- Testability
-- Incremental Evolution
-
-These goals influence every subsystem within the framework.
+| Domain | Responsibility |
+| --- | --- |
+| **Business Domain** | Expresses business intent and business capabilities. |
+| **Authoring Domain** | Defines AI Applications using the Application Language and AI Asset Model. |
+| **Runtime Domain** | Realizes AI Assets into executable business applications. |
+| **Infrastructure Domain** | Provides providers, persistence, networking, storage, and observability. |
 
 ---
 
 # Architecture at a Glance
 
 ```text
-                PulseStackAI
-
-                 Developer
-                     │
-                     ▼
-             Workflow Language
-                     │
-                     ▼
-             Workflow Model
-                     │
-        ┌────────────┴────────────┐
-        ▼                         ▼
- Persistence                Workflow Runtime
-        │                         │
-        ▼                         ▼
- Workflow Store          Step Executors
-        │                         │
-        └────────────┬────────────┘
-                     ▼
-               Agent Runtime
-                     │
-                     ▼
-                Tool Runtime
-                     │
-                     ▼
-                AI Providers
-                     │
-                     ▼
-        OpenAI • Azure • Ollama • Others
+Business Intent
+        │
+        ▼
+AI Application Language
+        │
+        ▼
+AI Asset Model
+        │
+        ▼
+Runtime Realization
+        │
+        ▼
+Execution Runtime
+        │
+        ▼
+Provider Infrastructure
 ```
 
-This layered architecture separates concerns while keeping each subsystem independently extensible.
+| Layer | Question |
+| --- | --- |
+| **Business Intent** | What business problem are we solving? |
+| **AI Application Language** | How do we express the application? |
+| **AI Asset Model** | Which reusable capabilities exist? |
+| **Runtime Realization** | How are assets transformed into execution? |
+| **Execution Runtime** | How is the application executed? |
+| **Provider Infrastructure** | Which technologies perform the work? |
 
 ---
 
-# Core Building Blocks
+# Core Architectural Concepts
 
-PulseStackAI is composed of several core architectural concepts.
+## Business Intent
 
-## Workflow
-
-A workflow represents a business process expressed using composable workflow steps.
-
-Workflows describe **what** should happen rather than **how** it is executed.
-
----
-
-## Workflow Step
-
-Workflow Steps are the fundamental building blocks of a workflow.
+Business intent represents the work an organization wants to accomplish.
 
 Examples include:
 
-- RunStep
-- ConditionalStep
-- ParallelStep
-- LoopStep *(planned)*
+- Review a contract
+- Approve an invoice
+- Research a customer
+- Summarize a meeting
 
-Each step represents a discrete unit of orchestration.
+Business intent remains independent of implementation technologies.
 
----
+## AI Application Language
 
-## Agent
+The AI Application Language allows developers to express business intent using a provider-independent vocabulary.
 
-Agents encapsulate AI behavior.
+Instead of programming infrastructure, developers compose intelligent applications from reusable concepts.
 
-They coordinate prompts, tools, memory, and model interactions to accomplish a specific task.
+## AI Asset Model
 
----
+The AI Asset Model defines the reusable building blocks of every application.
 
-## Tool
+```text
+AI Asset
 
-Tools provide structured access to external capabilities such as APIs, databases, ERP systems, or custom business logic.
+├── Prompt
+├── Tool
+├── Knowledge
+├── Memory
+├── Policy
+├── Model
+│
+├── Agent
+├── Workflow
+│
+├── Package
+├── Library
+└── Project
+```
 
----
+Every application is composed from AI Assets.
 
-## Provider
+## Runtime Realization
 
-Providers integrate external AI models while remaining isolated behind a common abstraction.
+The Runtime transforms declarative AI Assets into executable behavior.
 
-This enables applications to switch providers without changing orchestration code.
+It is responsible for:
+
+- Asset realization
+- Workflow execution
+- Agent coordination
+- Tool invocation
+- Context propagation
+- Policy enforcement
+- Observability
+
+The runtime executes applications.
+
+It does not define them.
+
+## Provider Infrastructure
+
+Provider integrations remain isolated behind common abstractions.
+
+This enables applications to switch providers without changing application logic.
+
+Examples include:
+
+- OpenAI
+- Azure OpenAI
+- Ollama
+- Anthropic
+- MCP *(future)*
+- A2A *(future)*
 
 ---
 
 # Solution Architecture
-
-The solution is organized into modular projects with clearly defined responsibilities.
 
 ```text
 PulseStack.Abstractions
@@ -161,10 +210,10 @@ PulseStack.Agents
 PulseStack.Providers.*
         │
         ▼
-Samples
+Applications & Samples
 ```
 
-Each layer depends only on lower-level abstractions, preserving clean architectural boundaries.
+Each layer depends only on abstractions, preserving clean architectural boundaries.
 
 ---
 
@@ -172,201 +221,193 @@ Each layer depends only on lower-level abstractions, preserving clean architectu
 
 ## PulseStack.Abstractions
 
-Defines the public contracts shared across the framework.
+Defines the public language of the platform.
 
 Examples include:
 
+- AI Assets
+- Application Language
 - Workflows
 - Agents
-- Tools
-- Providers
-- Runtime abstractions
-- Persistence contracts
-
----
+- Runtime Contracts
+- Persistence Contracts
 
 ## PulseStack.Core
 
-Provides foundational infrastructure used throughout the framework.
+Provides foundational platform services.
 
 Responsibilities include:
 
 - Dependency Injection
-- Runtime services
+- Runtime Services
 - Persistence
 - Validation
 - Serialization
-- Shared infrastructure
-
----
+- Shared Infrastructure
 
 ## PulseStack.Agents
 
-Implements the workflow execution engine.
+Implements the execution engine.
 
 Responsibilities include:
 
+- Runtime Realization integration
 - Workflow Runtime
 - Step Executors
 - Agent Runtime
-- Pipeline orchestration
-- Execution context
-- Runtime events
-
----
+- Execution Context
+- Runtime Events
 
 ## PulseStack.Providers
 
-Implements integrations with external AI providers.
+Implements integrations with external AI technologies.
 
-Each provider package remains isolated from the orchestration layer.
-
----
-
-# Runtime Architecture
-
-The runtime is responsible for executing workflows.
-
-Rather than embedding execution logic within workflow definitions, PulseStackAI delegates execution to specialized runtime components.
-
-```text
-Workflow
-
-↓
-
-Workflow Runtime
-
-↓
-
-Step Executors
-
-↓
-
-Agent Runtime
-
-↓
-
-Tool Runtime
-
-↓
-
-AI Provider
-```
-
-This separation keeps workflows declarative while allowing the runtime to evolve independently.
+Each provider package remains isolated from the runtime architecture.
 
 ---
 
-# Persistence Architecture
+# Runtime Realization
 
-Workflow persistence is implemented as an independent subsystem.
+The Runtime bridges application definition and execution.
 
 ```text
-Workflow
+AI Application
 
 ↓
 
-Mapper
+AI Assets
 
 ↓
 
-Document
+Runtime Realization
 
 ↓
 
-Validator
+Execution Runtime
 
 ↓
 
-Serializer
-
-↓
-
-Store
+Providers
 ```
 
-This architecture enables workflows to be validated, serialized, versioned, stored, and reconstructed without affecting runtime behavior.
+Applications remain declarative.
+
+The Runtime performs realization and execution.
+
+---
+
+# Persistence & Packaging
+
+Persistence and packaging are independent architectural capabilities.
+
+```text
+AI Assets
+
+↓
+
+Documents
+
+↓
+
+Validation
+
+↓
+
+Serialization
+
+↓
+
+Storage
+
+↓
+
+Packages
+```
+
+This architecture enables applications to be versioned, shared, transported, and restored without affecting execution.
 
 ---
 
 # Extension Points
 
-PulseStackAI is designed for extensibility.
+Developers can extend the platform by implementing custom:
 
-Developers can extend the framework by implementing custom:
-
-- Providers
+- AI Assets
+- Runtime Services
 - Workflow Steps
 - Agents
 - Tools
-- Serializers
+- Providers
 - Validators
+- Serializers
 - Stores
+- Packages
 
 Each extension point is exposed through well-defined abstractions.
 
 ---
 
-# Design Principles
+# Architectural Principles
 
-The architecture follows a consistent engineering philosophy.
-
-> Think in Workflows.
-
-> Design the Runtime.
-
-> Hide the Complexity.
-
-> Compose, Don't Couple.
-
+> Think in Business Intent.
+>
+> Compose AI Assets.
+>
+> Realize Through Runtime.
+>
+> Hide Technology.
+>
+> Keep Providers Replaceable.
+>
 > Model Before Implementation.
-
+>
 > Document the Why.
-
-> Test the Behavior.
-
-> Leave the Framework Better.
-
-These principles guide every architectural decision within the project.
+>
+> Build for Change.
 
 ---
 
 # Architecture Roadmap
 
-The architecture continues to evolve incrementally.
+## Completed
 
-## Current Capabilities
+- MS-001 Core Foundation
+- MS-002 Agent Runtime
+- MS-003 Workflow Runtime
+- MS-004 Workflow Persistence
+- MS-005 Workflow Packages
+- MS-006 AI Application Language & AI Asset Model
 
-- Workflow Runtime
-- Workflow Persistence
-- AI Providers
-- Tool Framework
+## Current
 
-## Future Capabilities
+- 🚧 MS-007 Runtime Realization Architecture
+
+## Future
 
 - Planner
-- Scheduling
 - Human Approval
-- MCP Integration
+- Scheduling
 - Distributed Runtime
+- Asset Registry
 - Visual Designer
-
-Each milestone expands the framework while preserving architectural consistency.
+- Marketplace
 
 ---
 
-# What's Next
+# Related Architecture
 
-This document provides the architectural overview of PulseStackAI.
+This document provides the architectural map of PulseStackAI.
 
-The following documents explore each subsystem in greater depth:
+The following documents explore each architectural domain in greater depth:
 
-- Workflow Architecture
-- Runtime Architecture
-- Persistence Architecture
-- Execution Flow
-- Extension Points
-- Solution Structure
+- AI Application Language
+- AI Asset Model
+- Runtime Realization
+- Workflow Runtime
+- Workflow Persistence
+- Workflow Packages
 - Domain Model
+- Solution Structure
+- Roadmap
 
-Together, these documents describe the complete architecture of PulseStackAI, from high-level concepts to implementation details.
+Together, these documents describe the complete PulseStackAI architecture—from business intent to runtime execution.
