@@ -52,6 +52,8 @@ public static class ServiceCollectionExtensions
             return registry;
         });
 
+        services.AddPulseStackModelCatalog();
+
         services.TryAddSingleton<IWorkflowMapper, WorkflowMapper>();
         services.TryAddSingleton<IWorkflowSerializer, JsonWorkflowSerializer>();
         services.TryAddSingleton<IWorkflowDeserializer, JsonWorkflowDeserializer>();
