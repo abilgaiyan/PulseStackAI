@@ -2,6 +2,10 @@ namespace PulseStack.Abstractions.Assets;
 
 public abstract record Asset : IAsset
 {
+    protected Asset(AssetType type)
+    {
+        Type = type;
+    }
     public required AssetId Id { get; init; }
 
     public required AssetUrn Urn { get; init; }

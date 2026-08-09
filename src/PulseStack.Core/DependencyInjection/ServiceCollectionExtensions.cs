@@ -16,6 +16,7 @@ using PulseStack.Core.Persistence.Mapping;
 using PulseStack.Core.Persistence.Serialization;
 using PulseStack.Core.Persistence.Validation;
 using PulseStack.Core.Runtime.Realization.Resolution;
+using PulseStack.Core.Assets;
 
 namespace PulseStack.Core.DependencyInjection;
 
@@ -53,6 +54,7 @@ public static class ServiceCollectionExtensions
         });
 
         services.AddPulseStackModelCatalog();
+        services.TryAddSingleton<ModelAssetFactory>();
 
         services.TryAddSingleton<IWorkflowMapper, WorkflowMapper>();
         services.TryAddSingleton<IWorkflowSerializer, JsonWorkflowSerializer>();

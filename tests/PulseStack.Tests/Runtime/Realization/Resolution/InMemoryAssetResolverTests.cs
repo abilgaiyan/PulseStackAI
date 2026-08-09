@@ -95,7 +95,8 @@ public sealed class InMemoryAssetResolverTests
     private sealed record TestAsset : Asset
     {
         [SetsRequiredMembers]
-        public TestAsset(AssetId id, AssetUrn urn)
+        public TestAsset(AssetId id, AssetUrn urn) 
+            : base(AssetType.Model)
         {
             Id = id;
             Urn = urn;
