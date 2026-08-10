@@ -17,6 +17,9 @@ using PulseStack.Core.Persistence.Serialization;
 using PulseStack.Core.Persistence.Validation;
 using PulseStack.Core.Runtime.Realization.Resolution;
 using PulseStack.Core.Assets;
+using PulseStack.Core.Chat;
+using PulseStack.Core.Runtime.Realization;
+using PulseStack.Abstractions.Chat;
 
 namespace PulseStack.Core.DependencyInjection;
 
@@ -55,6 +58,10 @@ public static class ServiceCollectionExtensions
 
         services.AddPulseStackModelCatalog();
         services.TryAddSingleton<ModelAssetFactory>();
+        services.TryAddSingleton<IChatClientFactoryRegistry>(sp =>
+            new ChatClientFactoryRegistry(
+                sp.GetServices<ChatClientFactoryRegistration>()));
+        services.TryAddSingleton<ModelRealizer>();
 
         services.TryAddSingleton<IWorkflowMapper, WorkflowMapper>();
         services.TryAddSingleton<IWorkflowSerializer, JsonWorkflowSerializer>();

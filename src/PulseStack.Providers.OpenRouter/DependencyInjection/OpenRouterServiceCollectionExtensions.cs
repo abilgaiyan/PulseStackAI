@@ -50,8 +50,11 @@ public static class OpenRouterServiceCollectionExtensions
                 .AsIChatClient();
         });
 
-        services.TryAddSingleton<IChatClientFactory,
-                OpenRouterChatClientFactory>();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<ChatClientFactoryRegistration>(sp =>
+                new ChatClientFactoryRegistration(
+                    "OpenRouter",
+                    sp.GetRequiredService<OpenRouterChatClientFactory>())));
 
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
