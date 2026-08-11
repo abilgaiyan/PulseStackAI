@@ -15,7 +15,8 @@ public static class OllamaServiceCollectionExtensions
     public static IServiceCollection UseOllama(
         this IServiceCollection services,
         string endpoint,
-        string model)
+        string model,
+        string? apiKey = null)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentException.ThrowIfNullOrWhiteSpace(endpoint);
@@ -25,6 +26,7 @@ public static class OllamaServiceCollectionExtensions
         {
             options.Endpoint = endpoint;
             options.Model = model;
+            options.ApiKey = apiKey ?? string.Empty;
         });
 
         services.TryAddSingleton<OllamaChatClientFactory>();
