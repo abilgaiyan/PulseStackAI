@@ -2,7 +2,10 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
-using OpenAI;
+using PulseStack.Abstractions.Chat;
+using PulseStack.Abstractions.Models;
+using PulseStack.Providers.Groq.Factories;
+using PulseStack.Providers.Groq.Models;
 using PulseStack.Providers.Groq.Options;
 
 namespace PulseStack.Providers.Groq.DependencyInjection;
@@ -18,29 +21,34 @@ public static class GroqServiceCollectionExtensions
         ArgumentException.ThrowIfNullOrWhiteSpace(apiKey);
         ArgumentException.ThrowIfNullOrWhiteSpace(model);
 
-        // Store configuration
         services.Configure<GroqOptions>(options =>
         {
             options.ApiKey = apiKey;
             options.Model = model;
         });
 
-        // Register IChatClient
+        services.TryAddSingleton<GroqChatClientFactory>();
+
         services.TryAddSingleton<IChatClient>(provider =>
         {
-            var groqOptions = provider.GetRequiredService<IOptions<GroqOptions>>().Value;
-            var options = new OpenAIClientOptions
-            {
-                Endpoint = new Uri(groqOptions.Endpoint ?? "https://api.groq.com/openai/v1")
-            };
-            
-            // Create the OpenAIClient with API key first, then options
-            var client = new OpenAIClient(
-                 new System.ClientModel.ApiKeyCredential(groqOptions.ApiKey), options);
-            
-            // Get the chat client and convert to IChatClient
-            return client.GetChatClient(groqOptions.Model).AsIChatClient();
+            var options = provider
+                .GetRequiredService<IOptions<GroqOptions>>()
+                .Value;
+
+            return provider
+                .GetRequiredService<GroqChatClientFactory>()
+                .Create(options.Model);
         });
+
+        services.AddSingleton<ChatClientFactoryRegistration>(sp =>
+            new ChatClientFactoryRegistration(
+                "Groq",
+                sp.GetRequiredService<GroqChatClientFactory>()));
+
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IModelCatalogSource,
+                GroqModelCatalogSource>());
 
         return services;
     }
