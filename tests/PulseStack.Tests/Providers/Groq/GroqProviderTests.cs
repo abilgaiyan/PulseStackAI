@@ -98,16 +98,19 @@ public sealed class GroqProviderTests
     public void Factory_Should_Create_Chat_Client_Without_Executing_A_Request()
     {
         var services = new ServiceCollection();
-        services.Configure<GroqOptions>(options =>
-        {
-            options.ApiKey = "test-api-key";
-            options.Endpoint = "https://api.groq.com/openai/v1";
-        });
+
+        services.UseGroq(
+            apiKey: "test-api-key",
+            model: "llama-3.3-70b-versatile");
 
         using var provider = services.BuildServiceProvider();
-        var factory = provider.GetRequiredService<GroqChatClientFactory>();
 
-        factory.Create("llama-3.3-70b-versatile")
-            .Should().BeAssignableTo<IChatClient>();
+        var factory = provider
+            .GetRequiredService<GroqChatClientFactory>();
+
+        factory
+            .Create("llama-3.3-70b-versatile")
+            .Should()
+            .BeAssignableTo<IChatClient>();
     }
 }

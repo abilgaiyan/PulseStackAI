@@ -1,11 +1,12 @@
 using FluentAssertions;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
-using PulseStack.Abstractions.Chat;
 using PulseStack.Abstractions.Models;
 using PulseStack.Providers.Ollama.DependencyInjection;
 using PulseStack.Providers.Ollama.Factories;
 using PulseStack.Providers.Ollama.Options;
+using PulseStack.Providers.Ollama.Models;
+using Xunit;
 
 namespace PulseStack.Tests.Providers.Ollama;
 
