@@ -7,8 +7,6 @@
 
   <ItemGroup>
     <PackageReference Include="Google.GenAI" />
-    <PackageReference Include="Google_GenerativeAI" />
-    <PackageReference Include="Google_GenerativeAI.Microsoft" />
   </ItemGroup>
 
   <PropertyGroup>
