@@ -1,7 +1,11 @@
-using Azure;
-using Azure.AI.OpenAI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
+using PulseStack.Abstractions.Chat;
+using PulseStack.Abstractions.Models;
+using PulseStack.Providers.AzureOpenAI.Factories;
+using PulseStack.Providers.AzureOpenAI.Models;
 using PulseStack.Providers.AzureOpenAI.Options;
 
 namespace PulseStack.Providers.AzureOpenAI.DependencyInjection;
@@ -14,27 +18,40 @@ public static class AzureOpenAIServiceCollectionExtensions
         string apiKey,
         string deployment)
     {
+        ArgumentNullException.ThrowIfNull(services);
         ArgumentException.ThrowIfNullOrWhiteSpace(endpoint);
         ArgumentException.ThrowIfNullOrWhiteSpace(apiKey);
         ArgumentException.ThrowIfNullOrWhiteSpace(deployment);
 
-        services.AddSingleton(new AzureOpenAIOptions
+        services.Configure<AzureOpenAIOptions>(options =>
         {
-            Endpoint = endpoint,
-            ApiKey = apiKey,
-            Deployment = deployment
+            options.Endpoint = endpoint;
+            options.ApiKey = apiKey;
+            options.Deployment = deployment;
         });
 
-        services.AddSingleton<IChatClient>(_ =>
-        {
-            var client = new AzureOpenAIClient(
-                new Uri(endpoint),
-                new AzureKeyCredential(apiKey));
+        services.TryAddSingleton<AzureOpenAIChatClientFactory>();
 
-            return client
-                .GetChatClient(deployment)
-                .AsIChatClient();
+        services.TryAddSingleton<IChatClient>(provider =>
+        {
+            var options = provider
+                .GetRequiredService<IOptions<AzureOpenAIOptions>>()
+                .Value;
+
+            return provider
+                .GetRequiredService<AzureOpenAIChatClientFactory>()
+                .Create(options.Deployment);
         });
+
+        services.AddSingleton<ChatClientFactoryRegistration>(sp =>
+            new ChatClientFactoryRegistration(
+                "AzureOpenAI",
+                sp.GetRequiredService<AzureOpenAIChatClientFactory>()));
+
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IModelCatalogSource,
+                AzureOpenAIModelCatalogSource>());
 
         return services;
     }
