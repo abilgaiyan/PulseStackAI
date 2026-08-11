@@ -7,6 +7,7 @@
     <ProjectReference Include="..\..\src\PulseStack.Tools\PulseStack.Tools.csproj" />
     <ProjectReference Include="..\..\src\PulseStack.Providers.OpenAI\PulseStack.Providers.OpenAI.csproj" />
     <ProjectReference Include="..\..\src\PulseStack.Providers.Groq\PulseStack.Providers.Groq.csproj" />
+    <ProjectReference Include="..\..\src\PulseStack.Providers.Gemini\PulseStack.Providers.Gemini.csproj" />
   </ItemGroup>
 
   <ItemGroup>
