@@ -1,6 +1,11 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
-using OllamaSharp;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
+using PulseStack.Abstractions.Chat;
+using PulseStack.Abstractions.Models;
+using PulseStack.Providers.Ollama.Factories;
+using PulseStack.Providers.Ollama.Models;
 using PulseStack.Providers.Ollama.Options;
 
 namespace PulseStack.Providers.Ollama.DependencyInjection;
@@ -12,23 +17,38 @@ public static class OllamaServiceCollectionExtensions
         string endpoint,
         string model)
     {
+        ArgumentNullException.ThrowIfNull(services);
         ArgumentException.ThrowIfNullOrWhiteSpace(endpoint);
         ArgumentException.ThrowIfNullOrWhiteSpace(model);
 
-        services.AddSingleton(new OllamaOptions
+        services.Configure<OllamaOptions>(options =>
         {
-            Endpoint = endpoint,
-            Model = model
+            options.Endpoint = endpoint;
+            options.Model = model;
         });
 
-        services.AddSingleton<IChatClient>(_ =>
-        {
-            var ollama = new OllamaApiClient(
-                endpoint,
-                model);
+        services.TryAddSingleton<OllamaChatClientFactory>();
 
-            return ollama;
+        services.TryAddSingleton<IChatClient>(provider =>
+        {
+            var options = provider
+                .GetRequiredService<IOptions<OllamaOptions>>()
+                .Value;
+
+            return provider
+                .GetRequiredService<OllamaChatClientFactory>()
+                .Create(options.Model);
         });
+
+        services.AddSingleton<ChatClientFactoryRegistration>(sp =>
+            new ChatClientFactoryRegistration(
+                "Ollama",
+                sp.GetRequiredService<OllamaChatClientFactory>()));
+
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IModelCatalogSource,
+                OllamaModelCatalogSource>());
 
         return services;
     }
