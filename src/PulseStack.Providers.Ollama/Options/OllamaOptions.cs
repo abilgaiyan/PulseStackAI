@@ -7,4 +7,8 @@ public sealed class OllamaOptions
 
     public string Model { get; set; } =
         "llama3";
+
+    public string ApiKey { get; set; } = string.Empty;
+
+    public IReadOnlyCollection<string> AvailableModels { get; set; } = [];
 }
