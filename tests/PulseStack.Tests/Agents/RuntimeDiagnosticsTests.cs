@@ -1,8 +1,7 @@
 using FluentAssertions;
-using Microsoft.Extensions.AI;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
-using PulseStack.Abstractions.Tools;
+using PulseStack.Abstractions.Runtime.Usage;
 using PulseStack.Agents.Pipelines;
 using PulseStack.Agents.Runtime;
 using PulseStack.Agents.Runtime.Diagnostics;
@@ -258,34 +257,17 @@ public class RuntimeDiagnosticsTests
 
         public string Name { get; }
 
-        public string? Model => null;
-
-        public Task<ChatResponse> RunAsync(
+        public Task<AgentResponse> RunAsync(
             string input,
             CancellationToken cancellationToken = default)
         {
-            var context = new PipelineContext
-            {
-                Input = input,
-                CurrentOutput = input
-            };
-
-            return RunAsync(
-                context,
-                cancellationToken);
-        }
-
-        public Task<ChatResponse> RunAsync(
-            PipelineContext context,
-            CancellationToken cancellationToken = default)
-        {
-            context.CurrentOutput = _response;
+            cancellationToken.ThrowIfCancellationRequested();
 
             return Task.FromResult(
-                new ChatResponse(
-                    new ChatMessage(
-                        ChatRole.Assistant,
-                        _response)));
+                new AgentResponse
+                {
+                    Text = _response
+                });
         }
 
         public async IAsyncEnumerable<string> StreamAsync(
@@ -293,6 +275,8 @@ public class RuntimeDiagnosticsTests
             [System.Runtime.CompilerServices.EnumeratorCancellation]
             CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             yield return _response;
 
             await Task.CompletedTask;
@@ -314,41 +298,25 @@ public class RuntimeDiagnosticsTests
 
         public string Name { get; }
 
-        public string? Model => null;
-
-        public Task<ChatResponse> RunAsync(
+        public Task<AgentResponse> RunAsync(
             string input,
             CancellationToken cancellationToken = default)
         {
-            var context = new PipelineContext
-            {
-                Input = input,
-                CurrentOutput = input
-            };
+            cancellationToken.ThrowIfCancellationRequested();
 
-            return RunAsync(
-                context,
-                cancellationToken);
-        }
-
-        public Task<ChatResponse> RunAsync(
-            PipelineContext context,
-            CancellationToken cancellationToken = default)
-        {
             _attempts++;
 
             if (_attempts == 1)
             {
-                throw new InvalidOperationException("Transient failure.");
+                throw new InvalidOperationException(
+                    "Transient failure.");
             }
 
-            context.CurrentOutput = _response;
-
             return Task.FromResult(
-                new ChatResponse(
-                    new ChatMessage(
-                        ChatRole.Assistant,
-                        _response)));
+                new AgentResponse
+                {
+                    Text = _response
+                });
         }
 
         public async IAsyncEnumerable<string> StreamAsync(
@@ -356,6 +324,8 @@ public class RuntimeDiagnosticsTests
             [System.Runtime.CompilerServices.EnumeratorCancellation]
             CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             yield return _response;
 
             await Task.CompletedTask;
@@ -364,35 +334,20 @@ public class RuntimeDiagnosticsTests
 
     private sealed class FailingAgent : IAgent
     {
-        public FailingAgent(
-            string name)
+        public FailingAgent(string name)
         {
             Name = name;
         }
 
         public string Name { get; }
 
-        public string? Model => null;
-
-        public Task<ChatResponse> RunAsync(
+        public Task<AgentResponse> RunAsync(
             string input,
             CancellationToken cancellationToken = default)
         {
-            var context = new PipelineContext
-            {
-                Input = input,
-                CurrentOutput = input
-            };
-
-            return RunAsync(
-                context,
-                cancellationToken);
+            throw new InvalidOperationException(
+                "Permanent failure.");
         }
-
-        public Task<ChatResponse> RunAsync(
-            PipelineContext context,
-            CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("Permanent failure.");
 
         public async IAsyncEnumerable<string> StreamAsync(
             string input,
@@ -400,7 +355,6 @@ public class RuntimeDiagnosticsTests
             CancellationToken cancellationToken = default)
         {
             await Task.CompletedTask;
-
             yield break;
         }
     }
@@ -450,7 +404,7 @@ public class RuntimeDiagnosticsTests
 
         public string? Model => "test-model";
 
-        public Task<ChatResponse> RunAsync(
+        public async Task<AgentResponse> RunAsync(
             string input,
             CancellationToken cancellationToken = default)
         {
@@ -460,17 +414,23 @@ public class RuntimeDiagnosticsTests
                 CurrentOutput = input
             };
 
-            return RunAsync(
-                context,
-                cancellationToken);
-        }
+           var response = await _runtime.RunAsync(
+            context,
+            cancellationToken);
 
-        public Task<ChatResponse> RunAsync(
-            PipelineContext context,
-            CancellationToken cancellationToken = default)
-            => _runtime.RunAsync(
-                context,
-                cancellationToken);
+            return new AgentResponse
+            {
+                Text = response.Text ?? string.Empty,
+                Model = response.Model,
+                Usage = new AIUsage()
+                {
+                    Provider = "TestProvider",
+                    PromptTokens = 100,
+                    CompletionTokens = 200
+                }
+                
+            };
+        }
 
         public async IAsyncEnumerable<string> StreamAsync(
             string input,

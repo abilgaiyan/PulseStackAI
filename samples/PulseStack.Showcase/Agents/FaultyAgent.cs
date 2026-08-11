@@ -8,25 +8,14 @@ internal sealed class FaultyAgent : IAgent
 {
     public string Name => "ComplianceValidator";
 
-    public string Model => "demo";
-
-    public Task<ChatResponse> RunAsync(string input, CancellationToken cancellationToken = default)
-    {
-        return RunAsync(
-            new PipelineContext
-            {
-                Input = input,
-                CurrentOutput = input
-            },
-            cancellationToken);
-    }
-    public async Task<ChatResponse> RunAsync(PipelineContext context, CancellationToken cancellationToken = default)
+    public async Task<AgentResponse> RunAsync(string input, CancellationToken cancellationToken = default)
     {
         await Task.Delay(1000, cancellationToken);
 
-        throw new InvalidOperationException("Compliance validation service unavailable.");
+        throw new InvalidOperationException(
+                "Compliance validation failed.");
     }
-
+    
     public async IAsyncEnumerable<string> StreamAsync(string prompt, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         await Task.Delay(1000, cancellationToken);

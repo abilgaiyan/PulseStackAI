@@ -93,7 +93,7 @@ public class SequentialPipelineTests
     {
         var pipeline =
             new SequentialPipeline("Sequential")
-                .Add(new FakeAgent(
+                .Add(new ModelAwareFakeAgent(
                     "Researcher",
                     "Research",
                     "gpt-4"));

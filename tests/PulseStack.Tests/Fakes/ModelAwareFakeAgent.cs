@@ -3,16 +3,19 @@ using PulseStack.Abstractions.Agents;
 
 namespace PulseStack.Tests.Fakes;
 
-public sealed class FakeAgent : IAgent
+public sealed class ModelAwareFakeAgent : IAgent
 {
     private readonly string _response;
-    
-    public FakeAgent(
+    private readonly string _model;
+
+    public ModelAwareFakeAgent(
         string name,
-        string response)
+        string response,
+        string model)
     {
         Name = name;
         _response = response;
+        _model = model;
     }
 
     public string Name { get; }
@@ -26,13 +29,14 @@ public sealed class FakeAgent : IAgent
         return Task.FromResult(
             new AgentResponse
             {
-                Text = _response
+                Text = _response,
+                Model = _model
             });
     }
 
     public async IAsyncEnumerable<string> StreamAsync(
         string input,
-        [EnumeratorCancellation]
+        [System.Runtime.CompilerServices.EnumeratorCancellation]
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();

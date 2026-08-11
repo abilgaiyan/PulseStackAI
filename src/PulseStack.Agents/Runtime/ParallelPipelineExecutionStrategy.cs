@@ -163,7 +163,7 @@ internal sealed class ParallelPipelineExecutionStrategy
         branch.PipelineContext.Steps.Add(
             new PipelineStepResult(
                 agent.Name,
-                agent.Model,
+                result.Model,
                 input,
                 result.Success ? result.Output : null,
                 result.Success,

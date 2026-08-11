@@ -1,13 +1,14 @@
 using System.Runtime.CompilerServices;
+using Microsoft.Extensions.AI;
 using PulseStack.Abstractions.Agents;
 
-namespace PulseStack.Tests.Fakes;
+namespace PulseStack.Showcase.Agents; 
 
-public sealed class FakeAgent : IAgent
+internal sealed class SuccessfulAgent : IAgent
 {
     private readonly string _response;
-    
-    public FakeAgent(
+
+    public SuccessfulAgent(
         string name,
         string response)
     {
@@ -16,6 +17,9 @@ public sealed class FakeAgent : IAgent
     }
 
     public string Name { get; }
+
+    public string Model =>
+        "demo";
 
     public Task<AgentResponse> RunAsync(
         string input,
@@ -26,7 +30,8 @@ public sealed class FakeAgent : IAgent
         return Task.FromResult(
             new AgentResponse
             {
-                Text = _response
+                Text = _response,
+                Model = Model
             });
     }
 

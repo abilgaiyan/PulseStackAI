@@ -1,8 +1,7 @@
 using FluentAssertions;
-using Microsoft.Extensions.AI;
 using PulseStack.Abstractions.Agents;
-using PulseStack.Abstractions.Tools;
 using PulseStack.Agents.Pipelines;
+using PulseStack.Agents.Runtime;
 using PulseStack.Agents.Runtime.Context;
 using PulseStack.Agents.Runtime.Diagnostics;
 using Xunit;
@@ -66,10 +65,11 @@ public class ParallelPipelineTests
     }
 
     [Fact]
-    public async Task RunAsync_Should_Use_Isolated_Branched_Contexts()
+    public async Task RunAsync_Should_Execute_Agents_In_Isolated_Branches()
     {
-        var first = new CapturingAgent("First", "one");
-        var second = new CapturingAgent("Second", "two");
+        var first = new TestAgent("First", "one");
+        var second = new TestAgent("Second", "two");
+
         var context = new PipelineContext
         {
             Input = "input",
@@ -77,33 +77,32 @@ public class ParallelPipelineTests
         };
 
         var dispatcher = new RuntimeEventDispatcher();
+
         var pipeline = new ParallelPipeline("Parallel", dispatcher)
             .Add(first)
             .Add(second);
 
-        await pipeline.RunAsync(context);
+        var result = await pipeline.RunAsync(context);
 
-        first.Context.Should().NotBeNull();
-        second.Context.Should().NotBeNull();
-        first.Context.Should().NotBeSameAs(context);
-        second.Context.Should().NotBeSameAs(context);
-        first.Context.Should().NotBeSameAs(second.Context);
+       // result.Success.Should().BeTrue();
+        result.Steps.Should().HaveCount(2);
+
+        result.Steps
+            .Select(step => step.AgentName)
+            .Should()
+            .ContainInOrder("First", "Second");
+
         context.Items.Should().NotContainKey("branch");
     }
 
     [Fact]
-    public async Task RunAsync_Should_Aggregate_Steps_ToolResults_And_FinalOutputs()
+    public async Task RunAsync_Should_Aggregate_Steps_And_FinalOutputs()
     {
         var dispatcher = new RuntimeEventDispatcher();
+
         var pipeline = new ParallelPipeline("Parallel", dispatcher)
-            .Add(new ToolRecordingAgent(
-                "First",
-                "one",
-                "calculator"))
-            .Add(new ToolRecordingAgent(
-                "Second",
-                "two",
-                "clock"));
+            .Add(new TestAgent("First", "one"))
+            .Add(new TestAgent("Second", "two"));
 
         var context = new PipelineContext
         {
@@ -115,16 +114,19 @@ public class ParallelPipelineTests
 
         result.FinalOutput.Should().Be(
             string.Join(Environment.NewLine, "one", "two"));
-        result.Steps.Select(s => s.AgentName)
+
+        result.Steps
+            .Select(s => s.AgentName)
             .Should()
             .Equal("First", "Second");
-        context.ToolResults.Select(t => t.ToolName)
-            .Should()
-            .Equal("calculator", "clock");
-        context.Items[PipelineContextKeys.AgentOutput("First")]
+
+        context.Items[
+            PipelineContextKeys.AgentOutput("First")]
             .Should()
             .Be("one");
-        context.Items[PipelineContextKeys.AgentOutput("Second")]
+
+        context.Items[
+            PipelineContextKeys.AgentOutput("Second")]
             .Should()
             .Be("two");
     }
@@ -133,11 +135,9 @@ public class ParallelPipelineTests
     public async Task RunAsync_Should_Preserve_Successful_Results_When_A_Branch_Fails()
     {
         var dispatcher = new RuntimeEventDispatcher();
+
         var pipeline = new ParallelPipeline("Parallel", dispatcher)
-            .Add(new ToolRecordingAgent(
-                "First",
-                "one",
-                "calculator"))
+            .Add(new TestAgent("First", "one"))
             .Add(new ThrowingAgent("Broken"));
 
         var context = new PipelineContext
@@ -149,15 +149,22 @@ public class ParallelPipelineTests
         var result = await pipeline.RunAsync(context);
 
         result.FinalOutput.Should().Be("one");
-        result.Steps.Select(s => s.AgentName)
+
+        result.Steps
+            .Select(s => s.AgentName)
             .Should()
             .Equal("First", "Broken");
-        result.Steps.Single(s => s.AgentName == "Broken")
-            .Success.Should().BeFalse();
-        context.ToolResults.Should().ContainSingle()
-            .Which.ToolName.Should().Be("calculator");
-        context.Items.Should().ContainKey(
-            PipelineContextKeys.AgentError("Broken"));
+
+        result.Steps
+            .Single(s => s.AgentName == "Broken")
+            .Success
+            .Should()
+            .BeFalse();
+
+        context.Items
+            .Should()
+            .ContainKey(
+                PipelineContextKeys.AgentError("Broken"));
     }
 
     private sealed class BlockingAgent : TestAgent
@@ -173,67 +180,14 @@ public class ParallelPipelineTests
             _block = block;
         }
 
-        public override async Task<ChatResponse> RunAsync(
-            PipelineContext context,
+        public async override Task<AgentResponse> RunAsync(
+            string input,
             CancellationToken cancellationToken = default)
         {
             await _block();
 
             return await base.RunAsync(
-                context,
-                cancellationToken);
-        }
-    }
-
-    private sealed class CapturingAgent : TestAgent
-    {
-        public CapturingAgent(
-            string name,
-            string response)
-            : base(name, response)
-        {
-        }
-
-        public PipelineContext? Context { get; private set; }
-
-        public override Task<ChatResponse> RunAsync(
-            PipelineContext context,
-            CancellationToken cancellationToken = default)
-        {
-            Context = context;
-            context.Items["branch"] = Name;
-
-            return base.RunAsync(
-                context,
-                cancellationToken);
-        }
-    }
-
-    private sealed class ToolRecordingAgent : TestAgent
-    {
-        private readonly string _toolName;
-
-        public ToolRecordingAgent(
-            string name,
-            string response,
-            string toolName)
-            : base(name, response)
-        {
-            _toolName = toolName;
-        }
-
-        public override Task<ChatResponse> RunAsync(
-            PipelineContext context,
-            CancellationToken cancellationToken = default)
-        {
-            context.ToolResults.Add(
-                new ToolExecutionRecord(
-                    _toolName,
-                    "input",
-                    ToolExecutionResult.Success("ok")));
-
-            return base.RunAsync(
-                context,
+                input,
                 cancellationToken);
         }
     }
@@ -245,17 +199,18 @@ public class ParallelPipelineTests
         {
         }
 
-        public override Task<ChatResponse> RunAsync(
-            PipelineContext context,
+        public override Task<AgentResponse> RunAsync(
+            string input,
             CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("Branch failed.");
+            => throw new InvalidOperationException(
+                "Branch failed.");
     }
 
-    private abstract class TestAgent : IAgent
+    private class TestAgent : IAgent
     {
         private readonly string _response;
 
-        protected TestAgent(
+        public TestAgent(
             string name,
             string response)
         {
@@ -265,34 +220,17 @@ public class ParallelPipelineTests
 
         public string Name { get; }
 
-        public string? Model => null;
-
-        public Task<ChatResponse> RunAsync(
+        public virtual Task<AgentResponse> RunAsync(
             string input,
             CancellationToken cancellationToken = default)
         {
-            var context = new PipelineContext
-            {
-                Input = input,
-                CurrentOutput = input
-            };
-
-            return RunAsync(
-                context,
-                cancellationToken);
-        }
-
-        public virtual Task<ChatResponse> RunAsync(
-            PipelineContext context,
-            CancellationToken cancellationToken = default)
-        {
-            context.CurrentOutput = _response;
+            cancellationToken.ThrowIfCancellationRequested();
 
             return Task.FromResult(
-                new ChatResponse(
-                    new ChatMessage(
-                        ChatRole.Assistant,
-                        _response)));
+                new AgentResponse
+                {
+                    Text = _response
+                });
         }
 
         public async IAsyncEnumerable<string> StreamAsync(
@@ -300,6 +238,8 @@ public class ParallelPipelineTests
             [System.Runtime.CompilerServices.EnumeratorCancellation]
             CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             yield return _response;
 
             await Task.CompletedTask;

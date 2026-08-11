@@ -6,15 +6,20 @@ using PulseStack.Abstractions.Tools;
 
 namespace PulseStack.Agents.Runtime;
 
-internal sealed class Agent : IAgent
+internal sealed class Agent : 
+    IAgent, 
+    IRuntimeAgent
 {
     private readonly AgentRuntime _runtime;
-    private readonly IReadOnlyCollection<string>? _fallbackModels;
+    private readonly IReadOnlyCollection<string> _fallbackModels;
     private readonly string? _model;
 
     public string Name { get; }
-    public string? Model => _model;
-    public IReadOnlyCollection<string>? FallbackModels => _fallbackModels;
+
+    internal string? Model => _model;
+
+    internal IReadOnlyCollection<string> FallbackModels =>
+        _fallbackModels;
 
     public Agent(
         string name,
@@ -33,6 +38,7 @@ internal sealed class Agent : IAgent
         Name = name;
         _model = model;
         _fallbackModels = fallbackModels ?? [];
+
         _runtime = new AgentRuntime(
             client,
             toolExecutor,
@@ -62,6 +68,7 @@ internal sealed class Agent : IAgent
         Name = name;
         _model = model;
         _fallbackModels = fallbackModels ?? [];
+
         _runtime = new AgentRuntime(
             clientFactory,
             toolExecutor,
@@ -73,7 +80,7 @@ internal sealed class Agent : IAgent
             this);
     }
 
-    public Task<ChatResponse> RunAsync(
+    public  Task<AgentResponse> RunAsync(
         string input,
         CancellationToken cancellationToken = default)
     {
@@ -85,31 +92,20 @@ internal sealed class Agent : IAgent
             CurrentOutput = input
         };
 
-        return RunAsync(
+       return _runtime.RunAsync(
             context,
             cancellationToken);
     }
 
-    public Task<ChatResponse> RunAsync(
-        PipelineContext context,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(context);
-
-        return _runtime.RunAsync(
-            context,
-            cancellationToken);
-    }
-
-    internal Task<ChatResponse> RunCoreAsync(
+    async Task<AgentResponse> IRuntimeAgent.RunAsync(
         PipelineContext context,
         AgentExecutionContext executionContext,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(executionContext);
 
-        return _runtime.RunCoreAsync(
+        return await _runtime.RunCoreAsync(
             context,
             executionContext,
             cancellationToken);

@@ -1,5 +1,4 @@
 using FluentAssertions;
-using Microsoft.Extensions.AI;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Runtime.Pipeline;
 using PulseStack.Agents.Runtime.Diagnostics;
@@ -97,27 +96,12 @@ public class AgentPipelineTests
 
         public string Name { get; }
 
-        public string? Model => null;
-
-        public Task<ChatResponse> RunAsync(
+        public Task<AgentResponse> RunAsync(
             string input,
             CancellationToken cancellationToken = default)
         {
-            var context = new PipelineContext
-            {
-                Input = input,
-                CurrentOutput = input
-            };
-
-            return RunAsync(
-                context,
-                cancellationToken);
+            throw new InvalidOperationException("Agent failed.");
         }
-
-        public Task<ChatResponse> RunAsync(
-            PipelineContext context,
-            CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("Agent failed.");
 
         public async IAsyncEnumerable<string> StreamAsync(
             string input,

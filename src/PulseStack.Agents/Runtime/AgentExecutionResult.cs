@@ -5,6 +5,7 @@ namespace PulseStack.Agents.Runtime;
 public sealed class AgentExecutionResult
 {
     public bool Success { get; init; }
+    public string? Model { get; init; }
 
     public string Output { get; init; } = string.Empty;
 

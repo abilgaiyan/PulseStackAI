@@ -1,4 +1,3 @@
-using Microsoft.Extensions.AI;
 using PulseStack.Abstractions.Agents;
 
 namespace PulseStack.Showcase.Infrastructure;
@@ -9,44 +8,27 @@ public sealed class SampleAgent : IAgent
 
     public SampleAgent(
         string name,
-        string response,
-        string? model = null)
+        string response)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
         Name = name;
         _response = response;
-        Model = model;
     }
 
     public string Name { get; }
 
-    public string? Model { get; }
-
-    public Task<ChatResponse> RunAsync(
+    public Task<AgentResponse> RunAsync(
         string input,
         CancellationToken cancellationToken = default)
     {
-        var context = new PipelineContext
-        {
-            Input = input,
-            CurrentOutput = input
-        };
-
-        return RunAsync(
-            context,
-            cancellationToken);
-    }
-
-    public Task<ChatResponse> RunAsync(
-        PipelineContext context,
-        CancellationToken cancellationToken = default)
-    {
-        context.CurrentOutput = _response;
+        ArgumentException.ThrowIfNullOrWhiteSpace(input);
 
         return Task.FromResult(
-            new ChatResponse(
-                new ChatMessage(
-                    ChatRole.Assistant,
-                    _response)));
+            new AgentResponse
+            {
+                Text = _response
+            });
     }
 
     public async IAsyncEnumerable<string> StreamAsync(
@@ -54,6 +36,10 @@ public sealed class SampleAgent : IAgent
         [System.Runtime.CompilerServices.EnumeratorCancellation]
         CancellationToken cancellationToken = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(input);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
         yield return _response;
 
         await Task.CompletedTask;

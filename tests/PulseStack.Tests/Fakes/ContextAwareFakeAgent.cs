@@ -1,59 +1,58 @@
 using System.Runtime.CompilerServices;
-using Microsoft.Extensions.AI;
 using PulseStack.Abstractions.Agents;
+using PulseStack.Agents.Runtime;
 
 namespace PulseStack.Tests.Fakes;
-
-internal sealed class ContextAwareFakeAgent : IAgent
+internal sealed class ContextAwareFakeAgent : IAgent, IRuntimeAgent
 {
     public string Name { get; }
 
-    public string? Model => null;
-
-    public ContextAwareFakeAgent(
-        string name)
+    public ContextAwareFakeAgent(string name)
     {
         Name = name;
     }
 
-    public Task<ChatResponse> RunAsync(
+    public Task<AgentResponse> RunAsync(
         string input,
         CancellationToken cancellationToken = default)
     {
-        var context =
-            new PipelineContext
-            {
-                Input = input,
-                CurrentOutput = input
-            };
+        cancellationToken.ThrowIfCancellationRequested();
 
-        return RunAsync(
-            context,
-            cancellationToken);
+        var response =
+            $"Received: {input}";
+
+        return Task.FromResult(
+            new AgentResponse
+            {
+                Text = response
+            });
     }
 
-    public Task<ChatResponse> RunAsync(
+    async Task<AgentResponse> IRuntimeAgent.RunAsync(
         PipelineContext context,
-        CancellationToken cancellationToken = default)
+        AgentExecutionContext executionContext,
+        CancellationToken cancellationToken)
     {
-        var response =
+         var response =
             $"Received: {context.CurrentOutput}";
 
         context.CurrentOutput = response;
 
-        return Task.FromResult(
-            new ChatResponse(
-                new ChatMessage(
-                    ChatRole.Assistant,
-                    response)));
+        return new AgentResponse
+        {
+            Text = response
+        };
     }
-    
+
     public async IAsyncEnumerable<string> StreamAsync(
         string input,
         [EnumeratorCancellation]
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         yield return $"Received: {input}";
+
         await Task.CompletedTask;
     }
 }
