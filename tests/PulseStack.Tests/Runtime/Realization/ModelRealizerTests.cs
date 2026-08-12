@@ -4,6 +4,7 @@ using PulseStack.Abstractions.Chat;
 using PulseStack.Abstractions.Models;
 using PulseStack.Core.Assets;
 using PulseStack.Core.Chat;
+using PulseStack.Core.Providers;
 using PulseStack.Core.Runtime.Realization;
 using PulseStack.Tests.Chat;
 using Xunit;
@@ -16,7 +17,8 @@ public sealed class ModelRealizerTests
     public void ModelRealizer_ShouldResolveFactoryFromAssetProvider()
     {
         var factory = new ChatClientFactoryRegistryTests.FakeChatClientFactory();
-        var realizer = new ModelRealizer(CreateRegistry("TestProvider", factory));
+        var realizer = new ModelRealizer(
+            new ProviderResolver(CreateRegistry("TestProvider", factory)));
 
         realizer.Realize(CreateAsset("TestProvider", "test-model"));
 
@@ -27,7 +29,8 @@ public sealed class ModelRealizerTests
     public void ModelRealizer_ShouldCreateClientUsingAssetModel()
     {
         var factory = new ChatClientFactoryRegistryTests.FakeChatClientFactory();
-        var realizer = new ModelRealizer(CreateRegistry("TestProvider", factory));
+        var realizer = new ModelRealizer(
+            new ProviderResolver(CreateRegistry("TestProvider", factory)));
 
         var client = realizer.Realize(CreateAsset("TestProvider", "test-model"));
 
@@ -38,7 +41,8 @@ public sealed class ModelRealizerTests
     [Fact]
     public void ModelRealizer_ShouldRejectUnknownProvider()
     {
-        var realizer = new ModelRealizer(new ChatClientFactoryRegistry([]));
+        var realizer = new ModelRealizer(
+            new ProviderResolver(new ChatClientFactoryRegistry([])));
 
         var action = () => realizer.Realize(CreateAsset("UnknownProvider", "test-model"));
 
