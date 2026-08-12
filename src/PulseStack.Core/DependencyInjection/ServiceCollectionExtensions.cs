@@ -8,6 +8,8 @@ using PulseStack.Abstractions.Persistence.Mapping;
 using PulseStack.Abstractions.Persistence.Serialization;
 using PulseStack.Abstractions.Persistence.Validation;
 using PulseStack.Abstractions.Runtime.Realization.Resolution;
+using PulseStack.Abstractions.Chat;
+using PulseStack.Abstractions.Providers;
 using PulseStack.Core.Memory;
 using PulseStack.Core.Resilience;
 using PulseStack.Core.Tools;
@@ -19,7 +21,6 @@ using PulseStack.Core.Runtime.Realization.Resolution;
 using PulseStack.Core.Assets;
 using PulseStack.Core.Chat;
 using PulseStack.Core.Runtime.Realization;
-using PulseStack.Abstractions.Chat;
 
 namespace PulseStack.Core.DependencyInjection;
 
@@ -32,27 +33,18 @@ public static class ServiceCollectionExtensions
 
         services.TryAddSingleton<IToolAuthorizationService, AllowAllToolAuthorizationService>();
         services.TryAddScoped<IToolExecutor, ToolExecutor>();
-
-        // Core framework services
         services.AddScoped<IConversationMemory, ConversationMemory>();
-
-        // Required for HttpTool and future integrations
         services.AddHttpClient();
-
         services.AddPulseStackResilience();
 
-        // Build tool registry from registered tools
         services.AddSingleton<IToolRegistry>(sp =>
         {
             var registry = new ToolRegistry();
-
             var tools = sp.GetServices<ITool>();
-
             foreach (var tool in tools)
             {
                 registry.Register(tool);
             }
-
             return registry;
         });
 
@@ -61,6 +53,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IChatClientFactoryRegistry>(sp =>
             new ChatClientFactoryRegistry(
                 sp.GetServices<ChatClientFactoryRegistration>()));
+        services.TryAddSingleton<IProviderResolver, Providers.ProviderResolver>();
         services.TryAddSingleton<ModelRealizer>();
 
         services.TryAddSingleton<IWorkflowMapper, WorkflowMapper>();
@@ -68,9 +61,6 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IWorkflowDeserializer, JsonWorkflowDeserializer>();
         services.TryAddSingleton<IWorkflowValidator, WorkflowValidator>();
 
-        // Runtime realization
-        // The default resolver resolves assets registered in the current service scope.
-        // Applications can replace it with a package, library, or registry-backed resolver.
         services.TryAddScoped<IAssetResolver>(sp =>
             new InMemoryAssetResolver(sp.GetServices<IAsset>()));
 
