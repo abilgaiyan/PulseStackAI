@@ -1,3 +1,5 @@
+using PulseStack.Abstractions.Chat;
+
 namespace PulseStack.Abstractions.Providers;
 
 public interface IProviderResolver
