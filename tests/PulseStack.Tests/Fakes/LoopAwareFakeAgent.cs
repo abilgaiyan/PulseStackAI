@@ -5,7 +5,7 @@ namespace PulseStack.Tests.Fakes;
 
 internal sealed class LoopAwareFakeAgent :
     IAgent,
-    IRuntimeAgent
+    IRuntimeAgentExecutor
 {
     public string Name { get; }
 
@@ -25,7 +25,7 @@ internal sealed class LoopAwareFakeAgent :
             });
     }
 
-    async Task<AgentResponse> IRuntimeAgent.RunAsync(
+    async Task<AgentResponse> IRuntimeAgentExecutor.RunAsync(
         PipelineContext context,
         AgentExecutionContext executionContext,
         CancellationToken cancellationToken)

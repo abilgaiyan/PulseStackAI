@@ -100,7 +100,7 @@ public class PipelineRuntimeTests
             .OnlyContain(id => id == result.ExecutionId);
     }
 
-    private sealed class StaticAgent : IAgent, IRuntimeAgent
+    private sealed class StaticAgent : IAgent, IRuntimeAgentExecutor
     {
         private readonly string _response;
 
@@ -134,7 +134,7 @@ public class PipelineRuntimeTests
             await Task.CompletedTask;
         }
 
-        async Task<AgentResponse> IRuntimeAgent.RunAsync(
+        async Task<AgentResponse> IRuntimeAgentExecutor.RunAsync(
             PipelineContext context,
             AgentExecutionContext executionContext,
             CancellationToken cancellationToken)

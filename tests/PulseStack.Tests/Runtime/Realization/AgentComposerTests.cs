@@ -49,7 +49,7 @@ public sealed class AgentComposerTests
         var runtimeAgent = await composer.ComposeAsync(definition);
 
         runtimeAgent.Should().NotBeNull();
-        runtimeAgent.Should().BeAssignableTo<IRuntimeAgent>();
+        runtimeAgent.Should().BeAssignableTo<IAgentRuntime>();
     }
 
     [Fact]

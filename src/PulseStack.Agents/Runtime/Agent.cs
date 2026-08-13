@@ -2,7 +2,6 @@ using Microsoft.Extensions.AI;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Chat;
 using PulseStack.Abstractions.Memory;
-using PulseStack.Abstractions.Runtime.Pipeline;
 using PulseStack.Abstractions.Tools;
 
 namespace PulseStack.Agents.Runtime;
@@ -109,7 +108,7 @@ internal sealed class Agent :
             context,
             cancellationToken);
     }
-
+    
     Task<AgentResponse> IRuntimeAgentExecutor.RunAsync(
         PipelineContext context,
         AgentExecutionContext executionContext,

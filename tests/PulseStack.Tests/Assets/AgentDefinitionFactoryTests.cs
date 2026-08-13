@@ -1,6 +1,7 @@
 using FluentAssertions;
 using PulseStack.Abstractions.Assets;
 using PulseStack.Core.Assets;
+using Xunit;
 
 namespace PulseStack.Tests.Assets;
 

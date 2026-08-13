@@ -619,7 +619,7 @@ public sealed class AgentRuntime : IAgentRuntime
         AgentExecutionContext executionContext,
         CancellationToken cancellationToken)
     {
-        if (agent is IRuntimeAgent runtimeAgent)
+        if (agent is IRuntimeAgentExecutor runtimeAgent)
         {
             return runtimeAgent.RunAsync(
                 context,

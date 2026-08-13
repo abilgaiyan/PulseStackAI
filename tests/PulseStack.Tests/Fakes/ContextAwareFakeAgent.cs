@@ -3,7 +3,7 @@ using PulseStack.Abstractions.Agents;
 using PulseStack.Agents.Runtime;
 
 namespace PulseStack.Tests.Fakes;
-internal sealed class ContextAwareFakeAgent : IAgent, IRuntimeAgent
+internal sealed class ContextAwareFakeAgent : IAgent, IRuntimeAgentExecutor
 {
     public string Name { get; }
 
@@ -28,7 +28,7 @@ internal sealed class ContextAwareFakeAgent : IAgent, IRuntimeAgent
             });
     }
 
-    async Task<AgentResponse> IRuntimeAgent.RunAsync(
+    async Task<AgentResponse> IRuntimeAgentExecutor.RunAsync(
         PipelineContext context,
         AgentExecutionContext executionContext,
         CancellationToken cancellationToken)
