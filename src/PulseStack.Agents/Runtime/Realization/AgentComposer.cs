@@ -1,5 +1,6 @@
+using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Assets;
-using PulseStack.Abstractions.Memory;
+using PulseStack.Abstractions.Chat;
 using PulseStack.Abstractions.Runtime.Realization.Composition;
 using PulseStack.Abstractions.Runtime.Realization.Resolution;
 using PulseStack.Abstractions.Tools;
@@ -15,30 +16,22 @@ internal sealed class AgentComposer : IAgentComposer
     private readonly IAssetResolver _assetResolver;
     private readonly ModelRealizer _modelRealizer;
     private readonly IToolExecutor _toolExecutor;
-    private readonly IToolRegistry _toolRegistry;
-    private readonly IConversationMemory _memory;
 
     public AgentComposer(
         IAssetResolver assetResolver,
         ModelRealizer modelRealizer,
-        IToolExecutor toolExecutor,
-        IToolRegistry toolRegistry,
-        IConversationMemory memory)
+        IToolExecutor toolExecutor)
     {
         ArgumentNullException.ThrowIfNull(assetResolver);
         ArgumentNullException.ThrowIfNull(modelRealizer);
         ArgumentNullException.ThrowIfNull(toolExecutor);
-        ArgumentNullException.ThrowIfNull(toolRegistry);
-        ArgumentNullException.ThrowIfNull(memory);
 
         _assetResolver = assetResolver;
         _modelRealizer = modelRealizer;
         _toolExecutor = toolExecutor;
-        _toolRegistry = toolRegistry;
-        _memory = memory;
     }
 
-    public async Task<IAgentRuntime> ComposeAsync(
+    public async Task<IRuntimeAgent> ComposeAsync(
         AgentDefinition definition,
         CancellationToken cancellationToken = default)
     {
