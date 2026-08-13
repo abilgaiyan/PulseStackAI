@@ -14,9 +14,11 @@ public sealed class AgentDefinitionFactory
         ArgumentException.ThrowIfNullOrWhiteSpace(options.Goal);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.Role);
 
+        var id = AssetId.New();
+
         return new AgentDefinition(
-            AssetId.New(),
-            new AssetUrn($"urn:pulsestack:agent:{AssetId.New()}"),
+            id,
+            new AssetUrn($"urn:pulsestack:agent:{id}"),
             options);
     }
 }
