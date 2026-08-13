@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Assets;
 using PulseStack.Abstractions.Chat;
 using PulseStack.Abstractions.Models;
@@ -48,7 +49,7 @@ public sealed class AgentComposerTests
         var runtimeAgent = await composer.ComposeAsync(definition);
 
         runtimeAgent.Should().NotBeNull();
-        runtimeAgent.Should().BeAssignableTo<IAgentRuntime>();
+        runtimeAgent.Should().BeAssignableTo<IRuntimeAgent>();
     }
 
     [Fact]
@@ -126,7 +127,12 @@ public sealed class AgentComposerTests
 
         public IChatClientFactory Resolve(string provider)
         {
-            provider.Should().Be("Stub");
+            if (provider != "Stub")
+            {
+                throw new InvalidOperationException(
+                    $"Unexpected provider '{provider}'.");
+            }
+
             return _factory;
         }
     }
@@ -135,7 +141,12 @@ public sealed class AgentComposerTests
     {
         public IChatClient Create(string model)
         {
-            model.Should().Be("stub-model");
+            if (model != "stub-model")
+            {
+                throw new InvalidOperationException(
+                    $"Unexpected model '{model}'.");
+            }
+
             return new StubChatClient();
         }
     }
