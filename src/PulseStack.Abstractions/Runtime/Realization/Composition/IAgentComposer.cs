@@ -14,7 +14,7 @@ public interface IAgentComposer
     /// <param name="definition">The declarative Agent definition.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The composed runtime Agent.</returns>
-    Task<IRuntimeAgent> ComposeAsync(
+    Task<IAgentRuntime> ComposeAsync(
         AgentDefinition definition,
         CancellationToken cancellationToken = default);
 }
