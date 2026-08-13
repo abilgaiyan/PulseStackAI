@@ -16,20 +16,32 @@ public sealed record AgentDefinition : Asset
     {
         ArgumentNullException.ThrowIfNull(options);
 
+        var normalizedOptions = Normalize(options);
+
         Id = id;
         Urn = urn;
         Version = AssetVersion.Initial;
         Metadata = new AssetMetadata
         {
-            Name = options.Name,
+            Name = normalizedOptions.Name,
             Tags = []
         };
         Lifecycle = AssetLifecycle.Draft;
-        Options = options;
-        References = CollectReferences(options);
+        Options = normalizedOptions;
+        References = CollectReferences(normalizedOptions);
     }
 
     public AgentDefinitionOptions Options { get; }
+
+    private static AgentDefinitionOptions Normalize(
+        AgentDefinitionOptions options)
+        => options with
+        {
+            Responsibilities = options.Responsibilities.ToArray(),
+            Knowledge = options.Knowledge.ToArray(),
+            Tools = options.Tools.ToArray(),
+            Policies = options.Policies.ToArray()
+        };
 
     private static IReadOnlyCollection<AssetReference> CollectReferences(
         AgentDefinitionOptions options)
@@ -56,6 +68,6 @@ public sealed record AgentDefinition : Asset
 
         references.AddRange(options.Policies);
 
-        return references.ToArray();
+        return references.Distinct().ToArray();
     }
 }
