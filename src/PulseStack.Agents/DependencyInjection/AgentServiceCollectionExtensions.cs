@@ -1,10 +1,13 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using PulseStack.Abstractions.Agents;
+using PulseStack.Abstractions.Runtime.Realization.Composition;
 using PulseStack.Agents.Runtime.Diagnostics;
 using PulseStack.Agents.Runtime;
+using PulseStack.Agents.Runtime.Realization;
 
 namespace PulseStack.Agents.DependencyInjection;
+
 public static class AgentServiceCollectionExtensions
 {
     public static IServiceCollection AddPulseStackAgents(
@@ -16,6 +19,8 @@ public static class AgentServiceCollectionExtensions
                                  RuntimeEventDispatcher>();
 
         services.TryAddSingleton<IAgentRuntime, AgentRuntime>();
+
+        services.TryAddScoped<IAgentComposer, AgentComposer>();
 
         services.TryAddSingleton<PipelineRuntime>();
 
