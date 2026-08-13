@@ -1,10 +1,10 @@
-using PulseStack.Abstractions.Agents;
-
 namespace PulseStack.Agents.Runtime;
-internal interface IRuntimeAgent
+
+/// <summary>
+/// Compatibility bridge for the existing AgentRuntime execution path.
+/// New runtime composition uses <see cref="IRuntimeAgentExecutor"/> directly.
+/// </summary>
+[Obsolete("Use IRuntimeAgentExecutor instead.")]
+internal interface IRuntimeAgent : IRuntimeAgentExecutor
 {
-    Task<AgentResponse> RunAsync(
-        PipelineContext context,
-        AgentExecutionContext executionContext,
-        CancellationToken cancellationToken = default);
 }
