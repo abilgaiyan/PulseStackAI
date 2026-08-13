@@ -2,13 +2,15 @@ using Microsoft.Extensions.AI;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Chat;
 using PulseStack.Abstractions.Memory;
+using PulseStack.Abstractions.Runtime.Pipeline;
 using PulseStack.Abstractions.Tools;
 
 namespace PulseStack.Agents.Runtime;
 
-internal sealed class Agent : 
-    IAgent, 
-    IRuntimeAgent
+internal sealed class Agent :
+    IAgent,
+    IAgentRuntime,
+    IRuntimeAgentExecutor
 {
     private readonly AgentRuntime _runtime;
     private readonly IReadOnlyCollection<string> _fallbackModels;
@@ -80,7 +82,7 @@ internal sealed class Agent :
             this);
     }
 
-    public  Task<AgentResponse> RunAsync(
+    public Task<AgentResponse> RunAsync(
         string input,
         CancellationToken cancellationToken = default)
     {
@@ -92,12 +94,23 @@ internal sealed class Agent :
             CurrentOutput = input
         };
 
-       return _runtime.RunAsync(
+        return _runtime.RunAsync(
             context,
             cancellationToken);
     }
 
-    async Task<AgentResponse> IRuntimeAgent.RunAsync(
+    Task<AgentResponse> IAgentRuntime.RunAsync(
+        PipelineContext context,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        return _runtime.RunAsync(
+            context,
+            cancellationToken);
+    }
+
+    Task<AgentResponse> IRuntimeAgentExecutor.RunAsync(
         PipelineContext context,
         AgentExecutionContext executionContext,
         CancellationToken cancellationToken)
@@ -105,7 +118,7 @@ internal sealed class Agent :
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(executionContext);
 
-        return await _runtime.RunCoreAsync(
+        return _runtime.RunCoreAsync(
             context,
             executionContext,
             cancellationToken);
