@@ -1,8 +1,6 @@
-using Microsoft.Extensions.AI;
 using PulseStack.Abstractions.Agents;
-using PulseStack.Abstractions.Chat;
-using PulseStack.Abstractions.Memory;
-using PulseStack.Abstractions.Tools;
+using PulseStack.Agents.Realization.Composition;
+using PulseStack.Agents.Realization.Binding;
 
 namespace PulseStack.Agents.Runtime;
 
@@ -11,73 +9,37 @@ internal sealed class Agent :
     IAgentRuntime,
     IRuntimeAgentExecutor
 {
+    private readonly AgentComposition _composition;
     private readonly AgentRuntime _runtime;
-    private readonly IReadOnlyCollection<string> _fallbackModels;
-    private readonly string? _model;
-
+    
     public string Name { get; }
+    internal string Model =>
+        _composition.Model.Options.Model;
 
-    internal string? Model => _model;
-
-    internal IReadOnlyCollection<string> FallbackModels =>
-        _fallbackModels;
-
-    public Agent(
-        string name,
-        IChatClient? client,
-        IToolExecutor toolExecutor,
-        string? instructions,
-        float? temperature,
-        IToolRegistry? tools,
-        IConversationMemory? memory = null,
-        string? model = null,
-        IReadOnlyCollection<string>? fallbackModels = null)
+    internal Agent(
+        AgentComposition composition,
+        AgentBinding binding,
+        string? instructions = null)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        ArgumentNullException.ThrowIfNull(client);
+        ArgumentNullException.ThrowIfNull(composition);
+        ArgumentNullException.ThrowIfNull(binding);
+        ArgumentNullException.ThrowIfNull(composition.Definition);
+        ArgumentNullException.ThrowIfNull(composition.Model);
+        ArgumentNullException.ThrowIfNull(composition.ChatClient);
+        ArgumentNullException.ThrowIfNull(binding.ToolExecutor);
 
-        Name = name;
-        _model = model;
-        _fallbackModels = fallbackModels ?? [];
+        _composition = composition;
+
+        Name = composition.Definition.Options.Name;
 
         _runtime = new AgentRuntime(
-            client,
-            toolExecutor,
+            composition.ChatClient,
+            binding.ToolExecutor,
             instructions,
-            temperature,
-            tools,
-            memory,
-            model,
-            this);
-    }
-
-    public Agent(
-        string name,
-        IChatClientFactory? clientFactory,
-        IToolExecutor toolExecutor,
-        string model,
-        string? instructions,
-        float? temperature,
-        IToolRegistry? tools,
-        IConversationMemory? memory = null,
-        IReadOnlyCollection<string>? fallbackModels = null)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        ArgumentNullException.ThrowIfNull(clientFactory);
-        ArgumentException.ThrowIfNullOrWhiteSpace(model);
-
-        Name = name;
-        _model = model;
-        _fallbackModels = fallbackModels ?? [];
-
-        _runtime = new AgentRuntime(
-            clientFactory,
-            toolExecutor,
-            model,
-            instructions,
-            temperature,
-            tools,
-            memory,
+            binding.Temperature,
+            binding.Tools,
+            binding.Memory,
+            composition.Model.Options.Model,
             this);
     }
 

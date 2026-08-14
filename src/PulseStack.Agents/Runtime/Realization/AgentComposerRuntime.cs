@@ -4,6 +4,8 @@ using PulseStack.Abstractions.Runtime.Realization.Composition;
 using PulseStack.Abstractions.Runtime.Realization.Resolution;
 using PulseStack.Abstractions.Tools;
 using PulseStack.Core.Runtime.Realization;
+using PulseStack.Agents.Realization.Composition;
+using PulseStack.Agents.Realization.Binding;
 
 namespace PulseStack.Agents.Runtime.Realization;
 
@@ -34,7 +36,21 @@ internal sealed class AgentComposer : IAgentComposer
         var modelAsset = await ResolveModelAsync(options.Model, cancellationToken);
         var client = _modelRealizer.Realize(modelAsset);
 
-        return new Agent(options.Name, client, _toolExecutor, null, null, null, null, modelAsset.Options.Model, null);
+        var composition = new AgentComposition
+        {
+            Definition = definition,
+            Model = modelAsset,
+            ChatClient = client
+        };
+
+        var binding = new AgentBinding
+        {
+            ToolExecutor = _toolExecutor
+        };
+
+        return new Agent(
+            composition,
+            binding);
     }
 
     private async Task<ModelAsset> ResolveModelAsync(AssetReference reference, CancellationToken cancellationToken)
