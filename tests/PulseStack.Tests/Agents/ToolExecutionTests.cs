@@ -2,18 +2,18 @@ using Xunit;
 using FluentAssertions;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Tools;
-using PulseStack.Agents.Builders;
 using PulseStack.Agents.Pipelines;
 using PulseStack.Agents.Runtime.Tools;
 using PulseStack.Core.Security;
 using PulseStack.Core.Tools;
 using PulseStack.Tools.BuiltIn;
 using PulseStack.Tests.Fakes;
+using PulseStack.Tests.TestInfrastructure;
+
 using CoreToolExecutor = PulseStack.Core.Tools.ToolExecutor;
 using ToolResultRecord = PulseStack.Abstractions.Tools.ToolExecutionRecord;
 
 namespace PulseStack.Tests.Agents;
-
 public class ToolExecutionTests
 {
     [Fact]
@@ -27,19 +27,16 @@ public class ToolExecutionTests
         var client = new FakeChatClient([
             """
             {
-              "tool": "calculator",
-              "input": "5 * 5"
+                "tool": "calculator",
+                "input": "5 * 5"
             }
             """,
             "The result is 25."
         ]);
 
-        var authorization = new AllowAllToolAuthorizationService();
-        var executor = new CoreToolExecutor(authorization);
-
-        var agent = new AgentBuilder("Assistant", client, executor)
-            .WithTools(registry)
-            .Build();
+        var agent = AgentTestFactory.Create(
+            client,
+            tools: registry);
 
         // Act
         var result = await agent.RunAsync(
@@ -136,12 +133,9 @@ public class ToolExecutionTests
             "The result is 25."
         ]);
 
-        var agent = new AgentBuilder(
-                "Assistant",
-                client,
-                new CoreToolExecutor(new AllowAllToolAuthorizationService()))
-            .WithTools(registry)
-            .Build();
+        var agent = AgentTestFactory.Create(
+            client,
+            tools: registry);
 
         var result =
             await new SequentialPipeline("ToolMetrics")

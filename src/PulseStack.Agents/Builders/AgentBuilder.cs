@@ -72,36 +72,48 @@ public sealed class AgentBuilder
 
     public AgentBuilder UseModel(AssetReference model)
     {
+        ArgumentNullException.ThrowIfNull(model);
+
         _model = model;
         return this;
     }
 
     public AgentBuilder UsePrompt(AssetReference prompt)
     {
+        ArgumentNullException.ThrowIfNull(prompt);
+
         _prompt = prompt;
         return this;
     }
 
     public AgentBuilder UseKnowledge(AssetReference knowledge)
     {
+        ArgumentNullException.ThrowIfNull(knowledge);
+
         _knowledge.Add(knowledge);
         return this;
     }
 
     public AgentBuilder UseTool(AssetReference tool)
     {
+        ArgumentNullException.ThrowIfNull(tool);
+
         _tools.Add(tool);
         return this;
     }
 
     public AgentBuilder UseMemory(AssetReference memory)
     {
+        ArgumentNullException.ThrowIfNull(memory);
+
         _memory = memory;
         return this;
     }
 
     public AgentBuilder UsePolicy(AssetReference policy)
     {
+        ArgumentNullException.ThrowIfNull(policy);
+
         _policies.Add(policy);
         return this;
     }
