@@ -1,11 +1,10 @@
-using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
-using PulseStack.Abstractions.Agents;
-using PulseStack.Abstractions.Tools;
+using PulseStack.Abstractions.Runtime.Realization.Composition;
 using PulseStack.Agents.Builders;
 using PulseStack.Agents.Pipelines;
 using PulseStack.Agents.Runtime.Observability;
 using PulseStack.Showcase.Shared;
+using PulseStack.Showcase.Infrastructure;
 
 namespace PulseStack.Showcase.Scenarios;
 
@@ -17,34 +16,40 @@ internal static class SequentialPipelineScenario
         ConsoleSection.Print(
             "Sequential Pipeline");
 
-        var client =
-            services.GetRequiredService<IChatClient>();
-
-        var toolExecutor =
-            services.GetRequiredService<IToolExecutor>();
+        var composer =
+            services.GetRequiredService<IAgentComposer>();
 
         var runtimeObserver =
             services.GetRequiredService<CompositeRuntimeObserver>();
 
+        var modelReference =
+            ShowcaseAssets.ModelReference;
+
+        var researcherDefinition =
+            new AgentBuilder("Researcher")
+                .WithGoal(
+                    "Research the topic and provide concise findings.")
+                .WithRole(
+                    "Research assistant.")
+                .UseModel(modelReference)
+                .Build();
+
+        var summarizerDefinition =
+            new AgentBuilder("Summarizer")
+                .WithGoal(
+                    "Summarize the findings into an executive summary.")
+                .WithRole(
+                    "Executive summarizer.")
+                .UseModel(modelReference)
+                .Build();
+
         var researcher =
-            new AgentBuilder(
-                "Researcher",
-                client,
-                toolExecutor)
-            .WithInstructions("""
-                Research the topic and provide concise findings.
-                """)
-            .Build();
+            await composer.ComposeAsync(
+                researcherDefinition);
 
         var summarizer =
-            new AgentBuilder(
-                "Summarizer",
-                client,
-                toolExecutor)
-            .WithInstructions("""
-                Summarize the findings into an executive summary.
-                """)
-            .Build();
+            await composer.ComposeAsync(
+                summarizerDefinition);
 
         var pipeline =
             new SequentialPipeline(

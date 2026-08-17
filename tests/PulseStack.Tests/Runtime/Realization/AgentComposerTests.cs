@@ -46,10 +46,10 @@ public sealed class AgentComposerTests
                     modelAsset.Urn)
             });
 
-        var runtimeAgent = await composer.ComposeAsync(definition);
+        var agent = await composer.ComposeAsync(definition);
 
-        runtimeAgent.Should().NotBeNull();
-        runtimeAgent.Should().BeAssignableTo<IAgentRuntime>();
+        agent.Should().NotBeNull();
+        agent.Name.Should().Be("TestAgent");
     }
 
     [Fact]

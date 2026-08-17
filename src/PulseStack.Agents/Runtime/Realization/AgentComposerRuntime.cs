@@ -25,7 +25,7 @@ internal sealed class AgentComposer : IAgentComposer
         _toolExecutor = toolExecutor;
     }
 
-    public async Task<IAgentRuntime> ComposeAsync(AgentDefinition definition, CancellationToken cancellationToken = default)
+    public async Task<IAgent> ComposeAsync(AgentDefinition definition, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(definition);
         var options = definition.Options;

@@ -1,11 +1,12 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using PulseStack.Abstractions.Runtime.Realization.Composition;
 using PulseStack.Abstractions.Workflows.Conditions;
-using PulseStack.Abstractions.Tools;
 using PulseStack.Agents.Builders;
 using PulseStack.Agents.Pipelines;
 using PulseStack.Agents.Runtime.Observability;
 using PulseStack.Showcase.Shared;
+using PulseStack.Showcase.Infrastructure;
 
 namespace PulseStack.Showcase.Scenarios;
 
@@ -17,56 +18,62 @@ internal static class ConditionalPipelineScenario
         ConsoleSection.Print(
             "Conditional Pipeline");
 
-        var client =
-            services.GetRequiredService<IChatClient>();
-
-        var toolExecutor =
-            services.GetRequiredService<IToolExecutor>();
+        var composer =
+            services.GetRequiredService<IAgentComposer>();
 
         var runtimeObserver =
             services.GetRequiredService<CompositeRuntimeObserver>();
 
-        var complianceAgent =
-            new AgentBuilder(
-                "Compliance",
-                client,
-                toolExecutor)
-            .WithInstructions("""
-                Review the request from a compliance perspective.
-                Highlight risks and governance concerns.
-                """)
-            .Build();
+        var modelReference =
+            ShowcaseAssets.ModelReference;
 
-        var summaryAgent =
-            new AgentBuilder(
-                "Summary",
-                client,
-                toolExecutor)
-            .WithInstructions("""
-                Provide a concise executive summary.
-                """)
-            .Build();
+        var complianceDefinition =
+            new AgentBuilder("Compliance")
+                .WithGoal("""
+                    Review the request from a compliance perspective.
+                    Highlight risks and governance concerns.
+                    """)
+                .WithRole("Compliance Assistant")
+                .UseModel(modelReference)
+                .Build();
+
+        var summaryDefinition =
+            new AgentBuilder("Summary")
+                .WithGoal("""
+                    Provide a concise executive summary.
+                    """)
+                .WithRole("Summary Assistant")
+                .UseModel(modelReference)
+                .Build();
+
+        var compliance =
+            await composer.ComposeAsync(
+                complianceDefinition);
+
+        var summary =
+            await composer.ComposeAsync(
+                summaryDefinition);
 
         var condition =
             new DelegateCondition(
                 context =>
                 {
                     var input =
-                        context.Input
-                        ?? string.Empty;
+                        context.Input ?? string.Empty;
 
                     return input.Contains(
                         "high risk",
                         StringComparison.OrdinalIgnoreCase);
-                }, "High Risk Detection");
+                },
+                "High Risk Detection");
 
         var pipeline =
             new ConditionalPipeline(
                 "RiskAssessment",
                 condition,
                 runtimeObserver)
-            .AddTrueAgent(complianceAgent)
-            .AddFalseAgent(summaryAgent);
+            .AddTrueAgent(compliance)
+            .AddFalseAgent(summary);
 
         Console.WriteLine();
         Console.WriteLine(

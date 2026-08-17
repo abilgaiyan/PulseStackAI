@@ -1,12 +1,13 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.AI;
+using PulseStack.Abstractions.Runtime.Realization.Composition;
+using PulseStack.Abstractions.Agents.Routing;
 using PulseStack.Agents.Builders;
 using PulseStack.Agents.Pipelines;
 using PulseStack.Agents.Routing;
 using PulseStack.Agents.Runtime.Observability;
-using PulseStack.Abstractions.Agents.Routing;
-using PulseStack.Abstractions.Tools;
 using PulseStack.Showcase.Shared;
+using PulseStack.Showcase.Infrastructure;
 
 namespace PulseStack.Showcase.Scenarios;
 
@@ -18,44 +19,55 @@ internal static class RouterPipelineScenario
         ConsoleSection.Print(
             "Router Pipeline");
 
-        var client =
-            services.GetRequiredService<IChatClient>();
-
-        var toolExecutor =
-            services.GetRequiredService<IToolExecutor>();
+        var composer =
+            services.GetRequiredService<IAgentComposer>();
 
         var runtimeObserver =
             services.GetRequiredService<CompositeRuntimeObserver>();
 
-        var legalAgent =
+        var modelReference =
+            ShowcaseAssets.ModelReference;
+
+        var legalDefinition =
             new AgentBuilder(
-                "Legal",
-                client,
-                toolExecutor)
-            .WithInstructions("""
+                "Legal")
+            .WithGoal("""
                 Review legal contracts and identify risks.
                 """)
+            .WithRole(
+                "Legal Assistant.")
+            .UseModel(modelReference)
             .Build();
 
-        var financeAgent =
+        var financeDefinition =
             new AgentBuilder(
-                "Finance",
-                client,
-                toolExecutor)
-            .WithInstructions("""
+                "Finance")
+            .WithGoal("""
                 Analyze invoices and financial documents.
                 """)
+            .WithRole("Finance Assistant")
+            .UseModel(modelReference)
             .Build();
 
-        var supportAgent =
+        var supportDefinition =
             new AgentBuilder(
-                "Support",
-                client,
-                toolExecutor)
-            .WithInstructions("""
+                "Support")
+            .WithGoal("""
                 Handle customer support requests.
                 """)
+            .WithRole("Support Assistant")
+            .UseModel(modelReference)
             .Build();
+
+        var contract =
+            await composer.ComposeAsync(
+                legalDefinition);
+        var finance =
+            await composer.ComposeAsync(
+                financeDefinition);
+        var support =
+            await composer.ComposeAsync(
+                supportDefinition);
 
         IAgentSelector selector =
             new KeywordAgentSelector(
@@ -72,9 +84,9 @@ internal static class RouterPipelineScenario
                 "RequestRouter",
                 selector,
                 runtimeObserver)
-            .Add(legalAgent)
-            .Add(financeAgent)
-            .Add(supportAgent);
+            .Add(contract)
+            .Add(finance)
+            .Add(support);
 
         Console.WriteLine();
         Console.WriteLine(

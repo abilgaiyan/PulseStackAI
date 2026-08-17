@@ -1,10 +1,9 @@
-using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
-using PulseStack.Abstractions.Agents;
-using PulseStack.Abstractions.Tools;
+using PulseStack.Abstractions.Runtime.Realization.Composition;
 using PulseStack.Agents.Builders;
 using PulseStack.Agents.Pipelines;
 using PulseStack.Agents.Runtime.Observability;
+using PulseStack.Showcase.Infrastructure;
 using PulseStack.Showcase.Shared;
 
 namespace PulseStack.Showcase.Scenarios;
@@ -17,34 +16,40 @@ internal static class ParallelPipelineScenario
         ConsoleSection.Print(
             "Parallel Pipeline");
 
-        var client =
-            services.GetRequiredService<IChatClient>();
+        var composer =
+            services.GetRequiredService<IAgentComposer>();
 
-        var toolExecutor =
-            services.GetRequiredService<IToolExecutor>();
+        var modelReference =
+            ShowcaseAssets.ModelReference;
 
         var runtimeObserver =
             services.GetRequiredService<CompositeRuntimeObserver>();
 
+        var analystDefinition =
+            new AgentBuilder("Analyst")
+                .WithGoal("""
+                    Analyze business risks.
+                    """)
+                .WithRole("Analyst Assistant")
+                .UseModel(modelReference)
+                .Build();
+
+        var architectDefinition =
+            new AgentBuilder("Architect")
+                .WithGoal("""
+                    Analyze system architecture risks.
+                    """)
+                .WithRole("Architect Assistant")
+                .UseModel(modelReference)
+                .Build();
+
         var analyst =
-            new AgentBuilder(
-                "Analyst",
-                client,
-                toolExecutor)
-            .WithInstructions("""
-                Analyze business risks.
-                """)
-            .Build();
+            await composer.ComposeAsync(
+                analystDefinition);
 
         var architect =
-            new AgentBuilder(
-                "Architect",
-                client,
-                toolExecutor)
-            .WithInstructions("""
-                Analyze system architecture risks.
-                """)
-            .Build();
+            await composer.ComposeAsync(
+                architectDefinition);
 
         var pipeline =
             new ParallelPipeline(
