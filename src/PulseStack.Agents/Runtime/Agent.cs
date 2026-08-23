@@ -1,6 +1,6 @@
 using PulseStack.Abstractions.Agents;
-using PulseStack.Agents.Realization.Composition;
 using PulseStack.Agents.Realization.Binding;
+using PulseStack.Agents.Realization.Composition;
 
 namespace PulseStack.Agents.Runtime;
 
@@ -11,15 +11,15 @@ internal sealed class Agent :
 {
     private readonly AgentComposition _composition;
     private readonly AgentRuntime _runtime;
-    
+
     public string Name { get; }
+
     internal string Model =>
         _composition.Model.Options.Model;
 
     internal Agent(
         AgentComposition composition,
-        AgentBinding binding,
-        string? instructions = null)
+        AgentBinding binding)
     {
         ArgumentNullException.ThrowIfNull(composition);
         ArgumentNullException.ThrowIfNull(binding);
@@ -35,7 +35,7 @@ internal sealed class Agent :
         _runtime = new AgentRuntime(
             composition.ChatClient,
             binding.ToolExecutor,
-            instructions,
+            composition.Prompt?.SystemInstructions,
             binding.Temperature,
             binding.Tools,
             binding.Memory,
@@ -70,7 +70,7 @@ internal sealed class Agent :
             context,
             cancellationToken);
     }
-    
+
     Task<AgentResponse> IRuntimeAgentExecutor.RunAsync(
         PipelineContext context,
         AgentExecutionContext executionContext,

@@ -50,11 +50,13 @@ public static class ServiceCollectionExtensions
 
         services.AddPulseStackModelCatalog();
         services.TryAddSingleton<ModelAssetFactory>();
+        services.TryAddSingleton<PromptAssetFactory>();
         services.TryAddSingleton<IChatClientFactoryRegistry>(sp =>
             new ChatClientFactoryRegistry(
                 sp.GetServices<ChatClientFactoryRegistration>()));
         services.TryAddSingleton<IProviderResolver, Providers.ProviderResolver>();
         services.TryAddSingleton<ModelRealizer>();
+        services.TryAddSingleton<PromptRealizer>();
 
         services.TryAddSingleton<IWorkflowMapper, WorkflowMapper>();
         services.TryAddSingleton<IWorkflowSerializer, JsonWorkflowSerializer>();
