@@ -9,4 +9,6 @@ public sealed class OpenRouterOptions
 
     public string Endpoint { get; set; } =
         "https://openrouter.ai/api/v1";
+
+    public IReadOnlyCollection<string> AvailableModels { get; set; } = [];
 }

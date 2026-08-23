@@ -9,4 +9,6 @@ public sealed class GroqOptions
 
     public string Endpoint { get; set; } =
         "https://api.groq.com/openai/v1";
+
+    public IReadOnlyCollection<string> AvailableModels { get; set; } = [];
 }

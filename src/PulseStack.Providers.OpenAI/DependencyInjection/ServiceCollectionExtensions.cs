@@ -1,7 +1,11 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using OpenAI;
+using Microsoft.Extensions.Options;
+using PulseStack.Abstractions.Chat;
+using PulseStack.Abstractions.Models;
+using PulseStack.Providers.OpenAI.Factories;
+using PulseStack.Providers.OpenAI.Models;
 using PulseStack.Providers.OpenAI.Options;
 
 namespace PulseStack.Providers.OpenAI.DependencyInjection;
@@ -13,7 +17,9 @@ public static class ServiceCollectionExtensions
         string apiKey,
         string model = "gpt-4o-mini")
     {
+        ArgumentNullException.ThrowIfNull(services);
         ArgumentException.ThrowIfNullOrWhiteSpace(apiKey);
+        ArgumentException.ThrowIfNullOrWhiteSpace(model);
 
         services.Configure<OpenAIOptions>(options =>
         {
@@ -21,13 +27,28 @@ public static class ServiceCollectionExtensions
             options.Model = model;
         });
 
-        services.TryAddSingleton<IChatClient>(sp =>
+        services.TryAddSingleton<OpenAIChatClientFactory>();
+
+        services.TryAddSingleton<IChatClient>(provider =>
         {
-            var client = new OpenAIClient(apiKey);
-            return client
-                .GetChatClient(model)
-                .AsIChatClient();
+            var options = provider
+                .GetRequiredService<IOptions<OpenAIOptions>>()
+                .Value;
+
+            return provider
+                .GetRequiredService<OpenAIChatClientFactory>()
+                .Create(options.Model);
         });
+
+        services.AddSingleton<ChatClientFactoryRegistration>(sp =>
+            new ChatClientFactoryRegistration(
+                "OpenAI",
+                sp.GetRequiredService<OpenAIChatClientFactory>()));
+
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IModelCatalogSource,
+                OpenAIModelCatalogSource>());
 
         return services;
     }

@@ -1,5 +1,3 @@
-using System.Runtime.CompilerServices;
-using Microsoft.Extensions.AI;
 using PulseStack.Abstractions.Agents;
 
 namespace PulseStack.Showcase.Agents;
@@ -10,23 +8,12 @@ internal sealed class FlakyAgent : IAgent
 
     public string Name => "TransientValidator";
 
-    public string Model => "demo";
-
-    public Task<ChatResponse> RunAsync(string input, CancellationToken cancellationToken = default)
-    {
-        return RunAsync(
-            new PipelineContext
-            {
-                Input = input,
-                CurrentOutput = input
-            },
-            cancellationToken);
-    }
-
-    public Task<ChatResponse> RunAsync(
-        PipelineContext context,
+    public Task<AgentResponse> RunAsync(
+        string input,
         CancellationToken cancellationToken = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(input);
+
         _attempts++;
 
         if (_attempts < 2)
@@ -36,18 +23,23 @@ internal sealed class FlakyAgent : IAgent
         }
 
         return Task.FromResult(
-            new ChatResponse(
-                new[]
-                {
-                    new ChatMessage(
-                        ChatRole.Assistant,
-                        "Validation succeeded.")
-                }));
+            new AgentResponse
+            {
+                Text = "Validation succeeded."
+            });
     }
 
-    public async IAsyncEnumerable<string> StreamAsync(string prompt, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<string> StreamAsync(
+        string input,
+        [System.Runtime.CompilerServices.EnumeratorCancellation]
+        CancellationToken cancellationToken = default)
     {
-        await Task.Delay(1000, cancellationToken);
+        ArgumentException.ThrowIfNullOrWhiteSpace(input);
+
+        await Task.Delay(
+            1000,
+            cancellationToken);
+
         yield break;
     }
 }

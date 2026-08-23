@@ -31,7 +31,7 @@ internal static class ServiceConfiguration
         .AddConsoleRuntimeObserver()
         .UseOpenRouter(
             apiKey: apiKey!,
-            model: "openai/gpt-4o-mini");
+            model: "google/gemini-2.5-flash");
 
         services.AddSingleton<IAgentResolver, AgentResolver>();
 

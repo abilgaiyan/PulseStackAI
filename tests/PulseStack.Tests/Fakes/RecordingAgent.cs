@@ -1,7 +1,7 @@
-using Microsoft.Extensions.AI;
 using PulseStack.Abstractions.Agents;
 
 namespace PulseStack.Tests.Fakes;
+
 internal sealed class RecordingAgent : IAgent
 {
     private readonly List<string> _executionOrder;
@@ -16,38 +16,30 @@ internal sealed class RecordingAgent : IAgent
 
     public string Name { get; }
 
-    public string? Model => "test-model";
-
-    public Task<ChatResponse> RunAsync(
-        PipelineContext context,
-        CancellationToken cancellationToken = default)
-    {
-        _executionOrder.Add(Name);
-
-        context.CurrentOutput = Name;
-
-        return Task.FromResult(
-            new ChatResponse(
-                new ChatMessage(
-                    ChatRole.Assistant,
-                    Name)));
-    }
-
-    public Task<ChatResponse> RunAsync(
+    public Task<AgentResponse> RunAsync(
         string input,
         CancellationToken cancellationToken = default)
     {
         _executionOrder.Add(Name);
 
         return Task.FromResult(
-            new ChatResponse(
-                new ChatMessage(
-                    ChatRole.Assistant,
-                    Name)));
+            new AgentResponse
+            {
+                Text = Name
+            });
     }
 
-    public IAsyncEnumerable<string> StreamAsync(string input, CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<string> StreamAsync(
+        string input,
+        [System.Runtime.CompilerServices.EnumeratorCancellation]
+        CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException();
+        cancellationToken.ThrowIfCancellationRequested();
+        
+        _executionOrder.Add(Name);
+
+        yield return Name;
+
+        await Task.CompletedTask;
     }
 }

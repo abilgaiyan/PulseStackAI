@@ -1,14 +1,12 @@
 using Xunit;
 using FluentAssertions;
-using Microsoft.Extensions.AI;
-using PulseStack.Agents.Builders;
 using PulseStack.Core.Memory;
 using PulseStack.Core.Security;
 using PulseStack.Core.Tools;
 using PulseStack.Tests.Fakes;
+using PulseStack.Tests.TestInfrastructure;
 
 namespace PulseStack.Tests.Agents;
-
 public class StreamMemoryTests
 {
     [Fact]
@@ -20,13 +18,9 @@ public class StreamMemoryTests
         var client = new FakeChatClient(
             ["Hello ", "Ajay"]);
             
-        var authorization = new AllowAllToolAuthorizationService();
-        var executor =  new ToolExecutor(authorization);
-        
-        var agent = new AgentBuilder("Streamer", client, executor   )
-            .WithMemory(memory)
-            .Build();
-
+        var agent = AgentTestFactory.Create(
+            client,
+            memory: memory);
         // Act
         await foreach (var _ in agent.StreamAsync("Hi"))
         {

@@ -1,10 +1,7 @@
-using Microsoft.Extensions.AI;
-
 namespace PulseStack.Abstractions.Agents;
-
 public interface IAgentRuntime
 {
-    Task<ChatResponse> RunAsync(
+    Task<AgentResponse> RunAsync(
         PipelineContext context,
         CancellationToken cancellationToken = default);
 

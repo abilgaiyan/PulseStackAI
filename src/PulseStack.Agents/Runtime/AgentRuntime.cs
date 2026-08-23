@@ -140,7 +140,7 @@ public sealed class AgentRuntime : IAgentRuntime
             new RuntimeToolExecutor(toolExecutor));
     }
 
-    public async Task<ChatResponse> RunAsync(
+    public async Task<AgentResponse> RunAsync(
         PipelineContext context,
         CancellationToken cancellationToken = default)
     {
@@ -161,10 +161,11 @@ public sealed class AgentRuntime : IAgentRuntime
                 metadata: SnapshotPipelineMetadata(context.Items),
                 eventDispatcher: managedEventDispatcher);
 
-            return await RunCoreAsync(
-                context,
-                managedExecutionContext,
-                cancellationToken);
+                return await RunCoreAsync(
+                    context,
+                    managedExecutionContext,
+                    cancellationToken);
+
         }
 
         var messages = BuildMessages(
@@ -215,7 +216,7 @@ public sealed class AgentRuntime : IAgentRuntime
                     completedAt - startedAt,
                     SnapshotMetadata(executionContext.Metadata)));
 
-            return response;
+            return ToAgentResponse(response);
         }
         catch (Exception ex)
         {
@@ -254,16 +255,18 @@ public sealed class AgentRuntime : IAgentRuntime
 
         var retryCount = 0;
 
+
         executionContext.EventDispatcher.Dispatch(
             new AgentStartedEvent(
                 executionContext.ExecutionId,
                 startedAt,
                 agent.Name,
-                agent.Model,
+                AgentRuntimeMetadata.ResolveModel(agent),
                 executionContext.BranchId,
                 SnapshotPipelineMetadata(context.Items)));
 
                 AIUsage? usage = null;
+                var model = "";
 
         while (true)
         {
@@ -273,36 +276,23 @@ public sealed class AgentRuntime : IAgentRuntime
 
                 var response =
                     await ExecuteAgentAsync(
-                        agent,
+                        agent,  
                         context,
                         executionContext,
                         cancellationToken);
 
                 var output =
-                    response.Text
-                    ?? context.CurrentOutput
-                    ?? string.Empty;
+                    response.Text ?? string.Empty;
 
                 context.CurrentOutput =
                     output;
 
-            var model =
-                response.ModelId
-                ?? agent.Model
-                ?? string.Empty;
+                model =
+                    response.Model
+                    ?? AgentRuntimeMetadata.ResolveModel(agent);
 
-            var provider =
-                ProviderModelParser
-                    .ExtractProvider(model);
-
-            usage =
-                _usageExtractors.Extract(
-                    response,
-                    new UsageExtractionContext
-                    {
-                        Model = model,
-                        Provider = provider
-                    });
+                usage =
+                    response.Usage;
 
                 var completedAt =
                     DateTimeOffset.UtcNow;
@@ -312,7 +302,7 @@ public sealed class AgentRuntime : IAgentRuntime
                         executionContext.ExecutionId,
                         completedAt,
                         agent.Name,
-                        agent.Model,
+                        AgentRuntimeMetadata.ResolveModel(agent),
                         executionContext.BranchId,
                         true,
                         null,
@@ -323,6 +313,7 @@ public sealed class AgentRuntime : IAgentRuntime
                 {
                     Success = true,
                     Output = output,
+                    Model = model,
                     RetryCount = retryCount,
                     Usage = usage,
                     StartedAt = startedAt,
@@ -340,7 +331,7 @@ public sealed class AgentRuntime : IAgentRuntime
                         executionContext.ExecutionId,
                         completedAt,
                         agent.Name,
-                        agent.Model,
+                        model,
                         executionContext.BranchId,
                         false,
                         ex.Message,
@@ -374,7 +365,7 @@ public sealed class AgentRuntime : IAgentRuntime
                         executionContext.ExecutionId,
                         completedAt,
                         agent.Name,
-                        agent.Model,
+                        model,
                         executionContext.BranchId,
                         false,
                         ex.Message,
@@ -385,6 +376,7 @@ public sealed class AgentRuntime : IAgentRuntime
                 {
                     Success = false,
                     Output = context.CurrentOutput ?? string.Empty,
+                    Model = model,
                     RetryCount = retryCount,
                     Exception = ex,
                     Usage = usage,
@@ -395,7 +387,7 @@ public sealed class AgentRuntime : IAgentRuntime
         }
     }
 
-    internal async Task<ChatResponse> RunCoreAsync(
+    internal async Task<AgentResponse> RunCoreAsync(
         PipelineContext context,
         AgentExecutionContext executionContext,
         CancellationToken cancellationToken = default)
@@ -407,21 +399,25 @@ public sealed class AgentRuntime : IAgentRuntime
             context,
             context.CurrentOutput);
 
-        var agentExecutionContext = new AgentExecutionContext(
-            context,
-            messages,
-            cancellationToken,
-            _agent,
-            executionId: executionContext.ExecutionId,
-            branchId: executionContext.BranchId,
-            metadata: SnapshotPipelineMetadata(context.Items),
-            eventDispatcher: executionContext.EventDispatcher);
+        var agentExecutionContext =
+            new AgentExecutionContext(
+                context,
+                messages,
+                cancellationToken,
+                _agent,
+                executionId: executionContext.ExecutionId,
+                branchId: executionContext.BranchId,
+                metadata: SnapshotPipelineMetadata(context.Items),
+                eventDispatcher: executionContext.EventDispatcher);
 
         var options = BuildChatOptions();
 
-        return await ExecuteToolLoopAsync(
-            agentExecutionContext,
-            options);
+        var response =
+            await ExecuteToolLoopAsync(
+                agentExecutionContext,
+                options);
+
+        return ToAgentResponse(response);
     }
 
     public async IAsyncEnumerable<string> StreamAsync(
@@ -617,39 +613,52 @@ public sealed class AgentRuntime : IAgentRuntime
         return fallback;
     }
 
-    private static async Task<ChatResponse> ExecuteAgentAsync(
+    private static Task<AgentResponse> ExecuteAgentAsync(
         IAgent agent,
         PipelineContext context,
         AgentExecutionContext executionContext,
         CancellationToken cancellationToken)
     {
-        if (agent is Agent runtimeAgent)
+        if (agent is IRuntimeAgentExecutor runtimeAgent)
         {
-            return await runtimeAgent.RunCoreAsync(
+            return runtimeAgent.RunAsync(
                 context,
                 executionContext,
                 cancellationToken);
         }
 
+        return ExecuteExternalAgentAsync(
+            agent,
+            context,
+            cancellationToken);
+    }
+
+    private static async Task<AgentResponse> ExecuteExternalAgentAsync(
+        IAgent agent,
+        PipelineContext context,
+        CancellationToken cancellationToken)
+    {
         var hadLifecycleMarker =
             context.Items.TryGetValue(
                 PipelineContextKeys.RuntimeAgentLifecycleManaged,
                 out var previousLifecycleMarker);
 
-        context.Items[PipelineContextKeys.RuntimeAgentLifecycleManaged] =
-            true;
+        context.Items[
+            PipelineContextKeys.RuntimeAgentLifecycleManaged] =
+                true;
 
         try
         {
             return await agent.RunAsync(
-                context,
+                context.Input,
                 cancellationToken);
         }
         finally
         {
             if (hadLifecycleMarker)
             {
-                context.Items[PipelineContextKeys.RuntimeAgentLifecycleManaged] =
+                context.Items[
+                    PipelineContextKeys.RuntimeAgentLifecycleManaged] =
                     previousLifecycleMarker;
             }
             else
@@ -786,6 +795,34 @@ public sealed class AgentRuntime : IAgentRuntime
         }
 
         return null;
+    }
+
+    private AgentResponse ToAgentResponse(
+        ChatResponse response)
+    {
+        var model =
+            response.ModelId
+            ?? _model;
+
+        var provider =
+            ProviderModelParser.ExtractProvider(
+                model);
+
+        var usage =
+            _usageExtractors.Extract(
+                response,
+                new UsageExtractionContext
+                {
+                    Model = model ?? string.Empty,
+                    Provider = provider
+                });
+
+        return new AgentResponse
+        {
+            Text = response.Text ?? string.Empty,
+            Model = model,
+            Usage = usage
+        };
     }
 
 }

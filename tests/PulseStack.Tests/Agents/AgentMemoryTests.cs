@@ -1,10 +1,8 @@
 using Xunit;
 using FluentAssertions;
-using PulseStack.Agents.Builders;
 using PulseStack.Core.Memory;
 using PulseStack.Tests.Fakes;
-using PulseStack.Core.Security;
-using PulseStack.Core.Tools;    
+using PulseStack.Tests.TestInfrastructure;
 
 namespace PulseStack.Tests.Agents;
 
@@ -22,12 +20,9 @@ public class AgentMemoryTests
             "Your name is Ajay."
         ]);
 
-        var authorization = new AllowAllToolAuthorizationService();
-        var executor =  new ToolExecutor(authorization);
-        
-        var agent = new AgentBuilder("Assistant", client, executor)
-            .WithMemory(memory)
-            .Build();
+        var agent = AgentTestFactory.Create(
+            client,
+            memory: memory);
 
         // Act
         await agent.RunAsync("My name is Ajay.");

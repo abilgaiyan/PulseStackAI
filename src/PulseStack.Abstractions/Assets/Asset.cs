@@ -1,20 +1,24 @@
-
 namespace PulseStack.Abstractions.Assets;
+
 public abstract record Asset : IAsset
 {
-    public AssetId Id { get; init; }
+    protected Asset(AssetType type)
+    {
+        Type = type;
+    }
+    public required AssetId Id { get; init; }
 
-    public AssetUrn Urn { get; init; }
+    public required AssetUrn Urn { get; init; }
 
-    public AssetVersion Version { get; init; }
+    public required AssetVersion Version { get; init; }
 
-    public AssetMetadata Metadata { get; init; }
+    public required AssetMetadata Metadata { get; init; }
 
     public AssetType Type { get; }
 
     public AssetLifecycle Lifecycle { get; init; }
 
-    public IReadOnlyCollection<AssetReference> References { get; init; }
+    public IReadOnlyCollection<AssetReference> References { get; init; } = [];
 
-    public IReadOnlyCollection<AssetDependency> Dependencies { get; init; }
+    public IReadOnlyCollection<AssetDependency> Dependencies { get; init; } = [];
 }

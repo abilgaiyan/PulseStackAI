@@ -12,6 +12,7 @@ internal sealed class RecordingRuntimeObserver
         IRuntimeEvent runtimeEvent,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         Events.Add(runtimeEvent);
 
         return Task.CompletedTask;

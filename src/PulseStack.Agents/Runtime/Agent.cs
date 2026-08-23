@@ -1,79 +1,49 @@
-using Microsoft.Extensions.AI;
 using PulseStack.Abstractions.Agents;
-using PulseStack.Abstractions.Chat;
-using PulseStack.Abstractions.Memory;
-using PulseStack.Abstractions.Tools;
+using PulseStack.Agents.Realization.Binding;
+using PulseStack.Agents.Realization.Composition;
 
 namespace PulseStack.Agents.Runtime;
 
-internal sealed class Agent : IAgent
+internal sealed class Agent :
+    IAgent,
+    IAgentRuntime,
+    IRuntimeAgentExecutor
 {
+    private readonly AgentComposition _composition;
     private readonly AgentRuntime _runtime;
-    private readonly IReadOnlyCollection<string>? _fallbackModels;
-    private readonly string? _model;
 
     public string Name { get; }
-    public string? Model => _model;
-    public IReadOnlyCollection<string>? FallbackModels => _fallbackModels;
 
-    public Agent(
-        string name,
-        IChatClient? client,
-        IToolExecutor toolExecutor,
-        string? instructions,
-        float? temperature,
-        IToolRegistry? tools,
-        IConversationMemory? memory = null,
-        string? model = null,
-        IReadOnlyCollection<string>? fallbackModels = null)
+    internal string Model =>
+        _composition.Model.Options.Model;
+
+    internal Agent(
+        AgentComposition composition,
+        AgentBinding binding)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        ArgumentNullException.ThrowIfNull(client);
+        ArgumentNullException.ThrowIfNull(composition);
+        ArgumentNullException.ThrowIfNull(binding);
+        ArgumentNullException.ThrowIfNull(composition.Definition);
+        ArgumentNullException.ThrowIfNull(composition.Model);
+        ArgumentNullException.ThrowIfNull(composition.ChatClient);
+        ArgumentNullException.ThrowIfNull(binding.ToolExecutor);
 
-        Name = name;
-        _model = model;
-        _fallbackModels = fallbackModels ?? [];
+        _composition = composition;
+
+        Name = composition.Definition.Options.Name;
+
         _runtime = new AgentRuntime(
-            client,
-            toolExecutor,
-            instructions,
-            temperature,
-            tools,
-            memory,
-            model,
+            composition.ChatClient,
+            binding.ToolExecutor,
+            composition.Prompt?.SystemInstructions,
+            binding.Temperature,
+            binding.Tools,
+            binding.Memory,
+            composition.Model.Options.Model,
             this);
     }
 
-    public Agent(
-        string name,
-        IChatClientFactory? clientFactory,
-        IToolExecutor toolExecutor,
-        string model,
-        string? instructions,
-        float? temperature,
-        IToolRegistry? tools,
-        IConversationMemory? memory = null,
-        IReadOnlyCollection<string>? fallbackModels = null)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        ArgumentNullException.ThrowIfNull(clientFactory);
-        ArgumentException.ThrowIfNullOrWhiteSpace(model);
-
-        Name = name;
-        _model = model;
-        _fallbackModels = fallbackModels ?? [];
-        _runtime = new AgentRuntime(
-            clientFactory,
-            toolExecutor,
-            model,
-            instructions,
-            temperature,
-            tools,
-            memory,
-            this);
-    }
-
-    public Task<ChatResponse> RunAsync(
+    public Task<AgentResponse> RunAsync(
         string input,
         CancellationToken cancellationToken = default)
     {
@@ -85,14 +55,14 @@ internal sealed class Agent : IAgent
             CurrentOutput = input
         };
 
-        return RunAsync(
+        return _runtime.RunAsync(
             context,
             cancellationToken);
     }
 
-    public Task<ChatResponse> RunAsync(
+    Task<AgentResponse> IAgentRuntime.RunAsync(
         PipelineContext context,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(context);
 
@@ -101,10 +71,10 @@ internal sealed class Agent : IAgent
             cancellationToken);
     }
 
-    internal Task<ChatResponse> RunCoreAsync(
+    Task<AgentResponse> IRuntimeAgentExecutor.RunAsync(
         PipelineContext context,
         AgentExecutionContext executionContext,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(executionContext);

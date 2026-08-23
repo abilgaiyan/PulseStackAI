@@ -7,7 +7,7 @@ public sealed class GeminiOptions
     public string Model { get; set; } =
         "gemini-2.0-flash";
 
-    public bool UseFunctionInvocation { get; set; } = false;
+    public IReadOnlyCollection<string> AvailableModels { get; set; } = [];
 
     public bool UseLogging { get; set; }
 

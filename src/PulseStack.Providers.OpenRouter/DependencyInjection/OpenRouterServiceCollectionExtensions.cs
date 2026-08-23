@@ -6,6 +6,8 @@ using OpenAI;
 using PulseStack.Abstractions.Chat;
 using PulseStack.Providers.OpenRouter.Options;
 using PulseStack.Providers.OpenRouter.Factories;
+using PulseStack.Abstractions.Models;
+using PulseStack.Providers.OpenRouter.Models;
 
 namespace PulseStack.Providers.OpenRouter.DependencyInjection;
 
@@ -48,9 +50,16 @@ public static class OpenRouterServiceCollectionExtensions
                 .AsIChatClient();
         });
 
-        services.TryAddSingleton<IChatClientFactory,
-                OpenRouterChatClientFactory>();
+      services.AddSingleton<ChatClientFactoryRegistration>(sp =>
+        new ChatClientFactoryRegistration(
+            "OpenRouter",
+            sp.GetRequiredService<OpenRouterChatClientFactory>()));
 
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IModelCatalogSource,
+                OpenRouterModelCatalogSource>());
+                
         return services;
     }
 }

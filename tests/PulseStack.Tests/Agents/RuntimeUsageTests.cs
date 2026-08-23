@@ -180,6 +180,7 @@ public class RuntimeUsageTests
     private sealed class UsageAgent : IAgent
     {
         private readonly string _response;
+        private readonly string _model;
         private readonly long _promptTokens;
         private readonly long _completionTokens;
 
@@ -192,48 +193,32 @@ public class RuntimeUsageTests
         {
             Name = name;
             _response = response;
-            Model = model;
+            _model = model;
             _promptTokens = promptTokens;
             _completionTokens = completionTokens;
         }
 
         public string Name { get; }
 
-        public string? Model { get; }
-
-        public Task<ChatResponse> RunAsync(
+        public Task<AgentResponse> RunAsync(
             string input,
             CancellationToken cancellationToken = default)
         {
-            var context =
-                new PipelineContext
-                {
-                    Input = input,
-                    CurrentOutput = input
-                };
-
-            return RunAsync(
-                context,
-                cancellationToken);
-        }
-
-        public Task<ChatResponse> RunAsync(
-            PipelineContext context,
-            CancellationToken cancellationToken = default)
-        {
-            context.CurrentOutput = _response;
+            cancellationToken.ThrowIfCancellationRequested();
 
             return Task.FromResult(
-                new ChatResponse(
-                    new ChatMessage(
-                        ChatRole.Assistant,
-                        _response))
+                new AgentResponse
                 {
-                    ModelId = Model,
-                    Usage = new UsageDetails
+                    Text = _response,
+
+                    Model = _model,
+
+                    Usage = new AIUsage
                     {
-                        InputTokenCount = _promptTokens,
-                        OutputTokenCount = _completionTokens
+                        Provider = "TestProvider",
+                        Model = _model,
+                        PromptTokens = _promptTokens,
+                        CompletionTokens = _completionTokens
                     }
                 });
         }
@@ -243,6 +228,8 @@ public class RuntimeUsageTests
             [System.Runtime.CompilerServices.EnumeratorCancellation]
             CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             yield return _response;
 
             await Task.CompletedTask;

@@ -9,8 +9,6 @@ using PulseStack.Agents.Runtime.Observability;
 using PulseStack.Showcase.Agents;
 using PulseStack.Showcase.Shared;
 
-namespace PulseStack.Showcase.Scenarios;
-
 internal static class PartialFailureScenario
 {
     public static async Task RunAsync(
@@ -19,37 +17,21 @@ internal static class PartialFailureScenario
         ConsoleSection.Print(
             "Partial Failure Pipeline");
 
-        var client =
-            services.GetRequiredService<IChatClient>();
-
-        var toolExecutor =
-            services.GetRequiredService<IToolExecutor>();
-
         var observer =
             services.GetRequiredService<CompositeRuntimeObserver>();
 
         var researcher =
-            new AgentBuilder(
+            new SuccessfulAgent(
                 "Researcher",
-                client,
-                toolExecutor)
-            .WithInstructions("""
-                Research enterprise ERP modernization risks.
-                """)
-            .Build();
-
-        var summarizer =
-            new AgentBuilder(
-                "Summarizer",
-                client,
-                toolExecutor)
-            .WithInstructions("""
-                Summarize all successful analysis results.
-                """)
-            .Build();
+                "ERP modernization risk analysis completed.");
 
         var faultyAgent =
             new FaultyAgent();
+
+        var summarizer =
+            new SuccessfulAgent(
+                "Summarizer",
+                "Successful analysis results summarized.");
 
         var pipeline =
             new SequentialPipeline(

@@ -1,135 +1,151 @@
-using Microsoft.Extensions.AI;
-using PulseStack.Abstractions.Agents;
-using PulseStack.Abstractions.Memory;
-using PulseStack.Abstractions.Tools;
-using PulseStack.Abstractions.Chat;
-using PulseStack.Agents.Runtime;
+using PulseStack.Abstractions.Assets;
+using PulseStack.Core.Assets;
 
 namespace PulseStack.Agents.Builders;
 
+/// <summary>
+/// Fluent authoring builder for a declarative Agent Asset.
+/// </summary>
+/// <remarks>
+/// The builder defines Agent Language only. It does not resolve providers,
+/// create chat clients, register tools, or construct runtime agents.
+/// </remarks>
 public sealed class AgentBuilder
 {
     private readonly string _name;
-    private readonly IChatClient? _client;
-    private readonly IToolExecutor _toolExecutor;
-    private readonly IChatClientFactory? _factory;
-    private string? _model;
-    private string? _instructions;
-    private float? _temperature;
-    private IToolRegistry? _tools;
-    private IConversationMemory? _memory;
-    private readonly List<string> _fallbackModels = [];
+    private readonly AgentDefinitionFactory _factory;
 
-    public AgentBuilder(
-        string name,
-        IChatClient client,
-        IToolExecutor toolExecutor)
+    private string? _goal;
+    private string? _role;
+    private readonly List<string> _responsibilities = [];
+    private AssetReference? _model;
+    private AssetReference? _prompt;
+    private readonly List<AssetReference> _knowledge = [];
+    private readonly List<AssetReference> _tools = [];
+    private AssetReference? _memory;
+    private readonly List<AssetReference> _policies = [];
+
+    public AgentBuilder(string name)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        ArgumentNullException.ThrowIfNull(client);
-        ArgumentNullException.ThrowIfNull(toolExecutor);
 
         _name = name;
-        _toolExecutor = toolExecutor;
-        _client = client;
+        _factory = new AgentDefinitionFactory();
     }
 
-    public AgentBuilder(
-        string name,
-        IChatClientFactory factory,
-        IToolExecutor toolExecutor)
+    public AgentBuilder WithGoal(string goal)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        ArgumentNullException.ThrowIfNull(toolExecutor);
-        ArgumentNullException.ThrowIfNull(factory);
+        ArgumentException.ThrowIfNullOrWhiteSpace(goal);
 
-        _name = name;
-        _toolExecutor = toolExecutor;
-        _factory = factory;
-    }
-
-    public AgentBuilder WithInstructions(string text)
-    {
-        _instructions = text;
+        _goal = goal;
         return this;
     }
 
-    public AgentBuilder WithTemperature(float value)
+    public AgentBuilder WithRole(string role)
     {
-        _temperature = value;
+        ArgumentException.ThrowIfNullOrWhiteSpace(role);
+
+        _role = role;
         return this;
     }
 
-    public AgentBuilder WithTools(IToolRegistry tools)
+    public AgentBuilder AddResponsibility(string responsibility)
     {
-        _tools = tools;
+        ArgumentException.ThrowIfNullOrWhiteSpace(responsibility);
+
+        _responsibilities.Add(responsibility);
         return this;
     }
-    
-    public AgentBuilder WithMemory(IConversationMemory memory)
+
+    public AgentBuilder AddResponsibilities(
+        IEnumerable<string> responsibilities)
     {
+        ArgumentNullException.ThrowIfNull(responsibilities);
+
+        foreach (var responsibility in responsibilities)
+        {
+            AddResponsibility(responsibility);
+        }
+
+        return this;
+    }
+
+    public AgentBuilder UseModel(AssetReference model)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+
+        _model = model;
+        return this;
+    }
+
+    public AgentBuilder UsePrompt(AssetReference prompt)
+    {
+        ArgumentNullException.ThrowIfNull(prompt);
+
+        _prompt = prompt;
+        return this;
+    }
+
+    public AgentBuilder UseKnowledge(AssetReference knowledge)
+    {
+        ArgumentNullException.ThrowIfNull(knowledge);
+
+        _knowledge.Add(knowledge);
+        return this;
+    }
+
+    public AgentBuilder UseTool(AssetReference tool)
+    {
+        ArgumentNullException.ThrowIfNull(tool);
+
+        _tools.Add(tool);
+        return this;
+    }
+
+    public AgentBuilder UseMemory(AssetReference memory)
+    {
+        ArgumentNullException.ThrowIfNull(memory);
+
         _memory = memory;
         return this;
     }
 
-    public AgentBuilder WithModel(string model)
+    public AgentBuilder UsePolicy(AssetReference policy)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(model);
+        ArgumentNullException.ThrowIfNull(policy);
 
-        _model = model;
-
+        _policies.Add(policy);
         return this;
     }
 
-    public AgentBuilder WithFallbackModels(
-        params string[] models)
+    public AgentDefinition Build()
     {
-        ArgumentNullException.ThrowIfNull(models);
-
-        _fallbackModels.AddRange(
-            models.Where(model =>
-                !string.IsNullOrWhiteSpace(model)));
-
-        return this;
-    }
-    
-    public IAgent Build()
-    {
-        if (_client is not null)
+        if (string.IsNullOrWhiteSpace(_goal))
         {
-            return new Agent(
-                _name,
-                _client,
-                _toolExecutor,
-                _instructions,
-                _temperature,
-                _tools,
-                _memory,
-                _model,
-                _fallbackModels);
+            throw new InvalidOperationException(
+                "Agent goal has not been configured.");
         }
 
-        if (_factory is not null)
+        if (string.IsNullOrWhiteSpace(_role))
         {
-            if (string.IsNullOrWhiteSpace(_model))
-            {
-                throw new InvalidOperationException(
-                    "No model configured.");
-            }
-
-            return new Agent(
-                _name,
-                _factory,
-                _toolExecutor,
-                _model,
-                _instructions,
-                _temperature,
-                _tools,
-                _memory,
-                _fallbackModels);
+            throw new InvalidOperationException(
+                "Agent role has not been configured.");
         }
 
-        throw new InvalidOperationException(
-            "No chat client or factory configured.");
+        var options = new AgentDefinitionOptions
+        {
+            Name = _name,
+            Goal = _goal,
+            Role = _role,
+            Responsibilities = _responsibilities.ToArray(),
+            Model = _model,
+            Prompt = _prompt,
+            Knowledge = _knowledge.ToArray(),
+            Tools = _tools.ToArray(),
+            Memory = _memory,
+            Policies = _policies.ToArray()
+        };
+
+        return _factory.Create(options);
     }
 }

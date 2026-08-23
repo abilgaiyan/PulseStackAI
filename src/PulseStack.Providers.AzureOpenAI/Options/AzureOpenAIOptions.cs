@@ -7,4 +7,6 @@ public sealed class AzureOpenAIOptions
     public string ApiKey { get; set; } = string.Empty;
 
     public string Deployment { get; set; } = string.Empty;
+
+    public IReadOnlyCollection<string> AvailableDeployments { get; set; } = [];
 }

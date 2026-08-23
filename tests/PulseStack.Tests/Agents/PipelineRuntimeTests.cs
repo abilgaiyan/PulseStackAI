@@ -1,5 +1,4 @@
 using FluentAssertions;
-using Microsoft.Extensions.AI;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Agents.Runtime;
 using PulseStack.Agents.Runtime.Context;
@@ -101,7 +100,7 @@ public class PipelineRuntimeTests
             .OnlyContain(id => id == result.ExecutionId);
     }
 
-    private sealed class StaticAgent : IAgent
+    private sealed class StaticAgent : IAgent, IRuntimeAgentExecutor
     {
         private readonly string _response;
 
@@ -115,34 +114,14 @@ public class PipelineRuntimeTests
 
         public string Name { get; }
 
-        public string? Model => null;
-
-        public Task<ChatResponse> RunAsync(
+        public async Task<AgentResponse> RunAsync(
             string input,
             CancellationToken cancellationToken = default)
         {
-            var context = new PipelineContext
+            return new AgentResponse
             {
-                Input = input,
-                CurrentOutput = input
+                Text = "Analysis completed."
             };
-
-            return RunAsync(
-                context,
-                cancellationToken);
-        }
-
-        public Task<ChatResponse> RunAsync(
-            PipelineContext context,
-            CancellationToken cancellationToken = default)
-        {
-            context.CurrentOutput = _response;
-
-            return Task.FromResult(
-                new ChatResponse(
-                    new ChatMessage(
-                        ChatRole.Assistant,
-                        _response)));
         }
 
         public async IAsyncEnumerable<string> StreamAsync(
@@ -153,6 +132,19 @@ public class PipelineRuntimeTests
             yield return _response;
 
             await Task.CompletedTask;
+        }
+
+        async Task<AgentResponse> IRuntimeAgentExecutor.RunAsync(
+            PipelineContext context,
+            AgentExecutionContext executionContext,
+            CancellationToken cancellationToken)
+        {
+            context.CurrentOutput = _response;
+
+            return new AgentResponse
+            {
+                Text = _response
+            };
         }
     }
 }
