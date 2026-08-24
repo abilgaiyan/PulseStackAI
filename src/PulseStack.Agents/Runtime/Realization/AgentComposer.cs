@@ -2,6 +2,7 @@ using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Assets;
 using PulseStack.Abstractions.Knowledge;
 using PulseStack.Abstractions.Memory;
+using PulseStack.Abstractions.Policies;
 using PulseStack.Abstractions.Runtime.Realization;
 using PulseStack.Abstractions.Runtime.Realization.Binding;
 using PulseStack.Abstractions.Runtime.Realization.Composition;
@@ -22,6 +23,7 @@ internal sealed class AgentComposer : IAgentComposer
     private readonly IToolBindingResolver _toolBindingResolver;
     private readonly IKnowledgeBindingResolver _knowledgeBindingResolver;
     private readonly IMemoryBindingResolver _memoryBindingResolver;
+    private readonly IPolicyBindingResolver _policyBindingResolver;
     private readonly IToolExecutor _toolExecutor;
 
     public AgentComposer(
@@ -31,6 +33,7 @@ internal sealed class AgentComposer : IAgentComposer
         IToolBindingResolver toolBindingResolver,
         IKnowledgeBindingResolver knowledgeBindingResolver,
         IMemoryBindingResolver memoryBindingResolver,
+        IPolicyBindingResolver policyBindingResolver,
         IToolExecutor toolExecutor)
     {
         ArgumentNullException.ThrowIfNull(assetResolver);
@@ -39,6 +42,7 @@ internal sealed class AgentComposer : IAgentComposer
         ArgumentNullException.ThrowIfNull(toolBindingResolver);
         ArgumentNullException.ThrowIfNull(knowledgeBindingResolver);
         ArgumentNullException.ThrowIfNull(memoryBindingResolver);
+        ArgumentNullException.ThrowIfNull(policyBindingResolver);
         ArgumentNullException.ThrowIfNull(toolExecutor);
 
         _assetResolver = assetResolver;
@@ -47,6 +51,7 @@ internal sealed class AgentComposer : IAgentComposer
         _toolBindingResolver = toolBindingResolver;
         _knowledgeBindingResolver = knowledgeBindingResolver;
         _memoryBindingResolver = memoryBindingResolver;
+        _policyBindingResolver = policyBindingResolver;
         _toolExecutor = toolExecutor;
     }
 
@@ -64,8 +69,6 @@ internal sealed class AgentComposer : IAgentComposer
                 $"Agent '{options.Name}' requires a Model Asset reference.");
         }
 
-        EnsureUnsupportedReferencesAreNotConfigured(options);
-
         var modelAsset = await ResolveModelAsync(options.Model, cancellationToken);
         var client = _modelRealizer.Realize(modelAsset);
 
@@ -79,6 +82,7 @@ internal sealed class AgentComposer : IAgentComposer
         var tools = await BindToolsAsync(options.Tools, cancellationToken);
         var knowledge = await BindKnowledgeAsync(options.Knowledge, cancellationToken);
         var memory = await BindMemoryAsync(options.Memory, cancellationToken);
+        var policies = await BindPoliciesAsync(options.Policies, cancellationToken);
 
         var composition = new AgentComposition
         {
@@ -86,7 +90,8 @@ internal sealed class AgentComposer : IAgentComposer
             Model = modelAsset,
             ChatClient = client,
             Prompt = prompt,
-            Knowledge = knowledge
+            Knowledge = knowledge,
+            Policies = policies
         };
 
         var binding = new AgentBinding
@@ -233,13 +238,36 @@ internal sealed class AgentComposer : IAgentComposer
         return _memoryBindingResolver.Resolve(memoryAsset);
     }
 
-    private static void EnsureUnsupportedReferencesAreNotConfigured(
-        AgentDefinitionOptions options)
+    private async Task<IReadOnlyCollection<IRuntimePolicy>> BindPoliciesAsync(
+        IReadOnlyCollection<AssetReference> references,
+        CancellationToken cancellationToken)
     {
-        if (options.Policies.Count > 0)
+        if (references.Count == 0)
         {
-            throw new NotSupportedException(
-                "Policy Asset realization is not implemented yet.");
+            return [];
         }
+
+        var policies = new List<IRuntimePolicy>();
+
+        foreach (var reference in references)
+        {
+            var asset = await _assetResolver.ResolveAsync(reference, cancellationToken);
+
+            if (asset is null)
+            {
+                throw new InvalidOperationException(
+                    $"Policy Asset '{reference.Urn.Value}' could not be resolved.");
+            }
+
+            if (asset is not PolicyAsset policyAsset)
+            {
+                throw new InvalidOperationException(
+                    $"Asset '{reference.Urn.Value}' is '{asset.Type}', but a Policy Asset is required.");
+            }
+
+            policies.Add(_policyBindingResolver.Resolve(policyAsset));
+        }
+
+        return policies;
     }
 }

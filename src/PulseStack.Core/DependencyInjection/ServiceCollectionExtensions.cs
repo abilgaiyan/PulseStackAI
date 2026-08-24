@@ -57,6 +57,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<ToolAssetFactory>();
         services.TryAddSingleton<KnowledgeAssetFactory>();
         services.TryAddSingleton<MemoryAssetFactory>();
+        services.TryAddSingleton<PolicyAssetFactory>();
         services.TryAddSingleton<IChatClientFactoryRegistry>(sp =>
             new ChatClientFactoryRegistry(
                 sp.GetServices<ChatClientFactoryRegistration>()));
@@ -66,6 +67,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IToolBindingResolver, ToolBindingResolver>();
         services.TryAddSingleton<IKnowledgeBindingResolver, KnowledgeBindingResolver>();
         services.TryAddSingleton<IMemoryBindingResolver, MemoryBindingResolver>();
+        services.TryAddSingleton<IPolicyBindingResolver, PolicyBindingResolver>();
 
         services.TryAddSingleton<IWorkflowMapper, WorkflowMapper>();
         services.TryAddSingleton<IWorkflowSerializer, JsonWorkflowSerializer>();
