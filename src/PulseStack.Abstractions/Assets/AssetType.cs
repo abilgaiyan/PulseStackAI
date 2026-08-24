@@ -1,4 +1,3 @@
-
 namespace PulseStack.Abstractions.Assets;
 
 public enum AssetType
@@ -18,6 +17,8 @@ public enum AssetType
     Tool,
 
     Knowledge,
+
+    Memory,
 
     Policy,
 
