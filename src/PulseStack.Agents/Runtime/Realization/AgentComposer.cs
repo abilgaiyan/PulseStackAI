@@ -1,6 +1,7 @@
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Assets;
 using PulseStack.Abstractions.Knowledge;
+using PulseStack.Abstractions.Memory;
 using PulseStack.Abstractions.Runtime.Realization;
 using PulseStack.Abstractions.Runtime.Realization.Binding;
 using PulseStack.Abstractions.Runtime.Realization.Composition;
@@ -20,6 +21,7 @@ internal sealed class AgentComposer : IAgentComposer
     private readonly PromptRealizer _promptRealizer;
     private readonly IToolBindingResolver _toolBindingResolver;
     private readonly IKnowledgeBindingResolver _knowledgeBindingResolver;
+    private readonly IMemoryBindingResolver _memoryBindingResolver;
     private readonly IToolExecutor _toolExecutor;
 
     public AgentComposer(
@@ -28,6 +30,7 @@ internal sealed class AgentComposer : IAgentComposer
         PromptRealizer promptRealizer,
         IToolBindingResolver toolBindingResolver,
         IKnowledgeBindingResolver knowledgeBindingResolver,
+        IMemoryBindingResolver memoryBindingResolver,
         IToolExecutor toolExecutor)
     {
         ArgumentNullException.ThrowIfNull(assetResolver);
@@ -35,6 +38,7 @@ internal sealed class AgentComposer : IAgentComposer
         ArgumentNullException.ThrowIfNull(promptRealizer);
         ArgumentNullException.ThrowIfNull(toolBindingResolver);
         ArgumentNullException.ThrowIfNull(knowledgeBindingResolver);
+        ArgumentNullException.ThrowIfNull(memoryBindingResolver);
         ArgumentNullException.ThrowIfNull(toolExecutor);
 
         _assetResolver = assetResolver;
@@ -42,6 +46,7 @@ internal sealed class AgentComposer : IAgentComposer
         _promptRealizer = promptRealizer;
         _toolBindingResolver = toolBindingResolver;
         _knowledgeBindingResolver = knowledgeBindingResolver;
+        _memoryBindingResolver = memoryBindingResolver;
         _toolExecutor = toolExecutor;
     }
 
@@ -61,30 +66,19 @@ internal sealed class AgentComposer : IAgentComposer
 
         EnsureUnsupportedReferencesAreNotConfigured(options);
 
-        var modelAsset = await ResolveModelAsync(
-            options.Model,
-            cancellationToken);
-
+        var modelAsset = await ResolveModelAsync(options.Model, cancellationToken);
         var client = _modelRealizer.Realize(modelAsset);
 
         RuntimePrompt? prompt = null;
-
         if (options.Prompt is not null)
         {
-            var promptAsset = await ResolvePromptAsync(
-                options.Prompt,
-                cancellationToken);
-
+            var promptAsset = await ResolvePromptAsync(options.Prompt, cancellationToken);
             prompt = _promptRealizer.Realize(promptAsset);
         }
 
-        var tools = await BindToolsAsync(
-            options.Tools,
-            cancellationToken);
-
-        var knowledge = await BindKnowledgeAsync(
-            options.Knowledge,
-            cancellationToken);
+        var tools = await BindToolsAsync(options.Tools, cancellationToken);
+        var knowledge = await BindKnowledgeAsync(options.Knowledge, cancellationToken);
+        var memory = await BindMemoryAsync(options.Memory, cancellationToken);
 
         var composition = new AgentComposition
         {
@@ -98,12 +92,11 @@ internal sealed class AgentComposer : IAgentComposer
         var binding = new AgentBinding
         {
             ToolExecutor = _toolExecutor,
-            Tools = tools
+            Tools = tools,
+            Memory = memory
         };
 
-        return new Agent(
-            composition,
-            binding);
+        return new Agent(composition, binding);
     }
 
     private async Task<ModelAsset> ResolveModelAsync(
@@ -214,14 +207,39 @@ internal sealed class AgentComposer : IAgentComposer
         return sources;
     }
 
+    private async Task<IConversationMemory?> BindMemoryAsync(
+        AssetReference? reference,
+        CancellationToken cancellationToken)
+    {
+        if (reference is null)
+        {
+            return null;
+        }
+
+        var asset = await _assetResolver.ResolveAsync(reference, cancellationToken);
+
+        if (asset is null)
+        {
+            throw new InvalidOperationException(
+                $"Memory Asset '{reference.Urn.Value}' could not be resolved.");
+        }
+
+        if (asset is not MemoryAsset memoryAsset)
+        {
+            throw new InvalidOperationException(
+                $"Asset '{reference.Urn.Value}' is '{asset.Type}', but a Memory Asset is required.");
+        }
+
+        return _memoryBindingResolver.Resolve(memoryAsset);
+    }
+
     private static void EnsureUnsupportedReferencesAreNotConfigured(
         AgentDefinitionOptions options)
     {
-        if (options.Memory is not null ||
-            options.Policies.Count > 0)
+        if (options.Policies.Count > 0)
         {
             throw new NotSupportedException(
-                "Memory and Policy Asset realization is not implemented yet.");
+                "Policy Asset realization is not implemented yet.");
         }
     }
 }

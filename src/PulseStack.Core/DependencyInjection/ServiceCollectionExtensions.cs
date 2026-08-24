@@ -36,6 +36,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IToolAuthorizationService, AllowAllToolAuthorizationService>();
         services.TryAddScoped<IToolExecutor, ToolExecutor>();
         services.AddScoped<IConversationMemory, ConversationMemory>();
+        services.TryAddSingleton<IConversationMemoryFactory, ConversationMemoryFactory>();
         services.AddHttpClient();
         services.AddPulseStackResilience();
 
@@ -55,6 +56,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<PromptAssetFactory>();
         services.TryAddSingleton<ToolAssetFactory>();
         services.TryAddSingleton<KnowledgeAssetFactory>();
+        services.TryAddSingleton<MemoryAssetFactory>();
         services.TryAddSingleton<IChatClientFactoryRegistry>(sp =>
             new ChatClientFactoryRegistry(
                 sp.GetServices<ChatClientFactoryRegistration>()));
@@ -63,6 +65,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<PromptRealizer>();
         services.TryAddSingleton<IToolBindingResolver, ToolBindingResolver>();
         services.TryAddSingleton<IKnowledgeBindingResolver, KnowledgeBindingResolver>();
+        services.TryAddSingleton<IMemoryBindingResolver, MemoryBindingResolver>();
 
         services.TryAddSingleton<IWorkflowMapper, WorkflowMapper>();
         services.TryAddSingleton<IWorkflowSerializer, JsonWorkflowSerializer>();
