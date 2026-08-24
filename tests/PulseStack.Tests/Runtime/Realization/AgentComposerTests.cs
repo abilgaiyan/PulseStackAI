@@ -393,7 +393,7 @@ public sealed class AgentComposerTests
             cancellationToken.ThrowIfCancellationRequested();
 
             ExecutionCount++;
-            LastInput = context.Input;
+            LastInput = context.Input?.ToString();
 
             return Task.FromResult<IToolExecutionResult>(
                 ToolExecutionResult.Success(
