@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Assets;
 using PulseStack.Abstractions.Chat;
+using PulseStack.Abstractions.Knowledge;
 using PulseStack.Abstractions.Models;
 using PulseStack.Abstractions.Providers;
 using PulseStack.Abstractions.Runtime.Realization.Binding;
@@ -147,6 +148,56 @@ public sealed class AgentComposerTests
         unreferencedTool.ExecutionCount.Should().Be(0);
     }
 
+    [Fact]
+    public async Task ComposeAsync_Should_Bind_Only_Referenced_Knowledge()
+    {
+        var modelAsset = CreateModelAsset();
+        var referencedAsset = CreateKnowledgeAsset("Customer Knowledge");
+        var unreferencedAsset = CreateKnowledgeAsset("Internal Knowledge");
+        var referencedSource = new StubKnowledgeSource("customer-source");
+        var unreferencedSource = new StubKnowledgeSource("internal-source");
+        var bindingResolver = new RecordingKnowledgeBindingResolver(
+            new Dictionary<AssetId, IKnowledgeSource>
+            {
+                [referencedAsset.Id] = referencedSource,
+                [unreferencedAsset.Id] = unreferencedSource
+            });
+
+        var services = new ServiceCollection();
+        services.AddSingleton<IProviderResolver, StubProviderResolver>();
+        services.AddSingleton<IAsset>(modelAsset);
+        services.AddSingleton<IAsset>(referencedAsset);
+        services.AddSingleton<IAsset>(unreferencedAsset);
+        services.AddSingleton<IKnowledgeBindingResolver>(bindingResolver);
+        services.AddPulseStack();
+        services.AddPulseStackAgents();
+
+        await using var provider = services.BuildServiceProvider();
+        var composer = provider.GetRequiredService<IAgentComposer>();
+
+        var definition = new AgentDefinitionFactory().Create(
+            new AgentDefinitionOptions
+            {
+                Name = "KnowledgeAgent",
+                Goal = "Use only explicitly referenced knowledge",
+                Role = "Knowledge worker",
+                Model = new AssetReference(modelAsset.Id, modelAsset.Urn),
+                Knowledge =
+                [
+                    new AssetReference(
+                        referencedAsset.Id,
+                        referencedAsset.Urn)
+                ]
+            });
+
+        var agent = await composer.ComposeAsync(definition);
+
+        agent.Should().NotBeNull();
+        bindingResolver.ResolvedAssets.Should().ContainSingle()
+            .Which.Should().Be(referencedAsset.Id);
+        bindingResolver.ResolvedAssets.Should().NotContain(unreferencedAsset.Id);
+    }
+
     private static ServiceCollection CreateToolRealizationServices(
         ModelAsset modelAsset,
         ToolAsset toolAsset,
@@ -211,6 +262,15 @@ public sealed class AgentComposerTests
                 Name = name,
                 Description = "Tool used by Agent realization tests.",
                 Category = "Tests"
+            });
+
+    private static KnowledgeAsset CreateKnowledgeAsset(string name) =>
+        new KnowledgeAssetFactory().Create(
+            new KnowledgeAssetOptions
+            {
+                Name = name,
+                Description = "Knowledge used by Agent realization tests.",
+                Tags = ["tests"]
             });
 
     private sealed class StubAssetResolver : IAssetResolver
@@ -398,6 +458,44 @@ public sealed class AgentComposerTests
             return Task.FromResult<IToolExecutionResult>(
                 ToolExecutionResult.Success(
                     $"{Name}:{context.Input}"));
+        }
+    }
+
+    private sealed class StubKnowledgeSource(string name) : IKnowledgeSource
+    {
+        public string Name { get; } = name;
+
+        public Task<KnowledgeResult> RetrieveAsync(
+            KnowledgeQuery query,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            return Task.FromResult(
+                new KnowledgeResult
+                {
+                    Items = [$"{Name}:{query.Text}"]
+                });
+        }
+    }
+
+    private sealed class RecordingKnowledgeBindingResolver(
+        IReadOnlyDictionary<AssetId, IKnowledgeSource> sources)
+        : IKnowledgeBindingResolver
+    {
+        public List<AssetId> ResolvedAssets { get; } = [];
+
+        public IKnowledgeSource Resolve(KnowledgeAsset asset)
+        {
+            ResolvedAssets.Add(asset.Id);
+
+            if (!sources.TryGetValue(asset.Id, out var source))
+            {
+                throw new InvalidOperationException(
+                    $"Unexpected Knowledge Asset '{asset.Urn.Value}'.");
+            }
+
+            return source;
         }
     }
 }
