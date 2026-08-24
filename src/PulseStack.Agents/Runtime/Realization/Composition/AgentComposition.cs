@@ -1,5 +1,7 @@
 using Microsoft.Extensions.AI;
 using PulseStack.Abstractions.Assets;
+using PulseStack.Abstractions.Knowledge;
+using PulseStack.Abstractions.Policies;
 using PulseStack.Abstractions.Runtime.Realization;
 
 namespace PulseStack.Agents.Realization.Composition;
@@ -13,4 +15,8 @@ public sealed record AgentComposition
     public required IChatClient ChatClient { get; init; }
 
     public RuntimePrompt? Prompt { get; init; }
+
+    public IReadOnlyCollection<IKnowledgeSource> Knowledge { get; init; } = [];
+
+    public IReadOnlyCollection<IRuntimePolicy> Policies { get; init; } = [];
 }
