@@ -1,5 +1,6 @@
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Assets;
+using PulseStack.Abstractions.Knowledge;
 using PulseStack.Abstractions.Runtime.Realization;
 using PulseStack.Abstractions.Runtime.Realization.Binding;
 using PulseStack.Abstractions.Runtime.Realization.Composition;
@@ -18,6 +19,7 @@ internal sealed class AgentComposer : IAgentComposer
     private readonly ModelRealizer _modelRealizer;
     private readonly PromptRealizer _promptRealizer;
     private readonly IToolBindingResolver _toolBindingResolver;
+    private readonly IKnowledgeBindingResolver _knowledgeBindingResolver;
     private readonly IToolExecutor _toolExecutor;
 
     public AgentComposer(
@@ -25,18 +27,21 @@ internal sealed class AgentComposer : IAgentComposer
         ModelRealizer modelRealizer,
         PromptRealizer promptRealizer,
         IToolBindingResolver toolBindingResolver,
+        IKnowledgeBindingResolver knowledgeBindingResolver,
         IToolExecutor toolExecutor)
     {
         ArgumentNullException.ThrowIfNull(assetResolver);
         ArgumentNullException.ThrowIfNull(modelRealizer);
         ArgumentNullException.ThrowIfNull(promptRealizer);
         ArgumentNullException.ThrowIfNull(toolBindingResolver);
+        ArgumentNullException.ThrowIfNull(knowledgeBindingResolver);
         ArgumentNullException.ThrowIfNull(toolExecutor);
 
         _assetResolver = assetResolver;
         _modelRealizer = modelRealizer;
         _promptRealizer = promptRealizer;
         _toolBindingResolver = toolBindingResolver;
+        _knowledgeBindingResolver = knowledgeBindingResolver;
         _toolExecutor = toolExecutor;
     }
 
@@ -77,12 +82,17 @@ internal sealed class AgentComposer : IAgentComposer
             options.Tools,
             cancellationToken);
 
+        var knowledge = await BindKnowledgeAsync(
+            options.Knowledge,
+            cancellationToken);
+
         var composition = new AgentComposition
         {
             Definition = definition,
             Model = modelAsset,
             ChatClient = client,
-            Prompt = prompt
+            Prompt = prompt,
+            Knowledge = knowledge
         };
 
         var binding = new AgentBinding
@@ -100,9 +110,7 @@ internal sealed class AgentComposer : IAgentComposer
         AssetReference reference,
         CancellationToken cancellationToken)
     {
-        var asset = await _assetResolver.ResolveAsync(
-            reference,
-            cancellationToken);
+        var asset = await _assetResolver.ResolveAsync(reference, cancellationToken);
 
         if (asset is null)
         {
@@ -123,9 +131,7 @@ internal sealed class AgentComposer : IAgentComposer
         AssetReference reference,
         CancellationToken cancellationToken)
     {
-        var asset = await _assetResolver.ResolveAsync(
-            reference,
-            cancellationToken);
+        var asset = await _assetResolver.ResolveAsync(reference, cancellationToken);
 
         if (asset is null)
         {
@@ -155,9 +161,7 @@ internal sealed class AgentComposer : IAgentComposer
 
         foreach (var reference in references)
         {
-            var asset = await _assetResolver.ResolveAsync(
-                reference,
-                cancellationToken);
+            var asset = await _assetResolver.ResolveAsync(reference, cancellationToken);
 
             if (asset is null)
             {
@@ -171,22 +175,53 @@ internal sealed class AgentComposer : IAgentComposer
                     $"Asset '{reference.Urn.Value}' is '{asset.Type}', but a Tool Asset is required.");
             }
 
-            registry.Register(
-                _toolBindingResolver.Resolve(toolAsset));
+            registry.Register(_toolBindingResolver.Resolve(toolAsset));
         }
 
         return registry;
     }
 
+    private async Task<IReadOnlyCollection<IKnowledgeSource>> BindKnowledgeAsync(
+        IReadOnlyCollection<AssetReference> references,
+        CancellationToken cancellationToken)
+    {
+        if (references.Count == 0)
+        {
+            return [];
+        }
+
+        var sources = new List<IKnowledgeSource>();
+
+        foreach (var reference in references)
+        {
+            var asset = await _assetResolver.ResolveAsync(reference, cancellationToken);
+
+            if (asset is null)
+            {
+                throw new InvalidOperationException(
+                    $"Knowledge Asset '{reference.Urn.Value}' could not be resolved.");
+            }
+
+            if (asset is not KnowledgeAsset knowledgeAsset)
+            {
+                throw new InvalidOperationException(
+                    $"Asset '{reference.Urn.Value}' is '{asset.Type}', but a Knowledge Asset is required.");
+            }
+
+            sources.Add(_knowledgeBindingResolver.Resolve(knowledgeAsset));
+        }
+
+        return sources;
+    }
+
     private static void EnsureUnsupportedReferencesAreNotConfigured(
         AgentDefinitionOptions options)
     {
-        if (options.Knowledge.Count > 0 ||
-            options.Memory is not null ||
+        if (options.Memory is not null ||
             options.Policies.Count > 0)
         {
             throw new NotSupportedException(
-                "Knowledge, Memory, and Policy Asset realization is not implemented yet.");
+                "Memory and Policy Asset realization is not implemented yet.");
         }
     }
 }

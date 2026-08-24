@@ -1,28 +1,28 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using PulseStack.Abstractions.Assets;
+using PulseStack.Abstractions.Chat;
 using PulseStack.Abstractions.Memory;
-using PulseStack.Abstractions.Tools;
-using PulseStack.Abstractions.Security;
 using PulseStack.Abstractions.Persistence.Mapping;
 using PulseStack.Abstractions.Persistence.Serialization;
 using PulseStack.Abstractions.Persistence.Validation;
+using PulseStack.Abstractions.Providers;
 using PulseStack.Abstractions.Runtime.Realization.Binding;
 using PulseStack.Abstractions.Runtime.Realization.Resolution;
-using PulseStack.Abstractions.Chat;
-using PulseStack.Abstractions.Providers;
+using PulseStack.Abstractions.Security;
+using PulseStack.Abstractions.Tools;
+using PulseStack.Core.Assets;
+using PulseStack.Core.Chat;
 using PulseStack.Core.Memory;
-using PulseStack.Core.Resilience;
-using PulseStack.Core.Tools;
-using PulseStack.Core.Security;
 using PulseStack.Core.Persistence.Mapping;
 using PulseStack.Core.Persistence.Serialization;
 using PulseStack.Core.Persistence.Validation;
+using PulseStack.Core.Resilience;
+using PulseStack.Core.Runtime.Realization;
 using PulseStack.Core.Runtime.Realization.Binding;
 using PulseStack.Core.Runtime.Realization.Resolution;
-using PulseStack.Core.Assets;
-using PulseStack.Core.Chat;
-using PulseStack.Core.Runtime.Realization;
+using PulseStack.Core.Security;
+using PulseStack.Core.Tools;
 
 namespace PulseStack.Core.DependencyInjection;
 
@@ -54,6 +54,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<ModelAssetFactory>();
         services.TryAddSingleton<PromptAssetFactory>();
         services.TryAddSingleton<ToolAssetFactory>();
+        services.TryAddSingleton<KnowledgeAssetFactory>();
         services.TryAddSingleton<IChatClientFactoryRegistry>(sp =>
             new ChatClientFactoryRegistry(
                 sp.GetServices<ChatClientFactoryRegistration>()));
@@ -61,6 +62,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<ModelRealizer>();
         services.TryAddSingleton<PromptRealizer>();
         services.TryAddSingleton<IToolBindingResolver, ToolBindingResolver>();
+        services.TryAddSingleton<IKnowledgeBindingResolver, KnowledgeBindingResolver>();
 
         services.TryAddSingleton<IWorkflowMapper, WorkflowMapper>();
         services.TryAddSingleton<IWorkflowSerializer, JsonWorkflowSerializer>();
