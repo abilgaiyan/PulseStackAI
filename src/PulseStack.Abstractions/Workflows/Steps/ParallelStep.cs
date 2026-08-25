@@ -1,11 +1,13 @@
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Workflows;
 
-namespace PulseStack.Abstractions.Workflows.Steps; 
+namespace PulseStack.Abstractions.Workflows.Steps;
+
 public sealed class ParallelStep : IWorkflowStep
 {
-    public WorkflowStepId Id { get; } = WorkflowStepId.New();
     private readonly List<IWorkflowStep> _steps = [];
+
+    public WorkflowStepId Id { get; }
 
     public string Name { get; }
 
@@ -16,9 +18,19 @@ public sealed class ParallelStep : IWorkflowStep
 
     public ParallelStep(
         string name)
+        : this(
+            WorkflowStepId.New(),
+            name)
+    {
+    }
+
+    public ParallelStep(
+        WorkflowStepId id,
+        string name)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
+        Id = id;
         Name = name;
     }
 
