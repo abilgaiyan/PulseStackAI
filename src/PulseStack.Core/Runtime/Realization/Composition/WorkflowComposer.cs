@@ -7,6 +7,7 @@ using PulseStack.Abstractions.Runtime.Realization.Evaluation;
 using PulseStack.Abstractions.Runtime.Realization.Resolution;
 using PulseStack.Abstractions.Workflows;
 using PulseStack.Abstractions.Workflows.Definitions;
+using PulseStack.Abstractions.Workflows.Routing;
 using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Core.Runtime.Realization.Evaluation;
 
@@ -94,6 +95,9 @@ public sealed class WorkflowComposer : IWorkflowComposer
 
             LoopStepDefinition loop =>
                 await ComposeLoopStepAsync(loop, cancellationToken),
+
+            SwitchStepDefinition @switch =>
+                await ComposeSwitchStepAsync(@switch, cancellationToken),
 
             _ => throw new NotSupportedException(
                 $"Workflow step definition '{step.GetType().Name}' is not supported by realization yet.")
@@ -221,5 +225,67 @@ public sealed class WorkflowComposer : IWorkflowComposer
             step.Name,
             ResolveItems,
             child);
+    }
+
+    private async Task<SwitchStep> ComposeSwitchStepAsync(
+        SwitchStepDefinition step,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(step.Name);
+        ArgumentNullException.ThrowIfNull(step.Selector);
+
+        if (step.Cases.Count == 0)
+        {
+            throw new InvalidOperationException(
+                $"Switch step '{step.Name}' requires at least one case.");
+        }
+
+        var cases = new List<SwitchCase>(step.Cases.Count);
+
+        foreach (var @case in step.Cases)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(@case.Value);
+            ArgumentNullException.ThrowIfNull(@case.Step);
+
+            cases.Add(
+                new SwitchCase(
+                    @case.Value,
+                    await ComposeStepAsync(
+                        @case.Step,
+                        cancellationToken)));
+        }
+
+        var defaultStep = step.DefaultStep is null
+            ? null
+            : await ComposeStepAsync(
+                step.DefaultStep,
+                cancellationToken);
+
+        string? ResolveSelector(PipelineContext context)
+        {
+            var value = _workflowValueEvaluator.Evaluate(
+                step.Selector,
+                context);
+
+            if (value is null)
+            {
+                return null;
+            }
+
+            if (value is not string selector)
+            {
+                throw new InvalidOperationException(
+                    $"Switch step '{step.Name}' requires a string workflow value.");
+            }
+
+            return selector;
+        }
+
+        return new SwitchStep(
+            step.Id,
+            step.Name,
+            ResolveSelector,
+            cases,
+            defaultStep);
     }
 }
