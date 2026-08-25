@@ -289,28 +289,50 @@ The Runtime takes care of everything else.
 
 ## Completed
 
-- ✅ Workflow Runtime
-- ✅ Workflow Persistence
-- ✅ Workflow Packages
-- ✅ AI Application Language
-- ✅ AI Asset Model
+- ✅ MS-001 — Core Foundation
+- ✅ MS-002 — Agent Runtime
+- ✅ MS-003 — Workflow Runtime
+- ✅ MS-004 — Workflow Persistence
+- ✅ MS-005 — Workflow Packages
+- ✅ MS-006 — AI Asset Model & Application Language
+- ✅ MS-007 — Runtime Realization Architecture
+- ✅ MS-008 Phase 1 — Runtime Realization Foundation
+- ✅ MS-008 Phase 2 — Agent Asset Realization
 
 ## Current Milestone
 
-- 🚧 **MS-007 — Runtime Realization Architecture**
+- 🚧 **MS-008 Phase 3 — Workflow Realization**
 
-Designing the execution architecture that realizes AI Assets into running business applications.
+The current phase completes the original MS-008 pipeline objective:
 
-## Planned
+```text
+Workflow
+    ↓
+Agent references
+    ↓
+Agent realization
+    ↓
+Executable workflow runtime graph
+    ↓
+PipelineRuntime
+```
 
+MS-008 is focused on proving the complete boundary from declarative application Assets to executable runtime objects.
+
+## Next
+
+- MS-009 — AI Asset Platform Implementation
 - AI Projects
 - AI Libraries
+- Asset Catalog / Registry
 - Planner
-- Asset Registry
+- Human Approval
+- Scheduling
+- Distributed Runtime
 - Visual Designer
 - Marketplace
 
-PulseStackAI is evolving from a workflow runtime into a complete domain-driven AI application platform.
+PulseStackAI is evolving from a workflow runtime into a complete domain-driven AI Application Engineering Platform.
 
 ---
 
