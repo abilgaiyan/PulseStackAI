@@ -283,6 +283,8 @@ Just the business process.
 
 The Runtime takes care of everything else.
 
+> The current builder API predates the declarative Workflow Asset model. Migrating this authoring surface to emit declarative definitions is intentionally deferred beyond MS-008; the business-first grammar remains the design target.
+
 ---
 
 # Project Status
@@ -296,41 +298,42 @@ The Runtime takes care of everything else.
 - ✅ MS-005 — Workflow Packages
 - ✅ MS-006 — AI Asset Model & Application Language
 - ✅ MS-007 — Runtime Realization Architecture
-- ✅ MS-008 Phase 1 — Runtime Realization Foundation
-- ✅ MS-008 Phase 2 — Agent Asset Realization
+- ✅ MS-008 — Runtime Realization Implementation
+  - ✅ Phase 1 — Runtime Realization Foundation
+  - ✅ Phase 2 — Agent Asset Realization
+  - ✅ Phase 3 — Workflow Realization
 
-## Current Milestone
-
-- 🚧 **MS-008 Phase 3 — Workflow Realization**
-
-The current phase completes the original MS-008 pipeline objective:
+MS-008 closes the realization path:
 
 ```text
-Workflow
+WorkflowAsset
+    ↓
+WorkflowStepDefinition
     ↓
 Agent references
     ↓
 Agent realization
     ↓
-Executable workflow runtime graph
+Executable Workflow graph
     ↓
-PipelineRuntime
+IWorkflowRuntime
 ```
 
-MS-008 is focused on proving the complete boundary from declarative application Assets to executable runtime objects.
+Declarative Workflow grammar now realizes `Run`, `Parallel`, `If`, `Retry`, `ForEach`, and `Switch` into the existing execution runtime without exposing provider or infrastructure concerns in the Application Language.
 
-## Next
+## Next Milestone
 
-- MS-009 — AI Asset Platform Implementation
+- ⬜ **MS-009 — AI Asset Platform Implementation**
+
+Expected areas:
+
 - AI Projects
 - AI Libraries
 - Asset Catalog / Registry
-- Planner
-- Human Approval
-- Scheduling
-- Distributed Runtime
-- Visual Designer
-- Marketplace
+- dependency and reference management
+- validation, versioning, discovery, and loading
+
+Later platform capabilities include Planner, Human Approval, Scheduling, Distributed Runtime, Visual Designer, and Marketplace.
 
 PulseStackAI is evolving from a workflow runtime into a complete domain-driven AI Application Engineering Platform.
 
