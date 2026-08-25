@@ -64,6 +64,100 @@ public sealed class WorkflowComposerTests
     }
 
     [Fact]
+    public async Task ComposeAsync_ShouldComposeParallelRunStepsRecursively()
+    {
+        var firstDefinition = CreateAgentDefinition("Research Agent");
+        var secondDefinition = CreateAgentDefinition("Policy Agent");
+        var parallelDefinition = new ParallelStepDefinition
+        {
+            Name = "Research and Policy",
+            Steps =
+            [
+                CreateRunDefinition(firstDefinition),
+                CreateRunDefinition(secondDefinition)
+            ]
+        };
+
+        var workflowAsset = new WorkflowAssetFactory().Create(
+            new WorkflowAssetOptions
+            {
+                Name = "Parallel Workflow",
+                Steps = [parallelDefinition]
+            });
+
+        var composer = new WorkflowComposer(
+            new StubAssetResolver(firstDefinition, secondDefinition),
+            new StubAgentComposer(
+                new StubAgent("Research Agent"),
+                new StubAgent("Policy Agent")));
+
+        var workflow = await composer.ComposeAsync(workflowAsset);
+
+        var parallel = workflow.Steps.Single()
+            .Should().BeOfType<ParallelStep>()
+            .Subject;
+
+        parallel.Id.Should().Be(parallelDefinition.Id);
+        parallel.Name.Should().Be("Research and Policy");
+        parallel.Steps.Should().HaveCount(2);
+        parallel.Steps.Should().AllBeOfType<RunStep>();
+        parallel.Steps.Select(step => step.Name)
+            .Should().Equal("Research Agent", "Policy Agent");
+    }
+
+    [Fact]
+    public async Task ComposeAsync_ShouldComposeNestedParallelStepsRecursively()
+    {
+        var firstDefinition = CreateAgentDefinition("Agent One");
+        var secondDefinition = CreateAgentDefinition("Agent Two");
+        var nestedDefinition = new ParallelStepDefinition
+        {
+            Name = "Inner Parallel",
+            Steps = [CreateRunDefinition(secondDefinition)]
+        };
+        var outerDefinition = new ParallelStepDefinition
+        {
+            Name = "Outer Parallel",
+            Steps =
+            [
+                CreateRunDefinition(firstDefinition),
+                nestedDefinition
+            ]
+        };
+
+        var workflowAsset = new WorkflowAssetFactory().Create(
+            new WorkflowAssetOptions
+            {
+                Name = "Nested Parallel Workflow",
+                Steps = [outerDefinition]
+            });
+
+        var composer = new WorkflowComposer(
+            new StubAssetResolver(firstDefinition, secondDefinition),
+            new StubAgentComposer(
+                new StubAgent("Agent One"),
+                new StubAgent("Agent Two")));
+
+        var workflow = await composer.ComposeAsync(workflowAsset);
+
+        var outer = workflow.Steps.Single()
+            .Should().BeOfType<ParallelStep>()
+            .Subject;
+
+        outer.Steps.Should().HaveCount(2);
+        outer.Steps[0].Should().BeOfType<RunStep>();
+
+        var inner = outer.Steps[1]
+            .Should().BeOfType<ParallelStep>()
+            .Subject;
+
+        inner.Id.Should().Be(nestedDefinition.Id);
+        inner.Steps.Should().ContainSingle();
+        inner.Steps.Single().Should().BeOfType<RunStep>()
+            .Which.Name.Should().Be("Agent Two");
+    }
+
+    [Fact]
     public async Task ComposeAsync_ShouldRejectMissingAgentAsset()
     {
         var missingId = AssetId.New();
@@ -92,6 +186,24 @@ public sealed class WorkflowComposerTests
             .WithMessage("*could not be resolved*");
     }
 
+    private static AgentDefinition CreateAgentDefinition(string name) =>
+        new AgentDefinitionFactory().Create(
+            new AgentDefinitionOptions
+            {
+                Name = name,
+                Goal = "Execute workflow work",
+                Role = "Worker"
+            });
+
+    private static RunStepDefinition CreateRunDefinition(
+        AgentDefinition definition) =>
+        new()
+        {
+            Agent = new AssetReference(
+                definition.Id,
+                definition.Urn)
+        };
+
     private sealed class StubAssetResolver(params IAsset[] assets) : IAssetResolver
     {
         private readonly IReadOnlyDictionary<AssetId, IAsset> _assets =
@@ -107,8 +219,10 @@ public sealed class WorkflowComposerTests
         }
     }
 
-    private sealed class StubAgentComposer(IAgent agent) : IAgentComposer
+    private sealed class StubAgentComposer(params IAgent[] agents) : IAgentComposer
     {
+        private readonly Queue<IAgent> _agents = new(agents);
+
         public List<AgentDefinition> ComposedDefinitions { get; } = [];
 
         public Task<IAgent> ComposeAsync(
@@ -117,7 +231,13 @@ public sealed class WorkflowComposerTests
         {
             cancellationToken.ThrowIfCancellationRequested();
             ComposedDefinitions.Add(definition);
-            return Task.FromResult(agent);
+
+            if (_agents.Count == 0)
+            {
+                throw new InvalidOperationException("No stub Agent remains.");
+            }
+
+            return Task.FromResult(_agents.Dequeue());
         }
     }
 
