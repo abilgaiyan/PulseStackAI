@@ -1,8 +1,10 @@
 using FluentAssertions;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Assets;
+using PulseStack.Abstractions.Runtime.Realization.Binding;
 using PulseStack.Abstractions.Runtime.Realization.Composition;
 using PulseStack.Abstractions.Runtime.Realization.Resolution;
+using PulseStack.Abstractions.Workflows.Conditions;
 using PulseStack.Abstractions.Workflows.Definitions;
 using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Core.Assets;
@@ -43,7 +45,7 @@ public sealed class WorkflowComposerTests
 
         var runtimeAgent = new StubAgent("Research Agent");
         var agentComposer = new StubAgentComposer(runtimeAgent);
-        var composer = new WorkflowComposer(
+        var composer = CreateComposer(
             new StubAssetResolver(agentDefinition),
             agentComposer);
 
@@ -85,7 +87,7 @@ public sealed class WorkflowComposerTests
                 Steps = [parallelDefinition]
             });
 
-        var composer = new WorkflowComposer(
+        var composer = CreateComposer(
             new StubAssetResolver(firstDefinition, secondDefinition),
             new StubAgentComposer(
                 new StubAgent("Research Agent"),
@@ -132,7 +134,7 @@ public sealed class WorkflowComposerTests
                 Steps = [outerDefinition]
             });
 
-        var composer = new WorkflowComposer(
+        var composer = CreateComposer(
             new StubAssetResolver(firstDefinition, secondDefinition),
             new StubAgentComposer(
                 new StubAgent("Agent One"),
@@ -158,6 +160,99 @@ public sealed class WorkflowComposerTests
     }
 
     [Fact]
+    public async Task ComposeAsync_ShouldComposeConditionalThenStep()
+    {
+        var agentDefinition = CreateAgentDefinition("Approval Agent");
+        var condition = new StubCondition("requires-approval");
+        var conditionalDefinition = new ConditionalStepDefinition
+        {
+            Name = "Requires Approval",
+            Condition = new NamedConditionDefinition
+            {
+                Name = "requires-approval"
+            },
+            ThenStep = CreateRunDefinition(agentDefinition)
+        };
+
+        var workflowAsset = new WorkflowAssetFactory().Create(
+            new WorkflowAssetOptions
+            {
+                Name = "Approval Workflow",
+                Steps = [conditionalDefinition]
+            });
+
+        var composer = CreateComposer(
+            new StubAssetResolver(agentDefinition),
+            new StubAgentComposer(new StubAgent("Approval Agent")),
+            new StubConditionBindingResolver(condition));
+
+        var workflow = await composer.ComposeAsync(workflowAsset);
+
+        var conditional = workflow.Steps.Single()
+            .Should().BeOfType<ConditionalStep>()
+            .Subject;
+
+        conditional.Id.Should().Be(conditionalDefinition.Id);
+        conditional.Name.Should().Be("Requires Approval");
+        conditional.Condition.Should().BeSameAs(condition);
+        conditional.ThenStep.Should().BeOfType<RunStep>();
+        conditional.ElseStep.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ComposeAsync_ShouldComposeConditionalThenAndElseStepsRecursively()
+    {
+        var thenDefinition = CreateAgentDefinition("Approval Agent");
+        var elseDefinition = CreateAgentDefinition("Auto Approve Agent");
+        var condition = new StubCondition("requires-approval");
+        var conditionalDefinition = new ConditionalStepDefinition
+        {
+            Name = "Approval Decision",
+            Condition = new NamedConditionDefinition
+            {
+                Name = "requires-approval"
+            },
+            ThenStep = CreateRunDefinition(thenDefinition),
+            ElseStep = new ParallelStepDefinition
+            {
+                Name = "Auto Path",
+                Steps = [CreateRunDefinition(elseDefinition)]
+            }
+        };
+
+        var workflowAsset = new WorkflowAssetFactory().Create(
+            new WorkflowAssetOptions
+            {
+                Name = "Conditional Workflow",
+                Steps = [conditionalDefinition]
+            });
+
+        var composer = CreateComposer(
+            new StubAssetResolver(thenDefinition, elseDefinition),
+            new StubAgentComposer(
+                new StubAgent("Approval Agent"),
+                new StubAgent("Auto Approve Agent")),
+            new StubConditionBindingResolver(condition));
+
+        var workflow = await composer.ComposeAsync(workflowAsset);
+
+        var conditional = workflow.Steps.Single()
+            .Should().BeOfType<ConditionalStep>()
+            .Subject;
+
+        conditional.ThenStep.Should().BeOfType<RunStep>()
+            .Which.Name.Should().Be("Approval Agent");
+
+        var parallel = conditional.ElseStep
+            .Should().BeOfType<ParallelStep>()
+            .Subject;
+
+        parallel.Steps.Should().ContainSingle();
+        parallel.Steps.Single().Should().BeOfType<RunStep>()
+            .Which.Name.Should().Be("Auto Approve Agent");
+    }
+
+    [Fact]
     public async Task ComposeAsync_ShouldRejectMissingAgentAsset()
     {
         var missingId = AssetId.New();
@@ -176,7 +271,7 @@ public sealed class WorkflowComposerTests
                 ]
             });
 
-        var composer = new WorkflowComposer(
+        var composer = CreateComposer(
             new StubAssetResolver(),
             new StubAgentComposer(new StubAgent("unused")));
 
@@ -185,6 +280,16 @@ public sealed class WorkflowComposerTests
         await action.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*could not be resolved*");
     }
+
+    private static WorkflowComposer CreateComposer(
+        IAssetResolver assetResolver,
+        IAgentComposer agentComposer,
+        IConditionBindingResolver? conditionBindingResolver = null) =>
+        new(
+            assetResolver,
+            agentComposer,
+            conditionBindingResolver ??
+            new StubConditionBindingResolver(new StubCondition("default")));
 
     private static AgentDefinition CreateAgentDefinition(string name) =>
         new AgentDefinitionFactory().Create(
@@ -239,6 +344,22 @@ public sealed class WorkflowComposerTests
 
             return Task.FromResult(_agents.Dequeue());
         }
+    }
+
+    private sealed class StubConditionBindingResolver(ICondition condition)
+        : IConditionBindingResolver
+    {
+        public ICondition Resolve(ConditionDefinition definition) => condition;
+    }
+
+    private sealed class StubCondition(string name) : ICondition
+    {
+        public string Name { get; } = name;
+
+        public ValueTask<bool> EvaluateAsync(
+            PipelineContext context,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(true);
     }
 
     private sealed class StubAgent(string name) : IAgent
