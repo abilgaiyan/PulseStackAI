@@ -1,10 +1,13 @@
+using System.Collections;
 using PulseStack.Abstractions.Assets;
 using PulseStack.Abstractions.Runtime.Realization.Binding;
 using PulseStack.Abstractions.Runtime.Realization.Composition;
+using PulseStack.Abstractions.Runtime.Realization.Evaluation;
 using PulseStack.Abstractions.Runtime.Realization.Resolution;
 using PulseStack.Abstractions.Workflows;
 using PulseStack.Abstractions.Workflows.Definitions;
 using PulseStack.Abstractions.Workflows.Steps;
+using PulseStack.Core.Runtime.Realization.Evaluation;
 
 namespace PulseStack.Core.Runtime.Realization.Composition;
 
@@ -13,19 +16,35 @@ public sealed class WorkflowComposer : IWorkflowComposer
     private readonly IAssetResolver _assetResolver;
     private readonly IAgentComposer _agentComposer;
     private readonly IConditionBindingResolver _conditionBindingResolver;
+    private readonly IWorkflowValueEvaluator _workflowValueEvaluator;
 
     public WorkflowComposer(
         IAssetResolver assetResolver,
         IAgentComposer agentComposer,
         IConditionBindingResolver conditionBindingResolver)
+        : this(
+            assetResolver,
+            agentComposer,
+            conditionBindingResolver,
+            new WorkflowValueEvaluator())
+    {
+    }
+
+    public WorkflowComposer(
+        IAssetResolver assetResolver,
+        IAgentComposer agentComposer,
+        IConditionBindingResolver conditionBindingResolver,
+        IWorkflowValueEvaluator workflowValueEvaluator)
     {
         ArgumentNullException.ThrowIfNull(assetResolver);
         ArgumentNullException.ThrowIfNull(agentComposer);
         ArgumentNullException.ThrowIfNull(conditionBindingResolver);
+        ArgumentNullException.ThrowIfNull(workflowValueEvaluator);
 
         _assetResolver = assetResolver;
         _agentComposer = agentComposer;
         _conditionBindingResolver = conditionBindingResolver;
+        _workflowValueEvaluator = workflowValueEvaluator;
     }
 
     public async Task<Workflow> ComposeAsync(
@@ -71,6 +90,9 @@ public sealed class WorkflowComposer : IWorkflowComposer
 
             RetryStepDefinition retry =>
                 await ComposeRetryStepAsync(retry, cancellationToken),
+
+            LoopStepDefinition loop =>
+                await ComposeLoopStepAsync(loop, cancellationToken),
 
             _ => throw new NotSupportedException(
                 $"Workflow step definition '{step.GetType().Name}' is not supported by realization yet.")
@@ -164,5 +186,39 @@ public sealed class WorkflowComposer : IWorkflowComposer
             step.Name,
             child,
             step.MaxAttempts);
+    }
+
+    private async Task<LoopStep> ComposeLoopStepAsync(
+        LoopStepDefinition step,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(step.Name);
+        ArgumentNullException.ThrowIfNull(step.Items);
+        ArgumentNullException.ThrowIfNull(step.Step);
+
+        var child = await ComposeStepAsync(
+            step.Step,
+            cancellationToken);
+
+        IEnumerable<object> ResolveItems(PipelineContext context)
+        {
+            var value = _workflowValueEvaluator.Evaluate(
+                step.Items,
+                context);
+
+            if (value is string || value is not IEnumerable enumerable)
+            {
+                throw new InvalidOperationException(
+                    $"ForEach step '{step.Name}' requires an enumerable workflow value.");
+            }
+
+            return enumerable.Cast<object>();
+        }
+
+        return new LoopStep(
+            step.Id,
+            step.Name,
+            ResolveItems,
+            child);
     }
 }
