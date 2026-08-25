@@ -74,11 +74,11 @@ Runtime Object Graph
 
 # Engineering Phase
 
-## 🚧 MS-008 — Runtime Realization Implementation
+## ✅ MS-008 — Runtime Realization Implementation
 
-MS-008 implements the architecture defined by MS-007.
+MS-008 implements the architecture defined by MS-007 and closes the execution-side path from declarative Assets to executable runtime graphs.
 
-The original implementation sequence was intentionally incremental:
+The original implementation sequence was:
 
 ```text
 Phase A — Agent Contract
@@ -87,8 +87,6 @@ Phase C — Model Realization
 Phase D — Agent Realization
 Phase E — Workflow / Pipeline Realization
 ```
-
-As implementation progressed, Phase D expanded to make the Agent realization boundary explicit for every declarative dependency rather than hiding infrastructure inside Agent construction.
 
 ### ✅ Phase 1 — Runtime Realization Foundation
 
@@ -125,78 +123,65 @@ Phase 2 also established:
 - factory-based Memory realization with fresh runtime state
 - runtime Policy binding and isolation
 
-The Agent realization graph is now structurally complete:
+### ✅ Phase 3 — Workflow Realization
+
+Phase 3 completed the original Phase E objective.
+
+Final realization path:
 
 ```text
-AgentDefinition
-      │
-      ├── Model
-      ├── Prompt
-      ├── Tool[]
-      ├── Knowledge[]
-      ├── Memory
-      └── Policy[]
-              │
-              ▼
-      AgentComposition
-        + AgentBinding
-              │
-              ▼
-            Agent
-              │
-              ▼
-        AgentRuntime
-```
-
-### 🚧 Phase 3 — Workflow Realization
-
-Current implementation phase.
-
-This is the original Phase E of MS-008.
-
-Primary objective:
-
-> Transform a declarative Workflow containing Agent references into an executable workflow runtime graph.
-
-Target realization path:
-
-```text
-Workflow
+WorkflowAsset
+    ↓
+WorkflowStepDefinition
     ↓
 Resolve Agent references
     ↓
 Realize Agents
     ↓
-Bind Workflow steps
+Compose runtime steps
     ↓
-Validate runtime graph
+Executable Workflow
     ↓
-Instantiate executable Workflow
+IWorkflowRuntime
     ↓
-PipelineRuntime
+WorkflowExecutionResult
 ```
 
-Initial scope:
+Completed Workflow grammar realization:
 
-- define the Workflow realization boundary
-- preserve existing Workflow grammar and runtime semantics
-- resolve Agent references through the realization system
-- compose realized Agents into Workflow steps
-- construct the executable runtime graph
-- prove the path with focused integration tests
+```text
+Run
+Parallel
+If
+Retry
+ForEach
+Switch
+```
 
-Out of scope for Phase 3:
+Phase 3 also established:
 
-- Knowledge retrieval orchestration / RAG
-- Policy evaluation and enforcement engine
-- persistent or shared Memory providers
-- Planner
-- Visual Designer
-- distributed runtime
+- recursive Workflow composition
+- declarative Condition binding
+- Workflow Value grammar
+- runtime-state evaluation through `IWorkflowValueEvaluator`
+- step identity preservation
+- recursive nested Agent reference collection
+- end-to-end execution through the actual Workflow Runtime
 
 ### MS-008 Completion Boundary
 
-MS-008 is complete when declarative Agent and Workflow definitions can be transformed into executable runtime objects without embedding provider or infrastructure concerns in the Application Language.
+MS-008 is complete: declarative Agent and Workflow definitions can now be transformed into executable runtime objects without embedding provider or infrastructure concerns in the Application Language.
+
+Deferred from MS-008:
+
+- full WorkflowBuilder migration to declarative authoring
+- Workflow persistence schema migration to the new definition model
+- advanced Condition expression language
+- nested Workflow Asset references
+- Application realization
+- Knowledge retrieval orchestration / RAG
+- Policy evaluation and enforcement engine
+- persistent or shared Memory providers
 
 ---
 
