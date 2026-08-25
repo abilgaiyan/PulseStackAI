@@ -1,4 +1,5 @@
 using PulseStack.Abstractions.Assets;
+using PulseStack.Abstractions.Runtime.Realization.Binding;
 using PulseStack.Abstractions.Runtime.Realization.Composition;
 using PulseStack.Abstractions.Runtime.Realization.Resolution;
 using PulseStack.Abstractions.Workflows;
@@ -11,16 +12,20 @@ public sealed class WorkflowComposer : IWorkflowComposer
 {
     private readonly IAssetResolver _assetResolver;
     private readonly IAgentComposer _agentComposer;
+    private readonly IConditionBindingResolver _conditionBindingResolver;
 
     public WorkflowComposer(
         IAssetResolver assetResolver,
-        IAgentComposer agentComposer)
+        IAgentComposer agentComposer,
+        IConditionBindingResolver conditionBindingResolver)
     {
         ArgumentNullException.ThrowIfNull(assetResolver);
         ArgumentNullException.ThrowIfNull(agentComposer);
+        ArgumentNullException.ThrowIfNull(conditionBindingResolver);
 
         _assetResolver = assetResolver;
         _agentComposer = agentComposer;
+        _conditionBindingResolver = conditionBindingResolver;
     }
 
     public async Task<Workflow> ComposeAsync(
@@ -60,6 +65,9 @@ public sealed class WorkflowComposer : IWorkflowComposer
 
             ParallelStepDefinition parallel =>
                 await ComposeParallelStepAsync(parallel, cancellationToken),
+
+            ConditionalStepDefinition conditional =>
+                await ComposeConditionalStepAsync(conditional, cancellationToken),
 
             _ => throw new NotSupportedException(
                 $"Workflow step definition '{step.GetType().Name}' is not supported by realization yet.")
@@ -112,5 +120,27 @@ public sealed class WorkflowComposer : IWorkflowComposer
         }
 
         return runtime;
+    }
+
+    private async Task<ConditionalStep> ComposeConditionalStepAsync(
+        ConditionalStepDefinition step,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(step.Name);
+        ArgumentNullException.ThrowIfNull(step.Condition);
+        ArgumentNullException.ThrowIfNull(step.ThenStep);
+
+        var condition = _conditionBindingResolver.Resolve(step.Condition);
+        var thenStep = await ComposeStepAsync(step.ThenStep, cancellationToken);
+        var elseStep = step.ElseStep is null
+            ? null
+            : await ComposeStepAsync(step.ElseStep, cancellationToken);
+
+        return new ConditionalStep(
+            step.Id,
+            step.Name,
+            condition,
+            thenStep,
+            elseStep);
     }
 }
