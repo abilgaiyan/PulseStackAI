@@ -50,14 +50,21 @@ public sealed class WorkflowComposer : IWorkflowComposer
     private async Task<IWorkflowStep> ComposeStepAsync(
         WorkflowStepDefinition step,
         CancellationToken cancellationToken)
-        => step switch
+    {
+        ArgumentNullException.ThrowIfNull(step);
+
+        return step switch
         {
             RunStepDefinition run =>
                 await ComposeRunStepAsync(run, cancellationToken),
 
+            ParallelStepDefinition parallel =>
+                await ComposeParallelStepAsync(parallel, cancellationToken),
+
             _ => throw new NotSupportedException(
                 $"Workflow step definition '{step.GetType().Name}' is not supported by realization yet.")
         };
+    }
 
     private async Task<RunStep> ComposeRunStepAsync(
         RunStepDefinition step,
@@ -84,5 +91,26 @@ public sealed class WorkflowComposer : IWorkflowComposer
             cancellationToken);
 
         return new RunStep(step.Id, agent);
+    }
+
+    private async Task<ParallelStep> ComposeParallelStepAsync(
+        ParallelStepDefinition step,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(step.Name);
+
+        var runtime = new ParallelStep(
+            step.Id,
+            step.Name);
+
+        foreach (var child in step.Steps)
+        {
+            runtime.Add(
+                await ComposeStepAsync(
+                    child,
+                    cancellationToken));
+        }
+
+        return runtime;
     }
 }
