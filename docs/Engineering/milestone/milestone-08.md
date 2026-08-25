@@ -2,7 +2,7 @@
 
 > **Document Type:** Milestone  
 > **Audience:** Contributors  
-> **Status:** In Progress  
+> **Status:** Complete  
 > **Owner:** PulseStackAI Team  
 > **Last Reviewed:** 2026-08-25
 
@@ -10,9 +10,9 @@
 | --- | --- |
 | **ID** | MS-008 |
 | **Title** | Runtime Realization Implementation |
-| **Status** | In Progress |
+| **Status** | Complete |
 | **Architecture Source** | MS-007 Runtime Realization Architecture |
-| **Current Phase** | Phase 3 — Workflow Realization |
+| **Final Phase** | Phase 3 — Workflow Realization |
 
 ---
 
@@ -64,9 +64,19 @@ IAgent[]
 PipelineRuntime
 ```
 
-That direction remains valid.
+During implementation, this evolved into a stronger separation between declarative Workflow grammar and the existing Workflow Runtime:
 
-During implementation, the Agent realization phase expanded because a realized Agent is composed from multiple independent Assets. Rather than hiding those dependencies inside Agent construction, PulseStackAI established explicit realization or binding boundaries for each Asset category.
+```text
+WorkflowAsset
+    ↓
+WorkflowComposer
+    ↓
+Executable Workflow Graph
+    ↓
+IWorkflowRuntime
+```
+
+The original objective remains satisfied: declarative Workflows resolve Agent Assets and become executable runtime graphs without exposing provider or infrastructure concerns in the Application Language.
 
 ---
 
@@ -134,70 +144,85 @@ Delivered:
 - PolicyAsset and IRuntimePolicy binding
 - Policy isolation
 
-The Agent realization graph is now structurally complete.
-
-```text
-AgentDefinition
-      │
-      ├── Model
-      ├── Prompt
-      ├── Tool[]
-      ├── Knowledge[]
-      ├── Memory
-      └── Policy[]
-              │
-              ▼
-      AgentComposition
-        + AgentBinding
-              │
-              ▼
-            Agent
-              │
-              ▼
-        AgentRuntime
-```
+The Agent realization graph is structurally complete.
 
 ---
 
 # Phase 3 — Workflow Realization
 
-**Status:** 🚧 Current
+**Status:** ✅ Complete
 
-Phase 3 returns to the original Phase E objective: realize a declarative Workflow into an executable runtime graph.
+Phase 3 completed the original Phase E objective by introducing a declarative Workflow Asset model and realizing it into the existing executable Workflow Runtime.
 
-Target path:
+Final path:
 
 ```text
-Workflow
+WorkflowAsset
+    ↓
+WorkflowStepDefinition
     ↓
 Resolve Agent references
     ↓
 Realize Agents
     ↓
-Bind Workflow steps
+Compose runtime steps
     ↓
-Validate runtime graph
+Executable Workflow
     ↓
-Instantiate executable Workflow
+IWorkflowRuntime
     ↓
-PipelineRuntime
+WorkflowExecutionResult
 ```
 
-## Objectives
+Delivered:
 
-- define the Workflow realization boundary
-- preserve the existing Workflow grammar
-- preserve existing PipelineRuntime execution semantics
-- resolve Agent references through the runtime realization system
-- compose realized Agents into executable Workflow steps
-- validate unresolved or incompatible references before execution
-- instantiate the runtime workflow graph
-- prove the path with focused integration tests
+- WorkflowAsset and WorkflowAssetFactory
+- recursive WorkflowComposer
+- Run realization
+- Parallel realization
+- Conditional realization with runtime condition binding
+- Retry realization
+- Workflow Value grammar for declarative runtime-state access
+- ForEach realization
+- Switch realization
+- runtime step identity preservation
+- recursive Agent reference collection across nested Workflow grammar
+- end-to-end execution proof through the actual Workflow Runtime and step executors
 
-## Non-Goals
+The realized Workflow grammar is:
 
-Phase 3 does not implement:
+```text
+Run
+Parallel
+If
+Retry
+ForEach
+Switch
+```
 
+State-dependent grammar remains declarative through:
+
+```text
+WorkflowValueDefinition
+    ↓
+IWorkflowValueEvaluator
+    ↓
+PipelineContext
+```
+
+This keeps `PipelineContext`, delegates, provider infrastructure, execution metadata, and step executors out of the Application Language.
+
+---
+
+# Deferred Boundaries
+
+MS-008 intentionally does not implement:
+
+- full WorkflowBuilder migration to declarative authoring
+- Workflow persistence schema migration to the new definition model
+- advanced Condition expression language
+- nested Workflow Asset references
+- Application realization
 - Knowledge retrieval orchestration or RAG
 - Policy evaluation/enforcement
 - persistent/shared Memory backends
@@ -212,14 +237,14 @@ These capabilities build on the realization foundation rather than belonging ins
 
 # Completion Criteria
 
-MS-008 is complete when:
+MS-008 is complete because:
 
-1. Agent definitions can be realized into executable Agents.
+1. Agent definitions realize into executable Agents.
 2. Every Agent dependency has an explicit realization/binding path.
-3. Workflow definitions can resolve referenced Agents.
+3. Workflow definitions resolve referenced Agents.
 4. Workflow realization produces an executable runtime graph.
-5. PipelineRuntime executes the realized graph without provider-specific concerns in the Workflow language.
-6. Invalid or unresolved runtime graphs fail before execution with clear realization errors.
+5. The actual Workflow Runtime executes the realized graph without provider-specific concerns in the Workflow language.
+6. Invalid or unresolved structural references fail during realization with clear errors.
 
 ---
 
@@ -241,7 +266,7 @@ Executable Runtime Objects
 Execution Runtime
 ```
 
-Knowledge retrieval, governance enforcement, persistent Memory, planning, and registry infrastructure remain independent platform capabilities.
+Knowledge retrieval, governance enforcement, persistent Memory, planning, registry infrastructure, and authoring migration remain independent platform capabilities.
 
 ---
 
@@ -249,7 +274,7 @@ Knowledge retrieval, governance enforcement, persistent Memory, planning, and re
 
 ## MS-009 — AI Asset Platform Implementation
 
-Once MS-008 closes the execution-side realization loop, MS-009 will focus on authoring-side Asset management:
+With the execution-side realization loop complete, MS-009 focuses on authoring-side Asset management:
 
 - Projects
 - Libraries
