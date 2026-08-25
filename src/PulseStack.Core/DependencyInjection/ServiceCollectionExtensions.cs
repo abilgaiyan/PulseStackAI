@@ -71,6 +71,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IKnowledgeBindingResolver, KnowledgeBindingResolver>();
         services.TryAddSingleton<IMemoryBindingResolver, MemoryBindingResolver>();
         services.TryAddSingleton<IPolicyBindingResolver, PolicyBindingResolver>();
+        services.TryAddSingleton<IConditionBindingResolver, ConditionBindingResolver>();
         services.TryAddScoped<IWorkflowComposer, WorkflowComposer>();
 
         services.TryAddSingleton<IWorkflowMapper, WorkflowMapper>();
