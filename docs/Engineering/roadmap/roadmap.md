@@ -8,30 +8,23 @@
 
 # Architectural Evolution
 
-The platform follows a deliberate engineering progression.
-
 ```text
 Foundation
-        │
-        ▼
+    ↓
 Execution
-        │
-        ▼
+    ↓
 Persistence
-        │
-        ▼
+    ↓
 Packaging
-        │
-        ▼
+    ↓
 AI Application Language
-        │
-        ▼
+    ↓
 Runtime Realization
-        │
-        ▼
+    ↓
+AI Asset Platform
+    ↓
 Platform Capabilities
-        │
-        ▼
+    ↓
 Ecosystem
 ```
 
@@ -41,106 +34,201 @@ Every milestone builds upon the previous one while maintaining clean architectur
 
 # Foundation Phase
 
-```text
-══════════════════════════════════════════════
-Foundation Phase
-══════════════════════════════════════════════
-```
-
 - ✅ **MS-001 — Core Foundation**
 - ✅ **MS-002 — Agent Runtime**
 - ✅ **MS-003 — Workflow Runtime**
 - ✅ **MS-004 — Workflow Persistence**
 - ✅ **MS-005 — Workflow Packages**
 
+These milestones established the execution, persistence, and packaging foundations of PulseStackAI.
+
 ---
 
 # Architecture Phase
 
-```text
-══════════════════════════════════════════════
-Architecture Phase
-══════════════════════════════════════════════
-```
-
 - ✅ **MS-006 — AI Asset Model & Application Language**
 
-Established the conceptual foundation of PulseStackAI by introducing:
+Established the authoring model for describing business intent through reusable AI Assets and composition.
 
-- Vision
-- Philosophy
-- Engineering Principles
-- AI Application Language
-- AI Asset Model
-- Foundation Language
-- Composition Language
-- Organization Language
+- ✅ **MS-007 — Runtime Realization Architecture**
 
-This milestone transformed PulseStackAI from an orchestration framework into a language-driven AI Application Engineering Platform.
+Defined the realization architecture responsible for transforming declarative Assets into executable runtime objects.
 
-- 🚧 **MS-007 — Runtime Realization Architecture**
+The realization lifecycle is:
 
-Current milestone.
-
-Design the execution architecture responsible for realizing AI Assets into executable business applications.
-
-Primary objectives:
-
-- Runtime Realization Model
-- Runtime Domains
-- Runtime Services
-- Execution Lifecycle
-- Runtime Context
-- Asset Resolution
-- Runtime Composition
-- Provider Integration
-- Observability
-- Governance
+```text
+Resolve
+    ↓
+Compose
+    ↓
+Bind
+    ↓
+Validate
+    ↓
+Instantiate
+    ↓
+Runtime Object Graph
+```
 
 ---
 
 # Engineering Phase
 
+## ✅ MS-008 — Runtime Realization Implementation
+
+MS-008 implements the architecture defined by MS-007 and closes the execution-side path from declarative Assets to executable runtime graphs.
+
+The original implementation sequence was:
+
 ```text
-══════════════════════════════════════════════
-Engineering Phase
-══════════════════════════════════════════════
+Phase A — Agent Contract
+Phase B — Agent Implementation
+Phase C — Model Realization
+Phase D — Agent Realization
+Phase E — Workflow / Pipeline Realization
 ```
 
-- **MS-008 — Runtime Realization Implementation**
-- **MS-009 — AI Asset Platform Implementation**
+### ✅ Phase 1 — Runtime Realization Foundation
 
-MS-008 implements the Runtime Realization Architecture defined by MS-007.
+Completed:
 
-MS-009 implements the authoring-side AI Asset Platform established by MS-006.
+- PulseStack-owned Agent response contract
+- Agent / AgentRuntime separation
+- Provider resolution infrastructure
+- Model catalog and Model Asset realization
+- Asset resolution foundation
+- AgentDefinition and declarative Agent authoring
+- Agent composition and binding
+- Prompt Asset realization
+- Runtime Agent instantiation
+
+### ✅ Phase 2 — Agent Asset Realization
+
+Completed realization paths for all Agent dependencies:
+
+```text
+Model       → Realize
+Prompt      → Realize
+Tool        → Bind
+Knowledge   → Bind
+Memory      → Bind + Instantiate
+Policy      → Bind / Compose
+```
+
+Phase 2 also established:
+
+- explicit Tool Asset-to-runtime bindings
+- Agent-specific Tool isolation
+- Knowledge source binding and isolation
+- factory-based Memory realization with fresh runtime state
+- runtime Policy binding and isolation
+
+### ✅ Phase 3 — Workflow Realization
+
+Phase 3 completed the original Phase E objective.
+
+Final realization path:
+
+```text
+WorkflowAsset
+    ↓
+WorkflowStepDefinition
+    ↓
+Resolve Agent references
+    ↓
+Realize Agents
+    ↓
+Compose runtime steps
+    ↓
+Executable Workflow
+    ↓
+IWorkflowRuntime
+    ↓
+WorkflowExecutionResult
+```
+
+Completed Workflow grammar realization:
+
+```text
+Run
+Parallel
+If
+Retry
+ForEach
+Switch
+```
+
+Phase 3 also established:
+
+- recursive Workflow composition
+- declarative Condition binding
+- Workflow Value grammar
+- runtime-state evaluation through `IWorkflowValueEvaluator`
+- step identity preservation
+- recursive nested Agent reference collection
+- end-to-end execution through the actual Workflow Runtime
+
+### MS-008 Completion Boundary
+
+MS-008 is complete: declarative Agent and Workflow definitions can now be transformed into executable runtime objects without embedding provider or infrastructure concerns in the Application Language.
+
+Deferred from MS-008:
+
+- full WorkflowBuilder migration to declarative authoring
+- Workflow persistence schema migration to the new definition model
+- advanced Condition expression language
+- nested Workflow Asset references
+- Application realization
+- Knowledge retrieval orchestration / RAG
+- Policy evaluation and enforcement engine
+- persistent or shared Memory providers
+
+---
+
+## ⬜ MS-009 — AI Asset Platform Implementation
+
+MS-009 moves from runtime execution to authoring-side Asset management.
+
+Expected capabilities include:
+
+- AI Projects
+- AI Libraries
+- Asset catalog / registry
+- dependency graph and reference management
+- Asset validation
+- versioning and lifecycle
+- discovery and loading
+- application organization
+
+MS-009 should build on the realization contracts established by MS-008 rather than redefining runtime execution.
 
 ---
 
 # Platform Capabilities
 
-```text
-══════════════════════════════════════════════
-Platform Capabilities
-══════════════════════════════════════════════
-```
+These capabilities build upon the Asset Platform and Runtime Platform:
 
-- **Planner**
-- **Human Approval**
-- **Scheduling**
-- **Distributed Runtime**
-- **Asset Registry**
+- Planner
+- Human Approval
+- Scheduling
+- Distributed Runtime
+- Asset Registry / Distribution
 
-These capabilities build upon the Authoring Platform and Runtime Platform rather than introducing separate execution foundations.
+---
+
+# Runtime Capability Tracks
+
+The following capabilities should evolve as focused runtime/platform tracks rather than expanding MS-008 indefinitely:
+
+- Knowledge retrieval and RAG
+- Policy evaluation and governance enforcement
+- persistent and shared Memory implementations
+- provider integrations
+- observability and diagnostics expansion
 
 ---
 
 # Documentation
-
-```text
-══════════════════════════════════════════════
-Documentation
-══════════════════════════════════════════════
-```
 
 - MS-DOC-001 — Architecture Documentation
 - MS-DOC-002 — Developer Guide
@@ -150,12 +238,6 @@ Documentation
 
 # Infrastructure
 
-```text
-══════════════════════════════════════════════
-Infrastructure
-══════════════════════════════════════════════
-```
-
 - MS-INFRA-001 — CI/CD
 - MS-INFRA-002 — Benchmark Suite
 - MS-INFRA-003 — Packaging & Release
@@ -163,12 +245,6 @@ Infrastructure
 ---
 
 # Ecosystem
-
-```text
-══════════════════════════════════════════════
-Ecosystem
-══════════════════════════════════════════════
-```
 
 - MS-ECO-001 — Official Asset Packages
 - MS-ECO-002 — Samples Library
@@ -178,42 +254,7 @@ Ecosystem
 
 ---
 
-# Future Architecture
-
-## Reference Resolution Layer
-
-**Status:** Planned
-
-### Purpose
-
-Transform persisted AI Asset references into executable runtime objects during Runtime Realization.
-
-### Initial Components
-
-- IAgentResolver
-- IToolResolver
-- IPromptResolver
-- IWorkflowResolver
-- IPackageResolver
-
-### Responsibilities
-
-- Asset Resolution
-- Runtime Composition
-- Dependency Injection Integration
-- Reference Validation
-- Environment-independent Applications
-- Portable Packages
-
-This capability becomes part of the Runtime Realization architecture and enables reusable AI Assets to be reconstructed from persisted references at runtime.
-
----
-
 # Long-Term Vision
-
-PulseStackAI is evolving toward a complete AI Application Engineering Platform.
-
-The long-term architecture is centered around four distinct concerns:
 
 ```text
 Business Intent
@@ -222,13 +263,19 @@ Business Intent
 AI Application Language
         │
         ▼
+AI Asset Model
+        │
+        ▼
 Runtime Realization
+        │
+        ▼
+Execution Runtime
         │
         ▼
 Provider Infrastructure
 ```
 
-This separation enables intelligent business applications to evolve independently from AI providers, infrastructure technologies, and execution environments.
+The long-term goal is to keep business intent stable while providers, models, databases, protocols, and execution infrastructure evolve independently.
 
 ---
 
@@ -236,12 +283,12 @@ This separation enables intelligent business applications to evolve independentl
 
 Every milestone should make the platform:
 
-- Simpler to understand
-- Easier to extend
-- More reusable
-- More observable
-- More resilient
-- More provider-independent
+- simpler to understand
+- easier to extend
+- more reusable
+- more observable
+- more resilient
+- more provider-independent
 
 Technology will continue to evolve.
 

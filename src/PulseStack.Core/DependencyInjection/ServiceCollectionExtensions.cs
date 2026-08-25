@@ -8,6 +8,8 @@ using PulseStack.Abstractions.Persistence.Serialization;
 using PulseStack.Abstractions.Persistence.Validation;
 using PulseStack.Abstractions.Providers;
 using PulseStack.Abstractions.Runtime.Realization.Binding;
+using PulseStack.Abstractions.Runtime.Realization.Composition;
+using PulseStack.Abstractions.Runtime.Realization.Evaluation;
 using PulseStack.Abstractions.Runtime.Realization.Resolution;
 using PulseStack.Abstractions.Security;
 using PulseStack.Abstractions.Tools;
@@ -20,6 +22,8 @@ using PulseStack.Core.Persistence.Validation;
 using PulseStack.Core.Resilience;
 using PulseStack.Core.Runtime.Realization;
 using PulseStack.Core.Runtime.Realization.Binding;
+using PulseStack.Core.Runtime.Realization.Composition;
+using PulseStack.Core.Runtime.Realization.Evaluation;
 using PulseStack.Core.Runtime.Realization.Resolution;
 using PulseStack.Core.Security;
 using PulseStack.Core.Tools;
@@ -58,6 +62,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<KnowledgeAssetFactory>();
         services.TryAddSingleton<MemoryAssetFactory>();
         services.TryAddSingleton<PolicyAssetFactory>();
+        services.TryAddSingleton<WorkflowAssetFactory>();
         services.TryAddSingleton<IChatClientFactoryRegistry>(sp =>
             new ChatClientFactoryRegistry(
                 sp.GetServices<ChatClientFactoryRegistration>()));
@@ -68,6 +73,9 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IKnowledgeBindingResolver, KnowledgeBindingResolver>();
         services.TryAddSingleton<IMemoryBindingResolver, MemoryBindingResolver>();
         services.TryAddSingleton<IPolicyBindingResolver, PolicyBindingResolver>();
+        services.TryAddSingleton<IConditionBindingResolver, ConditionBindingResolver>();
+        services.TryAddSingleton<IWorkflowValueEvaluator, WorkflowValueEvaluator>();
+        services.TryAddScoped<IWorkflowComposer, WorkflowComposer>();
 
         services.TryAddSingleton<IWorkflowMapper, WorkflowMapper>();
         services.TryAddSingleton<IWorkflowSerializer, JsonWorkflowSerializer>();

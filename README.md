@@ -283,34 +283,59 @@ Just the business process.
 
 The Runtime takes care of everything else.
 
+> The current builder API predates the declarative Workflow Asset model. Migrating this authoring surface to emit declarative definitions is intentionally deferred beyond MS-008; the business-first grammar remains the design target.
+
 ---
 
 # Project Status
 
 ## Completed
 
-- ✅ Workflow Runtime
-- ✅ Workflow Persistence
-- ✅ Workflow Packages
-- ✅ AI Application Language
-- ✅ AI Asset Model
+- ✅ MS-001 — Core Foundation
+- ✅ MS-002 — Agent Runtime
+- ✅ MS-003 — Workflow Runtime
+- ✅ MS-004 — Workflow Persistence
+- ✅ MS-005 — Workflow Packages
+- ✅ MS-006 — AI Asset Model & Application Language
+- ✅ MS-007 — Runtime Realization Architecture
+- ✅ MS-008 — Runtime Realization Implementation
+  - ✅ Phase 1 — Runtime Realization Foundation
+  - ✅ Phase 2 — Agent Asset Realization
+  - ✅ Phase 3 — Workflow Realization
 
-## Current Milestone
+MS-008 closes the realization path:
 
-- 🚧 **MS-007 — Runtime Realization Architecture**
+```text
+WorkflowAsset
+    ↓
+WorkflowStepDefinition
+    ↓
+Agent references
+    ↓
+Agent realization
+    ↓
+Executable Workflow graph
+    ↓
+IWorkflowRuntime
+```
 
-Designing the execution architecture that realizes AI Assets into running business applications.
+Declarative Workflow grammar now realizes `Run`, `Parallel`, `If`, `Retry`, `ForEach`, and `Switch` into the existing execution runtime without exposing provider or infrastructure concerns in the Application Language.
 
-## Planned
+## Next Milestone
+
+- ⬜ **MS-009 — AI Asset Platform Implementation**
+
+Expected areas:
 
 - AI Projects
 - AI Libraries
-- Planner
-- Asset Registry
-- Visual Designer
-- Marketplace
+- Asset Catalog / Registry
+- dependency and reference management
+- validation, versioning, discovery, and loading
 
-PulseStackAI is evolving from a workflow runtime into a complete domain-driven AI application platform.
+Later platform capabilities include Planner, Human Approval, Scheduling, Distributed Runtime, Visual Designer, and Marketplace.
+
+PulseStackAI is evolving from a workflow runtime into a complete domain-driven AI Application Engineering Platform.
 
 ---
 

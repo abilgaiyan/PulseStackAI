@@ -1,11 +1,12 @@
 using PulseStack.Abstractions.Workflows.Conditions;
 using PulseStack.Abstractions.Workflows;
 
-namespace PulseStack.Abstractions.Workflows.Steps; 
+namespace PulseStack.Abstractions.Workflows.Steps;
 
 public sealed class ConditionalStep : IWorkflowStep
 {
-    public WorkflowStepId Id { get; } = WorkflowStepId.New();
+    public WorkflowStepId Id { get; }
+
     public string Name { get; }
 
     public ICondition Condition { get; }
@@ -24,11 +25,27 @@ public sealed class ConditionalStep : IWorkflowStep
         ICondition condition,
         IWorkflowStep thenStep,
         IWorkflowStep? elseStep = null)
+        : this(
+            WorkflowStepId.New(),
+            name,
+            condition,
+            thenStep,
+            elseStep)
+    {
+    }
+
+    public ConditionalStep(
+        WorkflowStepId id,
+        string name,
+        ICondition condition,
+        IWorkflowStep thenStep,
+        IWorkflowStep? elseStep = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(condition);
         ArgumentNullException.ThrowIfNull(thenStep);
 
+        Id = id;
         Name = name;
         Condition = condition;
         ThenStep = thenStep;

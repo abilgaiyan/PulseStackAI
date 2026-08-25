@@ -1,13 +1,13 @@
-using  PulseStack.Abstractions.Agents;
+using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Workflows;
 using PulseStack.Abstractions.Workflows.Routing;
 
-namespace PulseStack.Abstractions.Workflows.Steps; 
+namespace PulseStack.Abstractions.Workflows.Steps;
 
 public sealed class SwitchStep
     : IWorkflowStep
 {
-    public WorkflowStepId Id { get; } = WorkflowStepId.New();
+    public WorkflowStepId Id { get; }
     public string Name { get; }
 
     public Func<PipelineContext, string?> Selector { get; }
@@ -29,11 +29,27 @@ public sealed class SwitchStep
         Func<PipelineContext, string?> selector,
         IEnumerable<SwitchCase> cases,
         IWorkflowStep? defaultStep = null)
+        : this(
+            WorkflowStepId.New(),
+            name,
+            selector,
+            cases,
+            defaultStep)
+    {
+    }
+
+    public SwitchStep(
+        WorkflowStepId id,
+        string name,
+        Func<PipelineContext, string?> selector,
+        IEnumerable<SwitchCase> cases,
+        IWorkflowStep? defaultStep = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(selector);
         ArgumentNullException.ThrowIfNull(cases);
 
+        Id = id;
         Name = name;
         Selector = selector;
         Cases = cases.ToList();
