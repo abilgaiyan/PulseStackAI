@@ -41,8 +41,44 @@ public sealed record WorkflowAsset : Asset
     private static IReadOnlyCollection<AssetReference> CollectReferences(
         IReadOnlyCollection<WorkflowStepDefinition> steps)
         => steps
-            .OfType<RunStepDefinition>()
-            .Select(step => step.Agent)
+            .SelectMany(CollectReferences)
             .Distinct()
             .ToArray();
+
+    private static IEnumerable<AssetReference> CollectReferences(
+        WorkflowStepDefinition step)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+
+        return step switch
+        {
+            RunStepDefinition run => [run.Agent],
+
+            ParallelStepDefinition parallel =>
+                parallel.Steps.SelectMany(CollectReferences),
+
+            ConditionalStepDefinition conditional =>
+                CollectReferences(conditional.ThenStep)
+                    .Concat(
+                        conditional.ElseStep is null
+                            ? []
+                            : CollectReferences(conditional.ElseStep)),
+
+            RetryStepDefinition retry =>
+                CollectReferences(retry.Step),
+
+            LoopStepDefinition loop =>
+                CollectReferences(loop.Step),
+
+            SwitchStepDefinition @switch =>
+                @switch.Cases
+                    .SelectMany(@case => CollectReferences(@case.Step))
+                    .Concat(
+                        @switch.DefaultStep is null
+                            ? []
+                            : CollectReferences(@switch.DefaultStep)),
+
+            _ => []
+        };
+    }
 }
