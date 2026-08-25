@@ -69,6 +69,9 @@ public sealed class WorkflowComposer : IWorkflowComposer
             ConditionalStepDefinition conditional =>
                 await ComposeConditionalStepAsync(conditional, cancellationToken),
 
+            RetryStepDefinition retry =>
+                await ComposeRetryStepAsync(retry, cancellationToken),
+
             _ => throw new NotSupportedException(
                 $"Workflow step definition '{step.GetType().Name}' is not supported by realization yet.")
         };
@@ -142,5 +145,24 @@ public sealed class WorkflowComposer : IWorkflowComposer
             condition,
             thenStep,
             elseStep);
+    }
+
+    private async Task<RetryStep> ComposeRetryStepAsync(
+        RetryStepDefinition step,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(step.Name);
+        ArgumentNullException.ThrowIfNull(step.Step);
+        ArgumentOutOfRangeException.ThrowIfLessThan(step.MaxAttempts, 1);
+
+        var child = await ComposeStepAsync(
+            step.Step,
+            cancellationToken);
+
+        return new RetryStep(
+            step.Id,
+            step.Name,
+            child,
+            step.MaxAttempts);
     }
 }
