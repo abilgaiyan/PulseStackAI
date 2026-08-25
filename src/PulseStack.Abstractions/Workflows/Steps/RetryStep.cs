@@ -1,9 +1,11 @@
 using PulseStack.Abstractions.Workflows;
 
-namespace PulseStack.Abstractions.Workflows.Steps; 
+namespace PulseStack.Abstractions.Workflows.Steps;
+
 public sealed class RetryStep : IWorkflowStep
 {
-    public WorkflowStepId Id { get; } = WorkflowStepId.New();
+    public WorkflowStepId Id { get; }
+
     public string Name { get; }
 
     public IWorkflowStep Step { get; }
@@ -13,6 +15,19 @@ public sealed class RetryStep : IWorkflowStep
     public IReadOnlyList<IWorkflowStep> Children => [Step];
 
     public RetryStep(
+        string name,
+        IWorkflowStep step,
+        int maxAttempts = 3)
+        : this(
+            WorkflowStepId.New(),
+            name,
+            step,
+            maxAttempts)
+    {
+    }
+
+    public RetryStep(
+        WorkflowStepId id,
         string name,
         IWorkflowStep step,
         int maxAttempts = 3)
@@ -26,6 +41,7 @@ public sealed class RetryStep : IWorkflowStep
                 nameof(maxAttempts));
         }
 
+        Id = id;
         Name = name;
         Step = step;
         MaxAttempts = maxAttempts;
