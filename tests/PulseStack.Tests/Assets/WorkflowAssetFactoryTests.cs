@@ -36,4 +36,43 @@ public sealed class WorkflowAssetFactoryTests
         asset.References.Should().ContainSingle()
             .Which.Should().Be(agentReference);
     }
+
+    [Fact]
+    public void Create_ShouldCollectAgentReferences_FromNestedWorkflowSteps()
+    {
+        var agentId = AssetId.New();
+        var agentReference = new AssetReference(
+            agentId,
+            new AssetUrn($"urn:pulsestack:agent:{agentId}"));
+
+        var asset = new WorkflowAssetFactory().Create(
+            new WorkflowAssetOptions
+            {
+                Name = "Nested Workflow",
+                Steps =
+                [
+                    new ParallelStepDefinition
+                    {
+                        Name = "Parallel",
+                        Steps =
+                        [
+                            new RetryStepDefinition
+                            {
+                                Step = new RunStepDefinition
+                                {
+                                    Agent = agentReference
+                                }
+                            },
+                            new RunStepDefinition
+                            {
+                                Agent = agentReference
+                            }
+                        ]
+                    }
+                ]
+            });
+
+        asset.References.Should().ContainSingle()
+            .Which.Should().Be(agentReference);
+    }
 }
