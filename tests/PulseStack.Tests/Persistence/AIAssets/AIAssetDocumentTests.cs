@@ -7,6 +7,9 @@ namespace PulseStack.Tests.Persistence.AIAssets;
 
 public sealed class AIAssetDocumentTests
 {
+    private const string AssetId = "11111111-1111-1111-1111-111111111111";
+    private const string ReferenceId = "22222222-2222-2222-2222-222222222222";
+
     [Fact]
     public void Constructor_ShouldKeepSchemaVersionSeparateFromAssetVersion()
     {
@@ -41,6 +44,64 @@ public sealed class AIAssetDocumentTests
         document.Dependencies.Should().ContainSingle().Which.Reference.Should().Be(reference);
     }
 
+    [Fact]
+    public void ReferenceAndDependencyEquality_ShouldBeValueBased()
+    {
+        var firstReference = CreateReference();
+        var secondReference = CreateReference();
+        var firstDependency = new AIAssetDependencyDocument
+        {
+            Reference = firstReference,
+            Required = true
+        };
+        var secondDependency = new AIAssetDependencyDocument
+        {
+            Reference = secondReference,
+            Required = true
+        };
+
+        firstReference.Should().Be(secondReference);
+        firstDependency.Should().Be(secondDependency);
+    }
+
+    [Fact]
+    public void Equality_ShouldCompareCompleteDocumentContents()
+    {
+        var first = CreateEquivalentDocument();
+        var second = CreateEquivalentDocument();
+
+        first.Should().Be(second);
+        first.GetHashCode().Should().Be(second.GetHashCode());
+    }
+
+    private static TestAssetDocument CreateEquivalentDocument()
+    {
+        var reference = CreateReference();
+
+        return new TestAssetDocument(
+            AIAssetSchemaVersion.V1,
+            AIAssetDocumentType.Agent,
+            new AIAssetIdentityDocument
+            {
+                Id = AssetId,
+                Urn = "urn:pulsestack:agent:test",
+                Version = "2.1.0"
+            },
+            new AIAssetMetadataDocument(
+                "Test Agent",
+                "Equivalent document",
+                "PulseStackAI",
+                ["agent", "test"],
+                "Agent"),
+            AIAssetLifecycleDocument.Published,
+            [reference],
+            [new AIAssetDependencyDocument
+            {
+                Reference = reference,
+                Required = true
+            }]);
+    }
+
     private static TestAssetDocument CreateDocument(
         string assetVersion = "1.0.0",
         IEnumerable<AIAssetReferenceDocument>? references = null,
@@ -66,7 +127,7 @@ public sealed class AIAssetDocumentTests
         return new AIAssetReferenceDocument
         {
             AssetType = AIAssetDocumentType.Model,
-            AssetId = Guid.NewGuid().ToString(),
+            AssetId = ReferenceId,
             Version = "1.0.0"
         };
     }
