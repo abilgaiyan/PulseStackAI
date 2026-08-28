@@ -44,9 +44,7 @@ public sealed class AgentComposerTests
                 Name = "TestAgent",
                 Goal = "Test model realization",
                 Role = "Test worker",
-                Model = new AssetReference(
-                    modelAsset.Id,
-                    modelAsset.Urn)
+                Model = Reference(modelAsset)
             });
 
         var agent = await composer.ComposeAsync(definition);
@@ -181,13 +179,8 @@ public sealed class AgentComposerTests
                 Name = "KnowledgeAgent",
                 Goal = "Use only explicitly referenced knowledge",
                 Role = "Knowledge worker",
-                Model = new AssetReference(modelAsset.Id, modelAsset.Urn),
-                Knowledge =
-                [
-                    new AssetReference(
-                        referencedAsset.Id,
-                        referencedAsset.Urn)
-                ]
+                Model = Reference(modelAsset),
+                Knowledge = [Reference(referencedAsset)]
             });
 
         var agent = await composer.ComposeAsync(definition);
@@ -215,7 +208,7 @@ public sealed class AgentComposerTests
         services.AddSingleton<ITool>(unreferencedTool);
         services.AddSingleton(
             new ToolBindingRegistration(
-                new AssetReference(toolAsset.Id, toolAsset.Urn),
+                Reference(toolAsset),
                 referencedTool.Name));
 
         services.AddPulseStack();
@@ -233,16 +226,12 @@ public sealed class AgentComposerTests
                 Name = "ToolAgent",
                 Goal = "Use only explicitly referenced tools",
                 Role = "Tool worker",
-                Model = new AssetReference(
-                    modelAsset.Id,
-                    modelAsset.Urn),
-                Tools =
-                [
-                    new AssetReference(
-                        toolAsset.Id,
-                        toolAsset.Urn)
-                ]
+                Model = Reference(modelAsset),
+                Tools = [Reference(toolAsset)]
             });
+
+    private static AssetReference Reference(IAsset asset) =>
+        new(asset.Type, asset.Id, asset.Urn, asset.Version);
 
     private static ModelAsset CreateModelAsset()
     {
