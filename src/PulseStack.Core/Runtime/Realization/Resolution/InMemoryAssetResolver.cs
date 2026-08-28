@@ -39,7 +39,10 @@ public sealed class InMemoryAssetResolver : IAssetResolver
         cancellationToken.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(reference);
 
-        if (reference.Id.IsEmpty || string.IsNullOrWhiteSpace(reference.Urn.Value))
+        if (!Enum.IsDefined(reference.Type)
+            || reference.Id.IsEmpty
+            || string.IsNullOrWhiteSpace(reference.Urn.Value)
+            || string.IsNullOrWhiteSpace(reference.Version.Value))
         {
             return ValueTask.FromResult<IAsset?>(null);
         }
@@ -50,7 +53,12 @@ public sealed class InMemoryAssetResolver : IAssetResolver
         }
 
         return ValueTask.FromResult<IAsset?>(
-            string.Equals(asset.Urn.Value, reference.Urn.Value, StringComparison.Ordinal)
+            asset.Type == reference.Type
+            && asset.Version == reference.Version
+            && string.Equals(
+                asset.Urn.Value,
+                reference.Urn.Value,
+                StringComparison.Ordinal)
                 ? asset
                 : null);
     }
