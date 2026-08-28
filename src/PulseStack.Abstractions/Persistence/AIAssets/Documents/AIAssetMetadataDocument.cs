@@ -2,7 +2,7 @@ namespace PulseStack.Abstractions.Persistence.AIAssets.Documents;
 
 public sealed record AIAssetMetadataDocument
 {
-    private readonly IReadOnlyList<string> tags;
+    private readonly StructuralReadOnlyList<string> tags;
 
     public AIAssetMetadataDocument(
         string name,
@@ -14,7 +14,7 @@ public sealed record AIAssetMetadataDocument
         Name = name;
         Description = description;
         Author = author;
-        this.tags = Array.AsReadOnly(tags?.ToArray() ?? Array.Empty<string>());
+        this.tags = new StructuralReadOnlyList<string>(tags);
         Category = category;
     }
 
