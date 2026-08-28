@@ -17,7 +17,7 @@ public sealed class MemoryBindingResolverTests
         var factory = new StubMemoryFactory("conversation");
         var resolver = new MemoryBindingResolver(
             [new MemoryBindingRegistration(
-                new AssetReference(asset.Id, asset.Urn),
+                new AssetReference(asset.Type, asset.Id, asset.Urn, asset.Version),
                 factory.Name)],
             [factory]);
 
