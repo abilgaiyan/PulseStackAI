@@ -21,6 +21,7 @@ public static class AIAssetDocumentValidationCodes
     public const string InvalidReferenceAssetId = "AD410";
     public const string MissingReferenceVersion = "AD420";
     public const string DuplicateReference = "AD430";
+    public const string MissingReferenceUrn = "AD440";
 
     public const string MissingDependency = "AD490";
     public const string MissingDependencyReference = "AD500";
@@ -29,4 +30,9 @@ public static class AIAssetDocumentValidationCodes
     public const string MissingPromptSystemInstructions = "AD600";
     public const string MissingModelProvider = "AD610";
     public const string MissingModelName = "AD620";
+    public const string MissingToolDescription = "AD630";
+    public const string MissingToolCategory = "AD640";
+    public const string MissingKnowledgeDescription = "AD650";
+    public const string MissingMemoryDescription = "AD660";
+    public const string MissingPolicyDescription = "AD670";
 }
