@@ -17,7 +17,7 @@ public sealed class KnowledgeBindingResolverTests
         var source = new StubKnowledgeSource("customer-source");
         var resolver = new KnowledgeBindingResolver(
             [new KnowledgeBindingRegistration(
-                new AssetReference(asset.Id, asset.Urn),
+                new AssetReference(asset.Type, asset.Id, asset.Urn, asset.Version),
                 source.Name)],
             [source]);
 
