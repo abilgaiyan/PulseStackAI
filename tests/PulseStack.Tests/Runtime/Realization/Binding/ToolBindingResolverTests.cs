@@ -21,7 +21,7 @@ public sealed class ToolBindingResolverTests
 
         var resolver = new ToolBindingResolver(
             [new ToolBindingRegistration(
-                new AssetReference(asset.Id, asset.Urn),
+                new AssetReference(asset.Type, asset.Id, asset.Urn, asset.Version),
                 tool.Name)],
             registry);
 
