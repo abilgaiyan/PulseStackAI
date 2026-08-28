@@ -1,4 +1,3 @@
-
 namespace PulseStack.Abstractions.Assets;
 
 public interface IAsset
@@ -12,4 +11,10 @@ public interface IAsset
     AssetMetadata Metadata { get; }
 
     AssetType Type { get; }
+
+    AssetLifecycle Lifecycle { get; }
+
+    IReadOnlyCollection<AssetReference> References { get; }
+
+    IReadOnlyCollection<AssetDependency> Dependencies { get; }
 }
