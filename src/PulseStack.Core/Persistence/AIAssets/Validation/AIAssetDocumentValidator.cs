@@ -272,6 +272,48 @@ public sealed class AIAssetDocumentValidator : IAIAssetDocumentValidator
 
                 break;
 
+            case ToolAssetDocument tool:
+                ValidateDescription(
+                    tool.Metadata,
+                    AIAssetDocumentValidationCodes.MissingToolDescription,
+                    "Tool description is required.",
+                    errors);
+
+                if (string.IsNullOrWhiteSpace(tool.Metadata.Category))
+                {
+                    AddError(
+                        errors,
+                        AIAssetDocumentValidationCodes.MissingToolCategory,
+                        "Tool category is required.",
+                        "$.metadata.category");
+                }
+
+                break;
+
+            case KnowledgeAssetDocument knowledge:
+                ValidateDescription(
+                    knowledge.Metadata,
+                    AIAssetDocumentValidationCodes.MissingKnowledgeDescription,
+                    "Knowledge description is required.",
+                    errors);
+                break;
+
+            case MemoryAssetDocument memory:
+                ValidateDescription(
+                    memory.Metadata,
+                    AIAssetDocumentValidationCodes.MissingMemoryDescription,
+                    "Memory description is required.",
+                    errors);
+                break;
+
+            case PolicyAssetDocument policy:
+                ValidateDescription(
+                    policy.Metadata,
+                    AIAssetDocumentValidationCodes.MissingPolicyDescription,
+                    "Policy description is required.",
+                    errors);
+                break;
+
             case ModelAssetDocument model:
                 if (string.IsNullOrWhiteSpace(model.Provider))
                 {
@@ -292,6 +334,18 @@ public sealed class AIAssetDocumentValidator : IAIAssetDocumentValidator
                 }
 
                 break;
+        }
+    }
+
+    private static void ValidateDescription(
+        AIAssetMetadataDocument metadata,
+        string code,
+        string message,
+        ICollection<AIAssetDocumentValidationError> errors)
+    {
+        if (string.IsNullOrWhiteSpace(metadata.Description))
+        {
+            AddError(errors, code, message, "$.metadata.description");
         }
     }
 
@@ -316,6 +370,15 @@ public sealed class AIAssetDocumentValidator : IAIAssetDocumentValidator
                 AIAssetDocumentValidationCodes.InvalidReferenceAssetId,
                 "The referenced AI Asset ID must be a non-empty GUID.",
                 $"{path}.assetId");
+        }
+
+        if (string.IsNullOrWhiteSpace(reference.Urn))
+        {
+            AddError(
+                errors,
+                AIAssetDocumentValidationCodes.MissingReferenceUrn,
+                "The referenced AI Asset URN is required.",
+                $"{path}.urn");
         }
 
         if (string.IsNullOrWhiteSpace(reference.Version))
