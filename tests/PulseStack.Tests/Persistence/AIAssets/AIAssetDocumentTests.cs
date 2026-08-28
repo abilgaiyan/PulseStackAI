@@ -128,6 +128,7 @@ public sealed class AIAssetDocumentTests
         {
             AssetType = AIAssetDocumentType.Model,
             AssetId = ReferenceId,
+            Urn = "urn:pulsestack:model:test",
             Version = "1.0.0"
         };
     }
