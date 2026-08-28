@@ -40,6 +40,11 @@ public sealed class PromptAssetFactoryTests
 
         IAsset contract = asset;
 
+        contract.Id.Should().Be(asset.Id);
+        contract.Urn.Should().Be(asset.Urn);
+        contract.Version.Should().Be(AssetVersion.Initial);
+        contract.Metadata.Should().Be(asset.Metadata);
+        contract.Type.Should().Be(AssetType.Prompt);
         contract.Lifecycle.Should().Be(AssetLifecycle.Draft);
         contract.References.Should().BeEmpty();
         contract.Dependencies.Should().BeEmpty();
