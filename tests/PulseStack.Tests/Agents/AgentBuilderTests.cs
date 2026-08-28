@@ -25,10 +25,9 @@ public sealed class AgentBuilderTests
     [Fact]
     public void Build_Should_Set_Model_Reference()
     {
-        var model = new AssetReference(
-            AssetId.New(),
-            new AssetUrn(
-                "urn:pulsestack:model:openai:gpt-4o-mini"));
+        var model = Reference(
+            AssetType.Model,
+            "urn:pulsestack:model:openai:gpt-4o-mini");
 
         var agent = new AgentBuilder("Assistant")
             .WithGoal("Answer questions.")
@@ -42,10 +41,9 @@ public sealed class AgentBuilderTests
     [Fact]
     public void Build_Should_Set_Prompt_Reference()
     {
-        var prompt = new AssetReference(
-            AssetId.New(),
-            new AssetUrn(
-                "urn:pulsestack:prompt:assistant"));
+        var prompt = Reference(
+            AssetType.Prompt,
+            "urn:pulsestack:prompt:assistant");
 
         var agent = new AgentBuilder("Assistant")
             .WithGoal("Answer questions.")
@@ -59,9 +57,9 @@ public sealed class AgentBuilderTests
     [Fact]
     public void Build_Should_Add_Tool_Reference()
     {
-        var tool = new AssetReference(
-            AssetId.New(),
-            new AssetUrn("urn:pulsestack:tool:calculator"));
+        var tool = Reference(
+            AssetType.Tool,
+            "urn:pulsestack:tool:calculator");
 
         var agent = new AgentBuilder("Assistant")
             .WithGoal("Answer calculation questions.")
@@ -93,15 +91,14 @@ public sealed class AgentBuilderTests
                 "Understand the question",
                 "Provide a useful answer"
             ]);
-    }    
+    }
 
     [Fact]
     public void Build_Should_Add_Knowledge_References()
     {
-        var knowledge = new AssetReference(
-            AssetId.New(),
-            new AssetUrn(
-                "urn:pulsestack:knowledge:documentation"));
+        var knowledge = Reference(
+            AssetType.Knowledge,
+            "urn:pulsestack:knowledge:documentation");
 
         var agent = new AgentBuilder("Assistant")
             .WithGoal("Answer questions.")
@@ -119,10 +116,9 @@ public sealed class AgentBuilderTests
     [Fact]
     public void Build_Should_Add_Tool_References()
     {
-        var tool = new AssetReference(
-            AssetId.New(),
-            new AssetUrn(
-                "urn:pulsestack:tool:calculator"));
+        var tool = Reference(
+            AssetType.Tool,
+            "urn:pulsestack:tool:calculator");
 
         var agent = new AgentBuilder("Assistant")
             .WithGoal("Answer questions.")
@@ -140,10 +136,9 @@ public sealed class AgentBuilderTests
     [Fact]
     public void Build_Should_Set_Memory_Reference()
     {
-        var memory = new AssetReference(
-            AssetId.New(),
-            new AssetUrn(
-                "urn:pulsestack:memory:conversation"));
+        var memory = Reference(
+            AssetType.Memory,
+            "urn:pulsestack:memory:conversation");
 
         var agent = new AgentBuilder("Assistant")
             .WithGoal("Answer questions.")
@@ -157,10 +152,9 @@ public sealed class AgentBuilderTests
     [Fact]
     public void Build_Should_Add_Policy_References()
     {
-        var policy = new AssetReference(
-            AssetId.New(),
-            new AssetUrn(
-                "urn:pulsestack:policy:privacy"));
+        var policy = Reference(
+            AssetType.Policy,
+            "urn:pulsestack:policy:privacy");
 
         var agent = new AgentBuilder("Assistant")
             .WithGoal("Answer questions.")
@@ -200,4 +194,11 @@ public sealed class AgentBuilderTests
             .Throw<InvalidOperationException>()
             .WithMessage("Agent role has not been configured.");
     }
+
+    private static AssetReference Reference(AssetType type, string urn) =>
+        new(
+            type,
+            AssetId.New(),
+            new AssetUrn(urn),
+            AssetVersion.Initial);
 }
