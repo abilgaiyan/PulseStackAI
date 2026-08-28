@@ -38,8 +38,7 @@ public sealed class FoundationAssetDocumentTests
         {
             var result = await validator.ValidateAsync(document);
 
-            result.Errors.Should().NotContain(error =>
-                error.Code == AIAssetDocumentValidationCodes.AssetTypeMismatch);
+            result.IsValid.Should().BeTrue();
         }
     }
 
@@ -85,6 +84,66 @@ public sealed class FoundationAssetDocumentTests
             && error.Path == "$.model");
     }
 
+    [Fact]
+    public async Task Validator_ShouldRequireToolReconstructionMetadata()
+    {
+        var validator = new AIAssetDocumentValidator();
+        var document = new ToolAssetDocument(
+            AIAssetSchemaVersion.V1,
+            CreateIdentity(),
+            new AIAssetMetadataDocument("Tool"),
+            AIAssetLifecycleDocument.Draft);
+
+        var result = await validator.ValidateAsync(document);
+
+        result.Errors.Should().Contain(error =>
+            error.Code == AIAssetDocumentValidationCodes.MissingToolDescription
+            && error.Path == "$.metadata.description");
+        result.Errors.Should().Contain(error =>
+            error.Code == AIAssetDocumentValidationCodes.MissingToolCategory
+            && error.Path == "$.metadata.category");
+    }
+
+    [Fact]
+    public async Task Validator_ShouldRequireDescriptionForDescriptiveFoundationAssets()
+    {
+        var validator = new AIAssetDocumentValidator();
+        AIAssetDocument[] documents =
+        [
+            new KnowledgeAssetDocument(
+                AIAssetSchemaVersion.V1,
+                CreateIdentity(),
+                new AIAssetMetadataDocument("Knowledge"),
+                AIAssetLifecycleDocument.Draft),
+            new MemoryAssetDocument(
+                AIAssetSchemaVersion.V1,
+                CreateIdentity(),
+                new AIAssetMetadataDocument("Memory"),
+                AIAssetLifecycleDocument.Draft),
+            new PolicyAssetDocument(
+                AIAssetSchemaVersion.V1,
+                CreateIdentity(),
+                new AIAssetMetadataDocument("Policy"),
+                AIAssetLifecycleDocument.Draft)
+        ];
+
+        var expectedCodes = new[]
+        {
+            AIAssetDocumentValidationCodes.MissingKnowledgeDescription,
+            AIAssetDocumentValidationCodes.MissingMemoryDescription,
+            AIAssetDocumentValidationCodes.MissingPolicyDescription
+        };
+
+        for (var index = 0; index < documents.Length; index++)
+        {
+            var result = await validator.ValidateAsync(documents[index]);
+
+            result.Errors.Should().ContainSingle(error =>
+                error.Code == expectedCodes[index]
+                && error.Path == "$.metadata.description");
+        }
+    }
+
     private static PromptAssetDocument CreatePrompt(
         string systemInstructions,
         AIAssetIdentityDocument? identity = null)
@@ -99,28 +158,37 @@ public sealed class FoundationAssetDocumentTests
         => new(
             AIAssetSchemaVersion.V1,
             CreateIdentity(),
-            new AIAssetMetadataDocument("Search Tool"),
+            new AIAssetMetadataDocument(
+                "Search Tool",
+                description: "Searches configured sources.",
+                category: "Search"),
             AIAssetLifecycleDocument.Draft);
 
     private static KnowledgeAssetDocument CreateKnowledge()
         => new(
             AIAssetSchemaVersion.V1,
             CreateIdentity(),
-            new AIAssetMetadataDocument("Product Knowledge"),
+            new AIAssetMetadataDocument(
+                "Product Knowledge",
+                description: "Product knowledge source."),
             AIAssetLifecycleDocument.Draft);
 
     private static MemoryAssetDocument CreateMemory()
         => new(
             AIAssetSchemaVersion.V1,
             CreateIdentity(),
-            new AIAssetMetadataDocument("Conversation Memory"),
+            new AIAssetMetadataDocument(
+                "Conversation Memory",
+                description: "Conversation memory definition."),
             AIAssetLifecycleDocument.Draft);
 
     private static PolicyAssetDocument CreatePolicy()
         => new(
             AIAssetSchemaVersion.V1,
             CreateIdentity(),
-            new AIAssetMetadataDocument("Safety Policy"),
+            new AIAssetMetadataDocument(
+                "Safety Policy",
+                description: "Safety policy definition."),
             AIAssetLifecycleDocument.Draft);
 
     private static ModelAssetDocument CreateModel(
