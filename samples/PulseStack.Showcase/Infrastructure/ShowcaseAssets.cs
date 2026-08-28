@@ -12,8 +12,10 @@ internal static class ShowcaseAssets
 
     public static AssetReference ModelReference =>
         new(
+            Model.Type,
             Model.Id,
-            Model.Urn);
+            Model.Urn,
+            Model.Version);
 
     private static ModelAsset CreateModel()
     {
