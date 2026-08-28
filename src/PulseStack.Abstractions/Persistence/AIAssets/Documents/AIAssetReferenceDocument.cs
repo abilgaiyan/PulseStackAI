@@ -8,5 +8,7 @@ public sealed record AIAssetReferenceDocument
 
     public required string AssetId { get; init; }
 
+    public required string Urn { get; init; }
+
     public required string Version { get; init; }
 }
