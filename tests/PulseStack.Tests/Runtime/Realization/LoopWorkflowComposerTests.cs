@@ -178,8 +178,10 @@ public sealed class LoopWorkflowComposerTests
         new()
         {
             Agent = new AssetReference(
+                definition.Type,
                 definition.Id,
-                definition.Urn)
+                definition.Urn,
+                definition.Version)
         };
 
     private sealed class StubAssetResolver(AgentDefinition definition)
