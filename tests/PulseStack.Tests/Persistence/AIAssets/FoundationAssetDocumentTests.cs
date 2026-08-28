@@ -21,6 +21,29 @@ public sealed class FoundationAssetDocumentTests
     }
 
     [Fact]
+    public async Task Validator_ShouldAcceptEveryImplementedFoundationTypeRelationship()
+    {
+        var validator = new AIAssetDocumentValidator();
+        AIAssetDocument[] documents =
+        [
+            CreatePrompt("Be helpful."),
+            CreateTool(),
+            CreateKnowledge(),
+            CreateMemory(),
+            CreatePolicy(),
+            CreateModel("openai", "gpt-test")
+        ];
+
+        foreach (var document in documents)
+        {
+            var result = await validator.ValidateAsync(document);
+
+            result.Errors.Should().NotContain(error =>
+                error.Code == AIAssetDocumentValidationCodes.AssetTypeMismatch);
+        }
+    }
+
+    [Fact]
     public void PromptDocument_ShouldHaveStructuralValueEquality()
     {
         var identity = CreateIdentity();
