@@ -23,9 +23,12 @@ public sealed class AIAssetDocumentValidatorTests
     [Fact]
     public async Task ValidateAsync_ShouldRejectUnsupportedSchemaAndDocumentType()
     {
-        var document = CreateDocument(
-            schemaVersion: new AIAssetSchemaVersion("2.0"),
-            assetType: (AIAssetDocumentType)999);
+        var document = new TestAssetDocument(
+            new AIAssetSchemaVersion("2.0"),
+            (AIAssetDocumentType)999,
+            CreateIdentity(),
+            new AIAssetMetadataDocument("Test Asset"),
+            AIAssetLifecycleDocument.Draft);
 
         var result = await validator.ValidateAsync(document);
 
@@ -39,6 +42,55 @@ public sealed class AIAssetDocumentValidatorTests
                 AIAssetDocumentValidationCodes.UnsupportedAssetType,
                 "The AI Asset document type is not supported by this schema.",
                 "$.assetType"));
+        result.Errors.Should().Contain(error =>
+            error.Code == AIAssetDocumentValidationCodes.AssetTypeMismatch
+            && error.Path == "$.assetType");
+    }
+
+    [Fact]
+    public async Task ValidateAsync_ShouldRejectFakeSubtypeClaimingPrompt()
+    {
+        var document = new TestAssetDocument(
+            AIAssetSchemaVersion.V1,
+            AIAssetDocumentType.Prompt,
+            CreateIdentity(),
+            new AIAssetMetadataDocument("Fake Prompt"),
+            AIAssetLifecycleDocument.Draft);
+
+        var result = await validator.ValidateAsync(document);
+
+        result.Errors.Should().ContainSingle(error =>
+            error.Code == AIAssetDocumentValidationCodes.AssetTypeMismatch
+            && error.Path == "$.assetType");
+    }
+
+    [Fact]
+    public async Task ValidateAsync_ShouldRejectUnimplementedDocumentType()
+    {
+        var document = new TestAssetDocument(
+            AIAssetSchemaVersion.V1,
+            AIAssetDocumentType.Agent,
+            CreateIdentity(),
+            new AIAssetMetadataDocument("Agent"),
+            AIAssetLifecycleDocument.Draft);
+
+        var result = await validator.ValidateAsync(document);
+
+        result.Errors.Should().ContainSingle(error =>
+            error.Code == AIAssetDocumentValidationCodes.AssetTypeMismatch
+            && error.Path == "$.assetType");
+    }
+
+    [Fact]
+    public async Task ValidateAsync_ShouldRejectUnsupportedLifecycle()
+    {
+        var document = CreateDocument(lifecycle: (AIAssetLifecycleDocument)999);
+
+        var result = await validator.ValidateAsync(document);
+
+        result.Errors.Should().ContainSingle(error =>
+            error.Code == AIAssetDocumentValidationCodes.UnsupportedLifecycle
+            && error.Path == "$.lifecycle");
     }
 
     [Fact]
@@ -198,27 +250,32 @@ public sealed class AIAssetDocumentValidatorTests
         result.Errors.Should().ContainSingle();
     }
 
-    private static TestAssetDocument CreateDocument(
+    private static PromptAssetDocument CreateDocument(
         AIAssetSchemaVersion? schemaVersion = null,
-        AIAssetDocumentType assetType = AIAssetDocumentType.Agent,
         AIAssetIdentityDocument? identity = null,
         AIAssetMetadataDocument? metadata = null,
+        AIAssetLifecycleDocument lifecycle = AIAssetLifecycleDocument.Draft,
         IEnumerable<AIAssetReferenceDocument>? references = null,
         IEnumerable<AIAssetDependencyDocument>? dependencies = null)
     {
-        return new TestAssetDocument(
+        return new PromptAssetDocument(
             schemaVersion ?? AIAssetSchemaVersion.V1,
-            assetType,
-            identity ?? new AIAssetIdentityDocument
-            {
-                Id = Guid.NewGuid().ToString(),
-                Urn = "urn:pulsestack:agent:test",
-                Version = "1.0.0"
-            },
-            metadata ?? new AIAssetMetadataDocument("Test Agent"),
-            AIAssetLifecycleDocument.Draft,
+            identity ?? CreateIdentity(),
+            metadata ?? new AIAssetMetadataDocument("Test Prompt"),
+            lifecycle,
+            "Be helpful.",
             references,
             dependencies);
+    }
+
+    private static AIAssetIdentityDocument CreateIdentity()
+    {
+        return new AIAssetIdentityDocument
+        {
+            Id = Guid.NewGuid().ToString(),
+            Urn = "urn:pulsestack:prompt:test",
+            Version = "1.0.0"
+        };
     }
 
     private static AIAssetReferenceDocument CreateReference(string assetId)
@@ -238,17 +295,13 @@ public sealed class AIAssetDocumentValidatorTests
             AIAssetDocumentType assetType,
             AIAssetIdentityDocument identity,
             AIAssetMetadataDocument metadata,
-            AIAssetLifecycleDocument lifecycle,
-            IEnumerable<AIAssetReferenceDocument>? references = null,
-            IEnumerable<AIAssetDependencyDocument>? dependencies = null)
+            AIAssetLifecycleDocument lifecycle)
             : base(
                 schemaVersion,
                 assetType,
                 identity,
                 metadata,
-                lifecycle,
-                references,
-                dependencies)
+                lifecycle)
         {
         }
     }
