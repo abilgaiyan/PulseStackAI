@@ -19,4 +19,24 @@ public sealed class AIAssetMetadataDocumentTests
 
         document.Tags.Should().Equal("assistant", "system");
     }
+
+    [Fact]
+    public void Equality_ShouldCompareTagContents()
+    {
+        var first = new AIAssetMetadataDocument(
+            "System Prompt",
+            "Shared instructions",
+            "PulseStackAI",
+            ["assistant", "system"],
+            "Prompt");
+        var second = new AIAssetMetadataDocument(
+            "System Prompt",
+            "Shared instructions",
+            "PulseStackAI",
+            ["assistant", "system"],
+            "Prompt");
+
+        first.Should().Be(second);
+        first.GetHashCode().Should().Be(second.GetHashCode());
+    }
 }
