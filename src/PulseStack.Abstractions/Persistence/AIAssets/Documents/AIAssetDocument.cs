@@ -4,8 +4,8 @@ namespace PulseStack.Abstractions.Persistence.AIAssets.Documents;
 
 public abstract record AIAssetDocument
 {
-    private readonly IReadOnlyList<AIAssetReferenceDocument> references;
-    private readonly IReadOnlyList<AIAssetDependencyDocument> dependencies;
+    private readonly StructuralReadOnlyList<AIAssetReferenceDocument> references;
+    private readonly StructuralReadOnlyList<AIAssetDependencyDocument> dependencies;
 
     protected AIAssetDocument(
         AIAssetSchemaVersion schemaVersion,
@@ -21,10 +21,8 @@ public abstract record AIAssetDocument
         Identity = identity;
         Metadata = metadata;
         Lifecycle = lifecycle;
-        this.references = Array.AsReadOnly(
-            references?.ToArray() ?? Array.Empty<AIAssetReferenceDocument>());
-        this.dependencies = Array.AsReadOnly(
-            dependencies?.ToArray() ?? Array.Empty<AIAssetDependencyDocument>());
+        this.references = new StructuralReadOnlyList<AIAssetReferenceDocument>(references);
+        this.dependencies = new StructuralReadOnlyList<AIAssetDependencyDocument>(dependencies);
     }
 
     public AIAssetSchemaVersion SchemaVersion { get; }
