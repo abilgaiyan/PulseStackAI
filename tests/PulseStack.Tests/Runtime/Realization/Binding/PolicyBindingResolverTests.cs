@@ -17,7 +17,7 @@ public sealed class PolicyBindingResolverTests
         var policy = new StubRuntimePolicy("restricted-tools");
         var resolver = new PolicyBindingResolver(
             [new PolicyBindingRegistration(
-                new AssetReference(asset.Id, asset.Urn),
+                new AssetReference(asset.Type, asset.Id, asset.Urn, asset.Version),
                 policy.Name)],
             [policy]);
 
