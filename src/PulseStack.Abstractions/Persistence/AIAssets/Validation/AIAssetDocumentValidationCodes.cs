@@ -4,6 +4,8 @@ public static class AIAssetDocumentValidationCodes
 {
     public const string UnsupportedSchemaVersion = "AD100";
     public const string UnsupportedAssetType = "AD110";
+    public const string AssetTypeMismatch = "AD120";
+    public const string UnsupportedLifecycle = "AD130";
 
     public const string MissingIdentity = "AD190";
     public const string InvalidIdentityId = "AD200";
