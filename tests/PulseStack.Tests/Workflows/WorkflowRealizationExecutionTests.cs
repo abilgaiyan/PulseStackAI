@@ -126,8 +126,10 @@ public sealed class WorkflowRealizationExecutionTests
         new()
         {
             Agent = new AssetReference(
+                definition.Type,
                 definition.Id,
-                definition.Urn)
+                definition.Urn,
+                definition.Version)
         };
 
     private sealed class StubAssetResolver(params IAsset[] assets)
