@@ -1,9 +1,7 @@
-
 namespace PulseStack.Abstractions.Assets;
 
-public sealed record AssetReference
-(
+public sealed record AssetReference(
+    AssetType Type,
     AssetId Id,
-
-    AssetUrn Urn
-);
+    AssetUrn Urn,
+    AssetVersion Version);
