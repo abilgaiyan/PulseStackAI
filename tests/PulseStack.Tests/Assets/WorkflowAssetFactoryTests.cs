@@ -13,8 +13,10 @@ public sealed class WorkflowAssetFactoryTests
     {
         var agentId = AssetId.New();
         var agentReference = new AssetReference(
+            AssetType.Agent,
             agentId,
-            new AssetUrn($"urn:pulsestack:agent:{agentId}"));
+            new AssetUrn($"urn:pulsestack:agent:{agentId}"),
+            AssetVersion.Initial);
 
         var asset = new WorkflowAssetFactory().Create(
             new WorkflowAssetOptions
@@ -42,8 +44,10 @@ public sealed class WorkflowAssetFactoryTests
     {
         var agentId = AssetId.New();
         var agentReference = new AssetReference(
+            AssetType.Agent,
             agentId,
-            new AssetUrn($"urn:pulsestack:agent:{agentId}"));
+            new AssetUrn($"urn:pulsestack:agent:{agentId}"),
+            AssetVersion.Initial);
 
         var asset = new WorkflowAssetFactory().Create(
             new WorkflowAssetOptions
