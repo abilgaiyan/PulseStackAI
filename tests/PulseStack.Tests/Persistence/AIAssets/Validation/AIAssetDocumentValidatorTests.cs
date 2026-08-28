@@ -133,6 +133,7 @@ public sealed class AIAssetDocumentValidatorTests
         {
             AssetType = (AIAssetDocumentType)999,
             AssetId = "not-a-guid",
+            Urn = " ",
             Version = " "
         };
         var document = CreateDocument(references: [reference]);
@@ -145,6 +146,9 @@ public sealed class AIAssetDocumentValidatorTests
         result.Errors.Should().Contain(error =>
             error.Code == AIAssetDocumentValidationCodes.InvalidReferenceAssetId
             && error.Path == "$.references[0].assetId");
+        result.Errors.Should().Contain(error =>
+            error.Code == AIAssetDocumentValidationCodes.MissingReferenceUrn
+            && error.Path == "$.references[0].urn");
         result.Errors.Should().Contain(error =>
             error.Code == AIAssetDocumentValidationCodes.MissingReferenceVersion
             && error.Path == "$.references[0].version");
@@ -200,6 +204,7 @@ public sealed class AIAssetDocumentValidatorTests
         {
             AssetType = AIAssetDocumentType.Model,
             AssetId = Guid.Empty.ToString(),
+            Urn = string.Empty,
             Version = string.Empty
         };
         var document = CreateDocument(
@@ -229,6 +234,7 @@ public sealed class AIAssetDocumentValidatorTests
             AIAssetDocumentValidationCodes.InvalidIdentityId,
             AIAssetDocumentValidationCodes.MissingMetadataName,
             AIAssetDocumentValidationCodes.InvalidReferenceAssetId,
+            AIAssetDocumentValidationCodes.MissingReferenceUrn,
             AIAssetDocumentValidationCodes.MissingReferenceVersion);
     }
 
@@ -284,6 +290,7 @@ public sealed class AIAssetDocumentValidatorTests
         {
             AssetType = AIAssetDocumentType.Model,
             AssetId = assetId,
+            Urn = "urn:pulsestack:model:test",
             Version = "1.0.0"
         };
     }
