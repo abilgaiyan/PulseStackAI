@@ -38,7 +38,9 @@ public sealed class AIAssetDocumentValidator : IAIAssetDocumentValidator
                 "$.schemaVersion");
         }
 
-        if (!Enum.IsDefined(document.AssetType))
+        var hasDefinedAssetType = Enum.IsDefined(document.AssetType);
+
+        if (!hasDefinedAssetType)
         {
             AddError(
                 errors,
@@ -46,6 +48,48 @@ public sealed class AIAssetDocumentValidator : IAIAssetDocumentValidator
                 "The AI Asset document type is not supported by this schema.",
                 "$.assetType");
         }
+
+        if (!TryGetExpectedAssetType(document, out var expectedAssetType)
+            || (hasDefinedAssetType && document.AssetType != expectedAssetType))
+        {
+            AddError(
+                errors,
+                AIAssetDocumentValidationCodes.AssetTypeMismatch,
+                "The AI Asset document implementation does not match its schema discriminator.",
+                "$.assetType");
+        }
+
+        if (!Enum.IsDefined(document.Lifecycle))
+        {
+            AddError(
+                errors,
+                AIAssetDocumentValidationCodes.UnsupportedLifecycle,
+                "The AI Asset document lifecycle value is not supported.",
+                "$.lifecycle");
+        }
+    }
+
+    private static bool TryGetExpectedAssetType(
+        AIAssetDocument document,
+        out AIAssetDocumentType assetType)
+    {
+        assetType = document switch
+        {
+            PromptAssetDocument => AIAssetDocumentType.Prompt,
+            ToolAssetDocument => AIAssetDocumentType.Tool,
+            KnowledgeAssetDocument => AIAssetDocumentType.Knowledge,
+            MemoryAssetDocument => AIAssetDocumentType.Memory,
+            PolicyAssetDocument => AIAssetDocumentType.Policy,
+            ModelAssetDocument => AIAssetDocumentType.Model,
+            _ => default
+        };
+
+        return document is PromptAssetDocument
+            or ToolAssetDocument
+            or KnowledgeAssetDocument
+            or MemoryAssetDocument
+            or PolicyAssetDocument
+            or ModelAssetDocument;
     }
 
     private static void ValidateIdentity(
