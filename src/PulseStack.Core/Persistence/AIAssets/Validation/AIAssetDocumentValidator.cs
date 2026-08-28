@@ -273,6 +273,11 @@ public sealed class AIAssetDocumentValidator : IAIAssetDocumentValidator
                 break;
 
             case ToolAssetDocument tool:
+                if (tool.Metadata is null)
+                {
+                    break;
+                }
+
                 ValidateDescription(
                     tool.Metadata,
                     AIAssetDocumentValidationCodes.MissingToolDescription,
@@ -338,11 +343,16 @@ public sealed class AIAssetDocumentValidator : IAIAssetDocumentValidator
     }
 
     private static void ValidateDescription(
-        AIAssetMetadataDocument metadata,
+        AIAssetMetadataDocument? metadata,
         string code,
         string message,
         ICollection<AIAssetDocumentValidationError> errors)
     {
+        if (metadata is null)
+        {
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(metadata.Description))
         {
             AddError(errors, code, message, "$.metadata.description");
