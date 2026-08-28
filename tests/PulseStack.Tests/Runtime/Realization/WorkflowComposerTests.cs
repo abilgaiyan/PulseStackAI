@@ -27,8 +27,10 @@ public sealed class WorkflowComposerTests
             });
 
         var agentReference = new AssetReference(
+            agentDefinition.Type,
             agentDefinition.Id,
-            agentDefinition.Urn);
+            agentDefinition.Urn,
+            agentDefinition.Version);
 
         var runDefinition = new RunStepDefinition
         {
@@ -265,8 +267,10 @@ public sealed class WorkflowComposerTests
                     new RunStepDefinition
                     {
                         Agent = new AssetReference(
+                            AssetType.Agent,
                             missingId,
-                            new AssetUrn($"urn:pulsestack:agent:{missingId}"))
+                            new AssetUrn($"urn:pulsestack:agent:{missingId}"),
+                            AssetVersion.Initial)
                     }
                 ]
             });
@@ -305,8 +309,10 @@ public sealed class WorkflowComposerTests
         new()
         {
             Agent = new AssetReference(
+                definition.Type,
                 definition.Id,
-                definition.Urn)
+                definition.Urn,
+                definition.Version)
         };
 
     private sealed class StubAssetResolver(params IAsset[] assets) : IAssetResolver
