@@ -20,6 +20,7 @@ public sealed class AIAssetDocumentValidator : IAIAssetDocumentValidator
         ValidateMetadata(document.Metadata, errors);
         ValidateReferences(document.References, errors, cancellationToken);
         ValidateDependencies(document.Dependencies, errors, cancellationToken);
+        ValidateAssetPayload(document, errors);
 
         return ValueTask.FromResult(new AIAssetDocumentValidationResult(errors));
     }
@@ -206,6 +207,47 @@ public sealed class AIAssetDocumentValidator : IAIAssetDocumentValidator
                     "The AI Asset document contains a duplicate dependency.",
                     path);
             }
+        }
+    }
+
+    private static void ValidateAssetPayload(
+        AIAssetDocument document,
+        ICollection<AIAssetDocumentValidationError> errors)
+    {
+        switch (document)
+        {
+            case PromptAssetDocument prompt:
+                if (string.IsNullOrWhiteSpace(prompt.SystemInstructions))
+                {
+                    AddError(
+                        errors,
+                        AIAssetDocumentValidationCodes.MissingPromptSystemInstructions,
+                        "Prompt system instructions are required.",
+                        "$.systemInstructions");
+                }
+
+                break;
+
+            case ModelAssetDocument model:
+                if (string.IsNullOrWhiteSpace(model.Provider))
+                {
+                    AddError(
+                        errors,
+                        AIAssetDocumentValidationCodes.MissingModelProvider,
+                        "Model provider is required.",
+                        "$.provider");
+                }
+
+                if (string.IsNullOrWhiteSpace(model.Model))
+                {
+                    AddError(
+                        errors,
+                        AIAssetDocumentValidationCodes.MissingModelName,
+                        "Model name is required.",
+                        "$.model");
+                }
+
+                break;
         }
     }
 
