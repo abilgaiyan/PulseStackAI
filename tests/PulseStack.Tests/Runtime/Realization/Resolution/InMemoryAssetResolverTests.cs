@@ -1,19 +1,19 @@
-using Xunit;
 using System.Diagnostics.CodeAnalysis;
 using FluentAssertions;
 using PulseStack.Abstractions.Assets;
 using PulseStack.Core.Runtime.Realization.Resolution;
+using Xunit;
 
 namespace PulseStack.Tests.Runtime.Realization.Resolution;
 
 public sealed class InMemoryAssetResolverTests
 {
     [Fact]
-    public async Task ResolveAsync_ShouldReturnAsset_WhenReferenceMatchesIdAndUrn()
+    public async Task ResolveAsync_ShouldReturnAsset_WhenExactReferenceMatches()
     {
         var asset = CreateAsset();
         var resolver = new InMemoryAssetResolver([asset]);
-        var reference = new AssetReference(asset.Id, asset.Urn);
+        var reference = Reference(asset);
 
         var resolved = await resolver.ResolveAsync(reference);
 
@@ -25,7 +25,11 @@ public sealed class InMemoryAssetResolverTests
     {
         var asset = CreateAsset();
         var resolver = new InMemoryAssetResolver([asset]);
-        var reference = new AssetReference(AssetId.New(), asset.Urn);
+        var reference = new AssetReference(
+            asset.Type,
+            AssetId.New(),
+            asset.Urn,
+            asset.Version);
 
         var resolved = await resolver.ResolveAsync(reference);
 
@@ -38,8 +42,42 @@ public sealed class InMemoryAssetResolverTests
         var asset = CreateAsset();
         var resolver = new InMemoryAssetResolver([asset]);
         var reference = new AssetReference(
+            asset.Type,
             asset.Id,
-            new AssetUrn("urn:pulsestack:test:other"));
+            new AssetUrn("urn:pulsestack:test:other"),
+            asset.Version);
+
+        var resolved = await resolver.ResolveAsync(reference);
+
+        resolved.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ResolveAsync_ShouldReturnNull_WhenTypeDoesNotMatch()
+    {
+        var asset = CreateAsset();
+        var resolver = new InMemoryAssetResolver([asset]);
+        var reference = new AssetReference(
+            AssetType.Prompt,
+            asset.Id,
+            asset.Urn,
+            asset.Version);
+
+        var resolved = await resolver.ResolveAsync(reference);
+
+        resolved.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ResolveAsync_ShouldReturnNull_WhenVersionDoesNotMatch()
+    {
+        var asset = CreateAsset();
+        var resolver = new InMemoryAssetResolver([asset]);
+        var reference = new AssetReference(
+            asset.Type,
+            asset.Id,
+            asset.Urn,
+            new AssetVersion("2.0.0"));
 
         var resolved = await resolver.ResolveAsync(reference);
 
@@ -53,7 +91,11 @@ public sealed class InMemoryAssetResolverTests
         var resolver = new InMemoryAssetResolver([asset]);
 
         var resolved = await resolver.ResolveAsync(
-            new AssetReference(AssetId.Empty, new AssetUrn(string.Empty)));
+            new AssetReference(
+                (AssetType)999,
+                AssetId.Empty,
+                new AssetUrn(string.Empty),
+                new AssetVersion(string.Empty)));
 
         resolved.Should().BeNull();
     }
@@ -67,7 +109,7 @@ public sealed class InMemoryAssetResolverTests
         cancellationTokenSource.Cancel();
 
         var action = () => resolver.ResolveAsync(
-            new AssetReference(asset.Id, asset.Urn),
+            Reference(asset),
             cancellationTokenSource.Token).AsTask();
 
         await action.Should().ThrowAsync<OperationCanceledException>();
@@ -85,6 +127,9 @@ public sealed class InMemoryAssetResolverTests
             .WithMessage($"*{first.Id}*");
     }
 
+    private static AssetReference Reference(IAsset asset) =>
+        new(asset.Type, asset.Id, asset.Urn, asset.Version);
+
     private static TestAsset CreateAsset(
         AssetId? id = null,
         string urn = "urn:pulsestack:test:asset")
@@ -95,7 +140,7 @@ public sealed class InMemoryAssetResolverTests
     private sealed record TestAsset : Asset
     {
         [SetsRequiredMembers]
-        public TestAsset(AssetId id, AssetUrn urn) 
+        public TestAsset(AssetId id, AssetUrn urn)
             : base(AssetType.Model)
         {
             Id = id;
