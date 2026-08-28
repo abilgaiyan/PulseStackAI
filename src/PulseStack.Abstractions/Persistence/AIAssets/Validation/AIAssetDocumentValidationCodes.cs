@@ -23,4 +23,8 @@ public static class AIAssetDocumentValidationCodes
     public const string MissingDependency = "AD490";
     public const string MissingDependencyReference = "AD500";
     public const string DuplicateDependency = "AD510";
+
+    public const string MissingPromptSystemInstructions = "AD600";
+    public const string MissingModelProvider = "AD610";
+    public const string MissingModelName = "AD620";
 }
