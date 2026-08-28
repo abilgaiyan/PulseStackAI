@@ -29,6 +29,23 @@ public sealed class PromptAssetFactoryTests
     }
 
     [Fact]
+    public void Create_ShouldExposeCompleteAssetContract()
+    {
+        var asset = new PromptAssetFactory().Create(
+            new PromptAssetOptions
+            {
+                Name = "System Prompt",
+                SystemInstructions = "You are concise and helpful."
+            });
+
+        IAsset contract = asset;
+
+        contract.Lifecycle.Should().Be(AssetLifecycle.Draft);
+        contract.References.Should().BeEmpty();
+        contract.Dependencies.Should().BeEmpty();
+    }
+
+    [Fact]
     public void Create_ShouldRejectMissingSystemInstructions()
     {
         var factory = new PromptAssetFactory();
