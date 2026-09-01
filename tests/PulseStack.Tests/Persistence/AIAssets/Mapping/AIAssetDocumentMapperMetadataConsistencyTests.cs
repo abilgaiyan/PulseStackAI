@@ -73,45 +73,62 @@ public sealed class AIAssetDocumentMapperMetadataConsistencyTests
             .WithMessage("*Knowledge*'Description'*canonical Metadata*");
     }
 
-    [Fact]
-    public void ToDocument_ShouldRejectMemory_WhenTagValueDivergesFromMetadata()
+    [Theory]
+    [InlineData("Tool")]
+    [InlineData("Knowledge")]
+    [InlineData("Memory")]
+    [InlineData("Policy")]
+    public void ToDocument_ShouldRejectCollectionAsset_WhenTagOrderDivergesFromMetadata(
+        string assetKind)
     {
-        var source = new MemoryAssetFactory().Create(
-            new MemoryAssetOptions
-            {
-                Name = "Conversation Memory",
-                Description = "Retains conversation context.",
-                Tags = ["conversation", "short-term"]
-            });
+        var source = CreateCollectionAsset(assetKind);
         var asset = source with
         {
-            Metadata = source.Metadata with { Tags = ["conversation", "persistent"] }
+            Metadata = source.Metadata with { Tags = ["second", "first"] }
         };
 
         var action = () => mapper.ToDocument(asset);
 
         action.Should().Throw<InvalidOperationException>()
-            .WithMessage("*Memory*'Tags'*canonical Metadata*");
+            .WithMessage($"*{assetKind}*'Tags'*canonical Metadata*");
     }
 
-    [Fact]
-    public void ToDocument_ShouldRejectPolicy_WhenTagOrderDivergesFromMetadata()
-    {
-        var source = new PolicyAssetFactory().Create(
-            new PolicyAssetOptions
-            {
-                Name = "Privacy Policy",
-                Description = "Protects customer data.",
-                Tags = ["privacy", "customer"]
-            });
-        var asset = source with
+    private static Asset CreateCollectionAsset(string assetKind)
+        => assetKind switch
         {
-            Metadata = source.Metadata with { Tags = ["customer", "privacy"] }
+            "Tool" => new ToolAssetFactory().Create(
+                new ToolAssetOptions
+                {
+                    Name = "Calculator",
+                    Description = "Performs calculations.",
+                    Category = "Utilities",
+                    Tags = ["first", "second"]
+                }),
+
+            "Knowledge" => new KnowledgeAssetFactory().Create(
+                new KnowledgeAssetOptions
+                {
+                    Name = "Customer Knowledge",
+                    Description = "Customer reference material.",
+                    Tags = ["first", "second"]
+                }),
+
+            "Memory" => new MemoryAssetFactory().Create(
+                new MemoryAssetOptions
+                {
+                    Name = "Conversation Memory",
+                    Description = "Retains conversation context.",
+                    Tags = ["first", "second"]
+                }),
+
+            "Policy" => new PolicyAssetFactory().Create(
+                new PolicyAssetOptions
+                {
+                    Name = "Privacy Policy",
+                    Description = "Protects customer data.",
+                    Tags = ["first", "second"]
+                }),
+
+            _ => throw new ArgumentOutOfRangeException(nameof(assetKind), assetKind, null)
         };
-
-        var action = () => mapper.ToDocument(asset);
-
-        action.Should().Throw<InvalidOperationException>()
-            .WithMessage("*Policy*'Tags'*canonical Metadata*");
-    }
 }
