@@ -6,7 +6,7 @@ namespace PulseStack.Core.Runtime.Realization.Binding;
 
 public sealed class ToolBindingResolver : IToolBindingResolver
 {
-    private readonly IReadOnlyDictionary<AssetId, ToolBindingRegistration> _bindings;
+    private readonly IReadOnlyDictionary<AssetReferenceKey, ToolBindingRegistration> _bindings;
     private readonly IToolRegistry _tools;
 
     public ToolBindingResolver(
@@ -18,15 +18,14 @@ public sealed class ToolBindingResolver : IToolBindingResolver
 
         _tools = tools;
         _bindings = bindings.ToDictionary(
-            binding => binding.Asset.Id);
+            binding => AssetReferenceKey.From(binding.Asset));
     }
 
     public ITool Resolve(ToolAsset asset)
     {
         ArgumentNullException.ThrowIfNull(asset);
 
-        if (!_bindings.TryGetValue(asset.Id, out var binding) ||
-            !string.Equals(binding.Asset.Urn.Value, asset.Urn.Value, StringComparison.Ordinal))
+        if (!_bindings.TryGetValue(AssetReferenceKey.From(asset), out var binding))
         {
             throw new InvalidOperationException(
                 $"Tool Asset '{asset.Urn.Value}' is not bound to a runtime Tool implementation.");
