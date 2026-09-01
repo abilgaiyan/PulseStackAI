@@ -42,23 +42,46 @@ public sealed class AgentGraphValidatorTests
         result.Errors.Should().BeEmpty();
     }
 
-    [Fact]
-    public async Task ValidateAsync_ShouldReportWrongTypedFieldReference()
+    [Theory]
+    [InlineData("Model", AssetType.Tool, AssetType.Model, "$.options.model")]
+    [InlineData("Prompt", AssetType.Tool, AssetType.Prompt, "$.options.prompt")]
+    [InlineData("Knowledge", AssetType.Tool, AssetType.Knowledge, "$.options.knowledge[0]")]
+    [InlineData("Tools", AssetType.Knowledge, AssetType.Tool, "$.options.tools[0]")]
+    [InlineData("Memory", AssetType.Tool, AssetType.Memory, "$.options.memory")]
+    [InlineData("Policies", AssetType.Tool, AssetType.Policy, "$.options.policies[0]")]
+    public async Task ValidateAsync_ShouldReportWrongTypedReferenceForEveryAgentField(
+        string field,
+        AssetType wrongType,
+        AssetType expectedType,
+        string expectedPath)
     {
-        var model = CreateAsset(AssetType.Model, "model");
-        var tool = CreateAsset(AssetType.Tool, "tool");
-        var definition = CreateAgent(
-            model: Reference(model),
-            prompt: Reference(tool));
-        var validator = new AgentGraphValidator(new DictionaryCatalog([model, tool]));
+        var validModel = CreateAsset(AssetType.Model, "valid-model");
+        var wrongAsset = CreateAsset(wrongType, $"wrong-{field.ToLowerInvariant()}");
+        var wrongReference = Reference(wrongAsset);
+
+        var definition = field switch
+        {
+            "Model" => CreateAgent(model: wrongReference),
+            "Prompt" => CreateAgent(model: Reference(validModel), prompt: wrongReference),
+            "Knowledge" => CreateAgent(model: Reference(validModel), knowledge: [wrongReference]),
+            "Tools" => CreateAgent(model: Reference(validModel), tools: [wrongReference]),
+            "Memory" => CreateAgent(model: Reference(validModel), memory: wrongReference),
+            "Policies" => CreateAgent(model: Reference(validModel), policies: [wrongReference]),
+            _ => throw new ArgumentOutOfRangeException(nameof(field), field, "Unknown Agent field.")
+        };
+
+        var catalogAssets = field == "Model"
+            ? new IAsset[] { wrongAsset }
+            : [validModel, wrongAsset];
+        var validator = new AgentGraphValidator(new DictionaryCatalog(catalogAssets));
 
         var result = await validator.ValidateAsync(definition);
 
         result.Errors.Should().ContainSingle()
             .Which.Should().Be(new AgentGraphValidationError(
                 AgentGraphValidationCodes.InvalidReferenceType,
-                "Agent reference must target Asset type 'Prompt'.",
-                "$.options.prompt"));
+                $"Agent reference must target Asset type '{expectedType}'.",
+                expectedPath));
     }
 
     [Fact]
