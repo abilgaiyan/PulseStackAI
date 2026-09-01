@@ -16,9 +16,7 @@ public sealed class PolicyBindingResolverTests
         var asset = CreatePolicyAsset();
         var policy = new StubRuntimePolicy("restricted-tools");
         var resolver = new PolicyBindingResolver(
-            [new PolicyBindingRegistration(
-                new AssetReference(asset.Type, asset.Id, asset.Urn, asset.Version),
-                policy.Name)],
+            [new PolicyBindingRegistration(Reference(asset), policy.Name)],
             [policy]);
 
         resolver.Resolve(asset).Should().BeSameAs(policy);
@@ -35,6 +33,41 @@ public sealed class PolicyBindingResolverTests
         action.Should().Throw<InvalidOperationException>()
             .WithMessage("*not bound*");
     }
+
+    [Fact]
+    public void Resolve_ShouldRejectBindingWithWrongAssetType()
+    {
+        var asset = CreatePolicyAsset();
+        var policy = new StubRuntimePolicy("restricted-tools");
+        var resolver = new PolicyBindingResolver(
+            [new PolicyBindingRegistration(
+                new AssetReference(AssetType.Memory, asset.Id, asset.Urn, asset.Version),
+                policy.Name)],
+            [policy]);
+
+        var action = () => resolver.Resolve(asset);
+
+        action.Should().Throw<InvalidOperationException>().WithMessage("*not bound*");
+    }
+
+    [Fact]
+    public void Resolve_ShouldRejectBindingWithWrongAssetVersion()
+    {
+        var asset = CreatePolicyAsset();
+        var policy = new StubRuntimePolicy("restricted-tools");
+        var resolver = new PolicyBindingResolver(
+            [new PolicyBindingRegistration(
+                new AssetReference(asset.Type, asset.Id, asset.Urn, new AssetVersion("2.0.0")),
+                policy.Name)],
+            [policy]);
+
+        var action = () => resolver.Resolve(asset);
+
+        action.Should().Throw<InvalidOperationException>().WithMessage("*not bound*");
+    }
+
+    private static AssetReference Reference(IAsset asset) =>
+        new(asset.Type, asset.Id, asset.Urn, asset.Version);
 
     private static PolicyAsset CreatePolicyAsset() =>
         new PolicyAssetFactory().Create(
