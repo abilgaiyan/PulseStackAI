@@ -10,6 +10,7 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
     public AIAssetDocument ToDocument(IAsset asset)
     {
         ArgumentNullException.ThrowIfNull(asset);
+        EnsureCanonicalMetadata(asset);
 
         var identity = new AIAssetIdentityDocument
         {
@@ -192,6 +193,68 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
             _ => throw new NotSupportedException(
                 $"Document type '{document.AssetType}' is not supported by the foundation Asset document mapper.")
         };
+    }
+
+    private static void EnsureCanonicalMetadata(IAsset asset)
+    {
+        ArgumentNullException.ThrowIfNull(asset.Metadata);
+
+        switch (asset)
+        {
+            case PromptAsset prompt:
+                EnsureEqual(prompt.Type, "Name", prompt.Options.Name, asset.Metadata.Name);
+                break;
+
+            case ToolAsset tool:
+                EnsureEqual(tool.Type, "Name", tool.Options.Name, asset.Metadata.Name);
+                EnsureEqual(tool.Type, "Description", tool.Options.Description, asset.Metadata.Description);
+                EnsureEqual(tool.Type, "Category", tool.Options.Category, asset.Metadata.Category);
+                EnsureTagsEqual(tool.Type, tool.Options.Tags, asset.Metadata.Tags);
+                break;
+
+            case KnowledgeAsset knowledge:
+                EnsureEqual(knowledge.Type, "Name", knowledge.Options.Name, asset.Metadata.Name);
+                EnsureEqual(knowledge.Type, "Description", knowledge.Options.Description, asset.Metadata.Description);
+                EnsureTagsEqual(knowledge.Type, knowledge.Options.Tags, asset.Metadata.Tags);
+                break;
+
+            case MemoryAsset memory:
+                EnsureEqual(memory.Type, "Name", memory.Options.Name, asset.Metadata.Name);
+                EnsureEqual(memory.Type, "Description", memory.Options.Description, asset.Metadata.Description);
+                EnsureTagsEqual(memory.Type, memory.Options.Tags, asset.Metadata.Tags);
+                break;
+
+            case PolicyAsset policy:
+                EnsureEqual(policy.Type, "Name", policy.Options.Name, asset.Metadata.Name);
+                EnsureEqual(policy.Type, "Description", policy.Options.Description, asset.Metadata.Description);
+                EnsureTagsEqual(policy.Type, policy.Options.Tags, asset.Metadata.Tags);
+                break;
+        }
+    }
+
+    private static void EnsureEqual(
+        AssetType assetType,
+        string field,
+        string? optionValue,
+        string? metadataValue)
+    {
+        if (!string.Equals(optionValue, metadataValue, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"{assetType} Asset options field '{field}' does not match canonical Metadata.");
+        }
+    }
+
+    private static void EnsureTagsEqual(
+        AssetType assetType,
+        IEnumerable<string> optionTags,
+        IEnumerable<string> metadataTags)
+    {
+        if (!optionTags.SequenceEqual(metadataTags, StringComparer.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"{assetType} Asset options field 'Tags' does not match canonical Metadata.");
+        }
     }
 
     private static AIAssetMetadataDocument ToDocument(AssetMetadata metadata)
