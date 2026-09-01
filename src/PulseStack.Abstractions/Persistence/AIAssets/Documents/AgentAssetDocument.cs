@@ -5,8 +5,8 @@ namespace PulseStack.Abstractions.Persistence.AIAssets.Documents;
 public sealed record AgentAssetDocument : AIAssetDocument
 {
     private readonly StructuralReadOnlyList<string> responsibilities;
-    private readonly StructuralReadOnlyList<AIAssetReferenceDocument> tools;
     private readonly StructuralReadOnlyList<AIAssetReferenceDocument> knowledge;
+    private readonly StructuralReadOnlyList<AIAssetReferenceDocument> tools;
     private readonly StructuralReadOnlyList<AIAssetReferenceDocument> policies;
 
     public AgentAssetDocument(
@@ -19,8 +19,8 @@ public sealed record AgentAssetDocument : AIAssetDocument
         IEnumerable<string>? responsibilities = null,
         AIAssetReferenceDocument? model = null,
         AIAssetReferenceDocument? prompt = null,
-        IEnumerable<AIAssetReferenceDocument>? tools = null,
         IEnumerable<AIAssetReferenceDocument>? knowledge = null,
+        IEnumerable<AIAssetReferenceDocument>? tools = null,
         AIAssetReferenceDocument? memory = null,
         IEnumerable<AIAssetReferenceDocument>? policies = null,
         IEnumerable<AIAssetReferenceDocument>? references = null,
@@ -39,8 +39,8 @@ public sealed record AgentAssetDocument : AIAssetDocument
         this.responsibilities = new StructuralReadOnlyList<string>(responsibilities);
         Model = model;
         Prompt = prompt;
-        this.tools = new StructuralReadOnlyList<AIAssetReferenceDocument>(tools);
         this.knowledge = new StructuralReadOnlyList<AIAssetReferenceDocument>(knowledge);
+        this.tools = new StructuralReadOnlyList<AIAssetReferenceDocument>(tools);
         Memory = memory;
         this.policies = new StructuralReadOnlyList<AIAssetReferenceDocument>(policies);
     }
@@ -55,9 +55,9 @@ public sealed record AgentAssetDocument : AIAssetDocument
 
     public AIAssetReferenceDocument? Prompt { get; }
 
-    public IReadOnlyList<AIAssetReferenceDocument> Tools => tools;
-
     public IReadOnlyList<AIAssetReferenceDocument> Knowledge => knowledge;
+
+    public IReadOnlyList<AIAssetReferenceDocument> Tools => tools;
 
     public AIAssetReferenceDocument? Memory { get; }
 
