@@ -4,6 +4,7 @@ using PulseStack.Abstractions.Persistence.AIAssets.Documents;
 using PulseStack.Abstractions.Persistence.AIAssets.Schema;
 using PulseStack.Core.Assets;
 using PulseStack.Core.Persistence.AIAssets.Mapping;
+using PulseStack.Core.Persistence.AIAssets.Validation;
 using Xunit;
 
 namespace PulseStack.Tests.Persistence.AIAssets.Mapping;
@@ -155,7 +156,7 @@ public sealed class AgentAssetDocumentMapperTests
     }
 
     [Fact]
-    public void ToDocument_ShouldRejectAgent_WhenTypedCollectionContainsDuplicateExactReference()
+    public void ToDocument_ShouldRejectAgent_WhenTypedCollectionContainsDuplicateDefinitionReference()
     {
         var tool = CreateReference(AssetType.Tool, "tool");
         var source = new AgentDefinitionFactory().Create(
@@ -170,7 +171,43 @@ public sealed class AgentAssetDocumentMapperTests
         var action = () => mapper.ToDocument(source);
 
         action.Should().Throw<InvalidOperationException>()
-            .WithMessage("*'Tools'*duplicate exact Asset reference*");
+            .WithMessage("*'Tools'*duplicate Asset definition reference*");
+    }
+
+    [Fact]
+    public void ToDocument_ShouldRejectAgent_WhenTypedCollectionContainsConflictingUrnForDefinitionIdentity()
+    {
+        var tool = CreateReference(AssetType.Tool, "tool");
+        var conflicting = tool with
+        {
+            Urn = new AssetUrn($"urn:pulsestack:tool:conflict:{tool.Id}")
+        };
+        var source = new AgentDefinitionFactory().Create(
+            new AgentDefinitionOptions
+            {
+                Name = "Conflicting Agent",
+                Goal = "Exercise identity conflict handling",
+                Role = "Test specialist",
+                Tools = [tool, conflicting]
+            });
+
+        var action = () => mapper.ToDocument(source);
+
+        action.Should().Throw<InvalidOperationException>()
+            .WithMessage("*'Tools'*conflicting URNs*same Asset definition identity*");
+    }
+
+    [Fact]
+    public async Task ToDocument_ShouldProduceAgentDocumentAcceptedByAggregateValidator()
+    {
+        var source = CreateAgent();
+        var document = mapper.ToDocument(source).Should().BeOfType<AgentAssetDocument>().Subject;
+        var validator = new AIAssetDocumentValidator();
+
+        var result = await validator.ValidateAsync(document);
+
+        result.IsValid.Should().BeTrue();
+        result.Errors.Should().BeEmpty();
     }
 
     private static AgentDefinition CreateAgent()
