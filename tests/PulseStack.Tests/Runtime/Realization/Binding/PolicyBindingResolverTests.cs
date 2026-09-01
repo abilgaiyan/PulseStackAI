@@ -30,8 +30,7 @@ public sealed class PolicyBindingResolverTests
 
         var action = () => resolver.Resolve(asset);
 
-        action.Should().Throw<InvalidOperationException>()
-            .WithMessage("*not bound*");
+        action.Should().Throw<InvalidOperationException>().WithMessage("*not bound*");
     }
 
     [Fact]
@@ -58,6 +57,22 @@ public sealed class PolicyBindingResolverTests
         var resolver = new PolicyBindingResolver(
             [new PolicyBindingRegistration(
                 new AssetReference(asset.Type, asset.Id, asset.Urn, new AssetVersion("2.0.0")),
+                policy.Name)],
+            [policy]);
+
+        var action = () => resolver.Resolve(asset);
+
+        action.Should().Throw<InvalidOperationException>().WithMessage("*not bound*");
+    }
+
+    [Fact]
+    public void Resolve_ShouldRejectBindingWithWrongAssetUrn()
+    {
+        var asset = CreatePolicyAsset();
+        var policy = new StubRuntimePolicy("restricted-tools");
+        var resolver = new PolicyBindingResolver(
+            [new PolicyBindingRegistration(
+                new AssetReference(asset.Type, asset.Id, new AssetUrn("urn:pulsestack:policy:other"), asset.Version),
                 policy.Name)],
             [policy]);
 
