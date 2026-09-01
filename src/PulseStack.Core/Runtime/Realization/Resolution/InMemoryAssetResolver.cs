@@ -8,24 +8,31 @@ namespace PulseStack.Core.Runtime.Realization.Resolution;
 /// </summary>
 public sealed class InMemoryAssetResolver : IAssetResolver
 {
-    private readonly IReadOnlyDictionary<AssetId, IAsset> _assets;
+    private readonly IReadOnlyDictionary<AssetDefinitionKey, IAsset> _assets;
 
     public InMemoryAssetResolver(IEnumerable<IAsset> assets)
     {
         ArgumentNullException.ThrowIfNull(assets);
 
-        var catalog = new Dictionary<AssetId, IAsset>();
+        var catalog = new Dictionary<AssetDefinitionKey, IAsset>();
 
         foreach (var asset in assets)
         {
             ArgumentNullException.ThrowIfNull(asset);
             asset.Id.EnsureValid();
 
-            if (!catalog.TryAdd(asset.Id, asset))
+            var key = AssetDefinitionKey.From(asset);
+            if (!catalog.TryAdd(key, asset))
             {
-                throw new ArgumentException(
-                    $"An asset with id '{asset.Id}' is already registered.",
-                    nameof(assets));
+                var registered = catalog[key];
+                var message = string.Equals(
+                    registered.Urn.Value,
+                    asset.Urn.Value,
+                    StringComparison.Ordinal)
+                    ? $"Asset definition '{asset.Type}/{asset.Id}/{asset.Version.Value}' is already registered."
+                    : $"Asset definition '{asset.Type}/{asset.Id}/{asset.Version.Value}' is already registered with URN '{registered.Urn.Value}' and cannot also use URN '{asset.Urn.Value}'.";
+
+                throw new ArgumentException(message, nameof(assets));
             }
         }
 
@@ -47,15 +54,13 @@ public sealed class InMemoryAssetResolver : IAssetResolver
             return ValueTask.FromResult<IAsset?>(null);
         }
 
-        if (!_assets.TryGetValue(reference.Id, out var asset))
+        if (!_assets.TryGetValue(AssetDefinitionKey.From(reference), out var asset))
         {
             return ValueTask.FromResult<IAsset?>(null);
         }
 
         return ValueTask.FromResult<IAsset?>(
-            asset.Type == reference.Type
-            && asset.Version == reference.Version
-            && string.Equals(
+            string.Equals(
                 asset.Urn.Value,
                 reference.Urn.Value,
                 StringComparison.Ordinal)
