@@ -4,9 +4,9 @@ namespace PulseStack.Abstractions.Assets;
 /// Reconstructs foundation Asset definitions from already validated declarative state.
 /// This boundary does not perform runtime, provider, catalog, or persistence resolution.
 /// </summary>
-public static class FoundationAssetRehydrator
+internal static class FoundationAssetRehydrator
 {
-    public static PromptAsset RehydratePrompt(
+    internal static PromptAsset RehydratePrompt(
         AssetId id,
         AssetUrn urn,
         AssetVersion version,
@@ -24,7 +24,7 @@ public static class FoundationAssetRehydrator
             Dependencies = dependencies.ToArray()
         };
 
-    public static ToolAsset RehydrateTool(
+    internal static ToolAsset RehydrateTool(
         AssetId id,
         AssetUrn urn,
         AssetVersion version,
@@ -42,7 +42,7 @@ public static class FoundationAssetRehydrator
             Dependencies = dependencies.ToArray()
         };
 
-    public static KnowledgeAsset RehydrateKnowledge(
+    internal static KnowledgeAsset RehydrateKnowledge(
         AssetId id,
         AssetUrn urn,
         AssetVersion version,
@@ -60,7 +60,7 @@ public static class FoundationAssetRehydrator
             Dependencies = dependencies.ToArray()
         };
 
-    public static MemoryAsset RehydrateMemory(
+    internal static MemoryAsset RehydrateMemory(
         AssetId id,
         AssetUrn urn,
         AssetVersion version,
@@ -78,7 +78,7 @@ public static class FoundationAssetRehydrator
             Dependencies = dependencies.ToArray()
         };
 
-    public static PolicyAsset RehydratePolicy(
+    internal static PolicyAsset RehydratePolicy(
         AssetId id,
         AssetUrn urn,
         AssetVersion version,
@@ -96,7 +96,7 @@ public static class FoundationAssetRehydrator
             Dependencies = dependencies.ToArray()
         };
 
-    public static ModelAsset RehydrateModel(
+    internal static ModelAsset RehydrateModel(
         AssetId id,
         AssetUrn urn,
         AssetVersion version,
