@@ -84,6 +84,12 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
     {
         ArgumentNullException.ThrowIfNull(document);
 
+        if (document.SchemaVersion != AIAssetSchemaVersion.V1)
+        {
+            throw new NotSupportedException(
+                $"AI Asset schema version '{document.SchemaVersion}' is not supported by the foundation Asset document mapper.");
+        }
+
         var id = ParseAssetId(document.Identity.Id);
         var urn = new AssetUrn(Require(document.Identity.Urn, "Asset identity URN"));
         var version = new AssetVersion(Require(document.Identity.Version, "Asset identity version"));
