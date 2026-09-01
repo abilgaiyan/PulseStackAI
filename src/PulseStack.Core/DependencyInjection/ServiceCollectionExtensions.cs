@@ -3,6 +3,8 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using PulseStack.Abstractions.Assets;
 using PulseStack.Abstractions.Chat;
 using PulseStack.Abstractions.Memory;
+using PulseStack.Abstractions.Persistence.AIAssets.Mapping;
+using PulseStack.Abstractions.Persistence.AIAssets.Validation;
 using PulseStack.Abstractions.Persistence.Mapping;
 using PulseStack.Abstractions.Persistence.Serialization;
 using PulseStack.Abstractions.Persistence.Validation;
@@ -16,6 +18,8 @@ using PulseStack.Abstractions.Tools;
 using PulseStack.Core.Assets;
 using PulseStack.Core.Chat;
 using PulseStack.Core.Memory;
+using PulseStack.Core.Persistence.AIAssets.Mapping;
+using PulseStack.Core.Persistence.AIAssets.Validation;
 using PulseStack.Core.Persistence.Mapping;
 using PulseStack.Core.Persistence.Serialization;
 using PulseStack.Core.Persistence.Validation;
@@ -81,6 +85,8 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IWorkflowSerializer, JsonWorkflowSerializer>();
         services.TryAddSingleton<IWorkflowDeserializer, JsonWorkflowDeserializer>();
         services.TryAddSingleton<IWorkflowValidator, WorkflowValidator>();
+        services.TryAddSingleton<IAIAssetDocumentValidator, AIAssetDocumentValidator>();
+        services.TryAddSingleton<IAIAssetDocumentMapper, AIAssetDocumentMapper>();
 
         services.TryAddScoped<IAssetResolver>(sp =>
             new InMemoryAssetResolver(sp.GetServices<IAsset>()));
