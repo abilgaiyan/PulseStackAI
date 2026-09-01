@@ -332,19 +332,27 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
         AssetType expectedType,
         string field)
     {
-        var seen = new HashSet<AssetReferenceKey>();
+        var seen = new Dictionary<AssetDefinitionKey, AssetUrn>();
 
         foreach (var reference in references)
         {
             ArgumentNullException.ThrowIfNull(reference);
             EnsureAgentReferenceType(reference, expectedType, field);
 
-            if (!seen.Add(AssetReferenceKey.From(reference)))
+            var definitionKey = AssetDefinitionKey.From(reference);
+            if (seen.TryGetValue(definitionKey, out var existingUrn))
             {
+                if (string.Equals(existingUrn.Value, reference.Urn.Value, StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException(
+                        $"Agent Asset options field '{field}' contains a duplicate Asset definition reference.");
+                }
+
                 throw new InvalidOperationException(
-                    $"Agent Asset options field '{field}' contains a duplicate exact Asset reference.");
+                    $"Agent Asset options field '{field}' contains conflicting URNs for the same Asset definition identity.");
             }
 
+            seen.Add(definitionKey, reference.Urn);
             target.Add(reference);
         }
     }
