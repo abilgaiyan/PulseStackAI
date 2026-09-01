@@ -51,27 +51,19 @@ public sealed class AgentGraphValidator : IAgentGraphValidator
                 cancellationToken);
         }
 
-        for (var index = 0; index < definition.Options.Knowledge.Count; index++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            await ValidateReferenceAsync(
-                definition.Options.Knowledge.ElementAt(index),
-                AssetType.Knowledge,
-                $"$.options.knowledge[{index}]",
-                errors,
-                cancellationToken);
-        }
+        await ValidateReferencesAsync(
+            definition.Options.Knowledge,
+            AssetType.Knowledge,
+            "knowledge",
+            errors,
+            cancellationToken);
 
-        for (var index = 0; index < definition.Options.Tools.Count; index++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            await ValidateReferenceAsync(
-                definition.Options.Tools.ElementAt(index),
-                AssetType.Tool,
-                $"$.options.tools[{index}]",
-                errors,
-                cancellationToken);
-        }
+        await ValidateReferencesAsync(
+            definition.Options.Tools,
+            AssetType.Tool,
+            "tools",
+            errors,
+            cancellationToken);
 
         if (definition.Options.Memory is not null)
         {
@@ -83,18 +75,35 @@ public sealed class AgentGraphValidator : IAgentGraphValidator
                 cancellationToken);
         }
 
-        for (var index = 0; index < definition.Options.Policies.Count; index++)
+        await ValidateReferencesAsync(
+            definition.Options.Policies,
+            AssetType.Policy,
+            "policies",
+            errors,
+            cancellationToken);
+
+        return new AgentGraphValidationResult(errors);
+    }
+
+    private async ValueTask ValidateReferencesAsync(
+        IEnumerable<AssetReference> references,
+        AssetType expectedType,
+        string field,
+        ICollection<AgentGraphValidationError> errors,
+        CancellationToken cancellationToken)
+    {
+        var index = 0;
+        foreach (var reference in references)
         {
             cancellationToken.ThrowIfCancellationRequested();
             await ValidateReferenceAsync(
-                definition.Options.Policies.ElementAt(index),
-                AssetType.Policy,
-                $"$.options.policies[{index}]",
+                reference,
+                expectedType,
+                $"$.options.{field}[{index}]",
                 errors,
                 cancellationToken);
+            index++;
         }
-
-        return new AgentGraphValidationResult(errors);
     }
 
     private async ValueTask ValidateReferenceAsync(
