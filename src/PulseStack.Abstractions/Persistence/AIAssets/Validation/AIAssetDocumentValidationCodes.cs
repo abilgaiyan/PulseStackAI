@@ -35,4 +35,11 @@ public static class AIAssetDocumentValidationCodes
     public const string MissingKnowledgeDescription = "AD650";
     public const string MissingMemoryDescription = "AD660";
     public const string MissingPolicyDescription = "AD670";
+
+    public const string MissingAgentGoal = "AD680";
+    public const string MissingAgentRole = "AD690";
+    public const string InvalidAgentResponsibility = "AD700";
+    public const string InvalidAgentReferenceType = "AD710";
+    public const string DuplicateAgentReference = "AD720";
+    public const string AgentReferenceProjectionMismatch = "AD730";
 }
