@@ -76,6 +76,14 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
                 references,
                 dependencies),
 
+            AgentDefinition agent => ToDocument(
+                agent,
+                identity,
+                metadata,
+                lifecycle,
+                references,
+                dependencies),
+
             _ => throw new NotSupportedException(
                 $"Asset type '{asset.Type}' is not supported by the foundation Asset document mapper.")
         };
@@ -190,9 +198,58 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
                     Require(model.Provider, "Model provider"),
                     Require(model.Model, "Model name"))),
 
+            AgentAssetDocument agent => AgentDefinitionRehydrator.Rehydrate(
+                id,
+                urn,
+                version,
+                metadata,
+                lifecycle,
+                dependencies,
+                new AgentDefinitionOptions
+                {
+                    Name = Require(metadata.Name, "Agent name"),
+                    Goal = Require(agent.Goal, "Agent goal"),
+                    Role = Require(agent.Role, "Agent role"),
+                    Responsibilities = agent.Responsibilities.ToArray(),
+                    Model = agent.Model is null ? null : FromDocument(agent.Model),
+                    Prompt = agent.Prompt is null ? null : FromDocument(agent.Prompt),
+                    Knowledge = agent.Knowledge.Select(FromDocument).ToArray(),
+                    Tools = agent.Tools.Select(FromDocument).ToArray(),
+                    Memory = agent.Memory is null ? null : FromDocument(agent.Memory),
+                    Policies = agent.Policies.Select(FromDocument).ToArray()
+                }),
+
             _ => throw new NotSupportedException(
                 $"Document type '{document.AssetType}' is not supported by the foundation Asset document mapper.")
         };
+    }
+
+    private static AgentAssetDocument ToDocument(
+        AgentDefinition agent,
+        AIAssetIdentityDocument identity,
+        AIAssetMetadataDocument metadata,
+        AIAssetLifecycleDocument lifecycle,
+        IReadOnlyList<AIAssetReferenceDocument> references,
+        IReadOnlyList<AIAssetDependencyDocument> dependencies)
+    {
+        EnsureCanonicalAgentReferences(agent);
+
+        return new AgentAssetDocument(
+            AIAssetSchemaVersion.V1,
+            identity,
+            metadata,
+            lifecycle,
+            agent.Options.Goal,
+            agent.Options.Role,
+            agent.Options.Responsibilities,
+            agent.Options.Model is null ? null : ToDocument(agent.Options.Model),
+            agent.Options.Prompt is null ? null : ToDocument(agent.Options.Prompt),
+            agent.Options.Knowledge.Select(ToDocument),
+            agent.Options.Tools.Select(ToDocument),
+            agent.Options.Memory is null ? null : ToDocument(agent.Options.Memory),
+            agent.Options.Policies.Select(ToDocument),
+            references,
+            dependencies);
     }
 
     private static void EnsureCanonicalMetadata(IAsset asset)
@@ -229,6 +286,78 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
                 EnsureEqual(policy.Type, "Description", policy.Options.Description, asset.Metadata.Description);
                 EnsureTagsEqual(policy.Type, policy.Options.Tags, asset.Metadata.Tags);
                 break;
+
+            case AgentDefinition agent:
+                EnsureEqual(agent.Type, "Name", agent.Options.Name, asset.Metadata.Name);
+                break;
+        }
+    }
+
+    private static void EnsureCanonicalAgentReferences(AgentDefinition agent)
+    {
+        var typedReferences = new List<AssetReference>();
+
+        AddOptionalAgentReference(typedReferences, agent.Options.Model, AssetType.Model, "Model");
+        AddOptionalAgentReference(typedReferences, agent.Options.Prompt, AssetType.Prompt, "Prompt");
+        AddAgentReferences(typedReferences, agent.Options.Knowledge, AssetType.Knowledge, "Knowledge");
+        AddAgentReferences(typedReferences, agent.Options.Tools, AssetType.Tool, "Tools");
+        AddOptionalAgentReference(typedReferences, agent.Options.Memory, AssetType.Memory, "Memory");
+        AddAgentReferences(typedReferences, agent.Options.Policies, AssetType.Policy, "Policies");
+
+        if (!typedReferences.SequenceEqual(agent.References))
+        {
+            throw new InvalidOperationException(
+                "Agent Asset typed references do not match the canonical common References projection.");
+        }
+    }
+
+    private static void AddOptionalAgentReference(
+        ICollection<AssetReference> target,
+        AssetReference? reference,
+        AssetType expectedType,
+        string field)
+    {
+        if (reference is null)
+        {
+            return;
+        }
+
+        EnsureAgentReferenceType(reference, expectedType, field);
+        target.Add(reference);
+    }
+
+    private static void AddAgentReferences(
+        ICollection<AssetReference> target,
+        IEnumerable<AssetReference> references,
+        AssetType expectedType,
+        string field)
+    {
+        var seen = new HashSet<AssetReferenceKey>();
+
+        foreach (var reference in references)
+        {
+            ArgumentNullException.ThrowIfNull(reference);
+            EnsureAgentReferenceType(reference, expectedType, field);
+
+            if (!seen.Add(AssetReferenceKey.From(reference)))
+            {
+                throw new InvalidOperationException(
+                    $"Agent Asset options field '{field}' contains a duplicate exact Asset reference.");
+            }
+
+            target.Add(reference);
+        }
+    }
+
+    private static void EnsureAgentReferenceType(
+        AssetReference reference,
+        AssetType expectedType,
+        string field)
+    {
+        if (reference.Type != expectedType)
+        {
+            throw new InvalidOperationException(
+                $"Agent Asset options field '{field}' must reference Asset type '{expectedType}'.");
         }
     }
 
