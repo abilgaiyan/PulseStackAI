@@ -34,8 +34,7 @@ public sealed class ToolBindingResolverTests
 
         var action = () => resolver.Resolve(asset);
 
-        action.Should().Throw<InvalidOperationException>()
-            .WithMessage("*not bound*");
+        action.Should().Throw<InvalidOperationException>().WithMessage("*not bound*");
     }
 
     [Fact]
@@ -66,6 +65,24 @@ public sealed class ToolBindingResolverTests
         var resolver = new ToolBindingResolver(
             [new ToolBindingRegistration(
                 new AssetReference(asset.Type, asset.Id, asset.Urn, new AssetVersion("2.0.0")),
+                tool.Name)],
+            registry);
+
+        var action = () => resolver.Resolve(asset);
+
+        action.Should().Throw<InvalidOperationException>().WithMessage("*not bound*");
+    }
+
+    [Fact]
+    public void Resolve_ShouldRejectBindingWithWrongAssetUrn()
+    {
+        var asset = CreateToolAsset();
+        var tool = new StubTool("calculator");
+        var registry = new ToolRegistry();
+        registry.Register(tool);
+        var resolver = new ToolBindingResolver(
+            [new ToolBindingRegistration(
+                new AssetReference(asset.Type, asset.Id, new AssetUrn("urn:pulsestack:tool:other"), asset.Version),
                 tool.Name)],
             registry);
 
