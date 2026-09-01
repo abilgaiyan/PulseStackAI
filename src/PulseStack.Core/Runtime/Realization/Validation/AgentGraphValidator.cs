@@ -128,6 +128,7 @@ public sealed class AgentGraphValidator : IAgentGraphValidator
 
         var key = AssetDefinitionKey.From(reference);
         var asset = await catalog.FindAsync(key, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (asset is null)
         {
