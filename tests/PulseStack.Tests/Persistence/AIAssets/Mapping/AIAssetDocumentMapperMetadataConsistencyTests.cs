@@ -11,7 +11,7 @@ public sealed class AIAssetDocumentMapperMetadataConsistencyTests
     private readonly AIAssetDocumentMapper mapper = new();
 
     [Fact]
-    public void ToDocument_ShouldRejectPrompt_WhenNameDivergesFromMetadata()
+    public void ToDocument_ShouldRejectPrompt_WhenNameDiffersOnlyByCase()
     {
         var source = new PromptAssetFactory().Create(
             new PromptAssetOptions
@@ -21,7 +21,7 @@ public sealed class AIAssetDocumentMapperMetadataConsistencyTests
             });
         var asset = source with
         {
-            Metadata = source.Metadata with { Name = "Published Prompt" }
+            Metadata = source.Metadata with { Name = "assistant Prompt" }
         };
 
         var action = () => mapper.ToDocument(asset);
