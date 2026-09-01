@@ -20,9 +20,7 @@ public sealed class ToolBindingResolverTests
         registry.Register(tool);
 
         var resolver = new ToolBindingResolver(
-            [new ToolBindingRegistration(
-                new AssetReference(asset.Type, asset.Id, asset.Urn, asset.Version),
-                tool.Name)],
+            [new ToolBindingRegistration(Reference(asset), tool.Name)],
             registry);
 
         resolver.Resolve(asset).Should().BeSameAs(tool);
@@ -32,15 +30,52 @@ public sealed class ToolBindingResolverTests
     public void Resolve_ShouldRejectUnboundToolAsset()
     {
         var asset = CreateToolAsset();
-        var resolver = new ToolBindingResolver(
-            [],
-            new ToolRegistry());
+        var resolver = new ToolBindingResolver([], new ToolRegistry());
 
         var action = () => resolver.Resolve(asset);
 
         action.Should().Throw<InvalidOperationException>()
             .WithMessage("*not bound*");
     }
+
+    [Fact]
+    public void Resolve_ShouldRejectBindingWithWrongAssetType()
+    {
+        var asset = CreateToolAsset();
+        var tool = new StubTool("calculator");
+        var registry = new ToolRegistry();
+        registry.Register(tool);
+        var resolver = new ToolBindingResolver(
+            [new ToolBindingRegistration(
+                new AssetReference(AssetType.Knowledge, asset.Id, asset.Urn, asset.Version),
+                tool.Name)],
+            registry);
+
+        var action = () => resolver.Resolve(asset);
+
+        action.Should().Throw<InvalidOperationException>().WithMessage("*not bound*");
+    }
+
+    [Fact]
+    public void Resolve_ShouldRejectBindingWithWrongAssetVersion()
+    {
+        var asset = CreateToolAsset();
+        var tool = new StubTool("calculator");
+        var registry = new ToolRegistry();
+        registry.Register(tool);
+        var resolver = new ToolBindingResolver(
+            [new ToolBindingRegistration(
+                new AssetReference(asset.Type, asset.Id, asset.Urn, new AssetVersion("2.0.0")),
+                tool.Name)],
+            registry);
+
+        var action = () => resolver.Resolve(asset);
+
+        action.Should().Throw<InvalidOperationException>().WithMessage("*not bound*");
+    }
+
+    private static AssetReference Reference(IAsset asset) =>
+        new(asset.Type, asset.Id, asset.Urn, asset.Version);
 
     private static ToolAsset CreateToolAsset() =>
         new ToolAssetFactory().Create(
