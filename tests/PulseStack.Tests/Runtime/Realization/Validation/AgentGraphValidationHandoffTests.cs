@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using PulseStack.Abstractions.Assets;
+using PulseStack.Abstractions.Chat;
 using PulseStack.Abstractions.Models;
 using PulseStack.Abstractions.Persistence.AIAssets.Mapping;
 using PulseStack.Abstractions.Providers;
