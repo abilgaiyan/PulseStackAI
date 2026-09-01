@@ -311,7 +311,7 @@ public sealed class AgentGraphValidatorTests
                 $"urn:pulsestack:{type.ToString().ToLowerInvariant()}:{name}:{assetVersion.Value}"),
             Version = assetVersion,
             Metadata = new AssetMetadata { Name = name },
-            Lifecycle = AssetLifecycle.Active
+            Lifecycle = AssetLifecycle.Published
         };
     }
 
