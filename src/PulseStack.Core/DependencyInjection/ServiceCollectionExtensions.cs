@@ -13,6 +13,7 @@ using PulseStack.Abstractions.Runtime.Realization.Binding;
 using PulseStack.Abstractions.Runtime.Realization.Composition;
 using PulseStack.Abstractions.Runtime.Realization.Evaluation;
 using PulseStack.Abstractions.Runtime.Realization.Resolution;
+using PulseStack.Abstractions.Runtime.Realization.Validation;
 using PulseStack.Abstractions.Security;
 using PulseStack.Abstractions.Tools;
 using PulseStack.Core.Assets;
@@ -29,6 +30,7 @@ using PulseStack.Core.Runtime.Realization.Binding;
 using PulseStack.Core.Runtime.Realization.Composition;
 using PulseStack.Core.Runtime.Realization.Evaluation;
 using PulseStack.Core.Runtime.Realization.Resolution;
+using PulseStack.Core.Runtime.Realization.Validation;
 using PulseStack.Core.Security;
 using PulseStack.Core.Tools;
 
@@ -88,8 +90,13 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IAIAssetDocumentValidator, AIAssetDocumentValidator>();
         services.TryAddSingleton<IAIAssetDocumentMapper, AIAssetDocumentMapper>();
 
-        services.TryAddScoped<IAssetResolver>(sp =>
+        services.TryAddScoped<InMemoryAssetResolver>(sp =>
             new InMemoryAssetResolver(sp.GetServices<IAsset>()));
+        services.TryAddScoped<IAssetResolver>(sp =>
+            sp.GetRequiredService<InMemoryAssetResolver>());
+        services.TryAddScoped<IAssetDefinitionCatalog>(sp =>
+            sp.GetRequiredService<InMemoryAssetResolver>());
+        services.TryAddScoped<IAgentGraphValidator, AgentGraphValidator>();
 
         return services;
     }
