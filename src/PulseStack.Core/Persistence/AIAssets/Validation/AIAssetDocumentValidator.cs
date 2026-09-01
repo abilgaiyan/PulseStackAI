@@ -81,6 +81,7 @@ public sealed class AIAssetDocumentValidator : IAIAssetDocumentValidator
             MemoryAssetDocument => AIAssetDocumentType.Memory,
             PolicyAssetDocument => AIAssetDocumentType.Policy,
             ModelAssetDocument => AIAssetDocumentType.Model,
+            AgentAssetDocument => AIAssetDocumentType.Agent,
             _ => default
         };
 
@@ -89,7 +90,8 @@ public sealed class AIAssetDocumentValidator : IAIAssetDocumentValidator
             or KnowledgeAssetDocument
             or MemoryAssetDocument
             or PolicyAssetDocument
-            or ModelAssetDocument;
+            or ModelAssetDocument
+            or AgentAssetDocument;
     }
 
     private static void ValidateIdentity(
@@ -339,6 +341,142 @@ public sealed class AIAssetDocumentValidator : IAIAssetDocumentValidator
                 }
 
                 break;
+
+            case AgentAssetDocument agent:
+                ValidateAgent(agent, errors);
+                break;
+        }
+    }
+
+    private static void ValidateAgent(
+        AgentAssetDocument agent,
+        ICollection<AIAssetDocumentValidationError> errors)
+    {
+        if (string.IsNullOrWhiteSpace(agent.Goal))
+        {
+            AddError(
+                errors,
+                AIAssetDocumentValidationCodes.MissingAgentGoal,
+                "Agent goal is required.",
+                "$.goal");
+        }
+
+        if (string.IsNullOrWhiteSpace(agent.Role))
+        {
+            AddError(
+                errors,
+                AIAssetDocumentValidationCodes.MissingAgentRole,
+                "Agent role is required.",
+                "$.role");
+        }
+
+        for (var index = 0; index < agent.Responsibilities.Count; index++)
+        {
+            if (string.IsNullOrWhiteSpace(agent.Responsibilities[index]))
+            {
+                AddError(
+                    errors,
+                    AIAssetDocumentValidationCodes.InvalidAgentResponsibility,
+                    "Agent responsibilities cannot be empty or whitespace.",
+                    $"$.responsibilities[{index}]");
+            }
+        }
+
+        ValidateAgentReference(agent.Model, AIAssetDocumentType.Model, "$.model", errors);
+        ValidateAgentReference(agent.Prompt, AIAssetDocumentType.Prompt, "$.prompt", errors);
+        ValidateAgentReferenceCollection(agent.Knowledge, AIAssetDocumentType.Knowledge, "$.knowledge", errors);
+        ValidateAgentReferenceCollection(agent.Tools, AIAssetDocumentType.Tool, "$.tools", errors);
+        ValidateAgentReference(agent.Memory, AIAssetDocumentType.Memory, "$.memory", errors);
+        ValidateAgentReferenceCollection(agent.Policies, AIAssetDocumentType.Policy, "$.policies", errors);
+
+        var projectedReferences = new List<AIAssetReferenceDocument>();
+
+        if (agent.Model is not null)
+        {
+            projectedReferences.Add(agent.Model);
+        }
+
+        if (agent.Prompt is not null)
+        {
+            projectedReferences.Add(agent.Prompt);
+        }
+
+        projectedReferences.AddRange(agent.Knowledge);
+        projectedReferences.AddRange(agent.Tools);
+
+        if (agent.Memory is not null)
+        {
+            projectedReferences.Add(agent.Memory);
+        }
+
+        projectedReferences.AddRange(agent.Policies);
+
+        if (!agent.References.SequenceEqual(projectedReferences))
+        {
+            AddError(
+                errors,
+                AIAssetDocumentValidationCodes.AgentReferenceProjectionMismatch,
+                "Agent envelope references must exactly match the deterministic typed-reference projection.",
+                "$.references");
+        }
+    }
+
+    private static void ValidateAgentReference(
+        AIAssetReferenceDocument? reference,
+        AIAssetDocumentType expectedType,
+        string path,
+        ICollection<AIAssetDocumentValidationError> errors)
+    {
+        if (reference is null)
+        {
+            return;
+        }
+
+        ValidateReference(reference, path, errors);
+
+        if (reference.AssetType != expectedType)
+        {
+            AddError(
+                errors,
+                AIAssetDocumentValidationCodes.InvalidAgentReferenceType,
+                $"Agent reference must target an AI Asset of type '{expectedType}'.",
+                $"{path}.assetType");
+        }
+    }
+
+    private static void ValidateAgentReferenceCollection(
+        IReadOnlyList<AIAssetReferenceDocument> references,
+        AIAssetDocumentType expectedType,
+        string path,
+        ICollection<AIAssetDocumentValidationError> errors)
+    {
+        var seen = new HashSet<ReferenceKey>();
+
+        for (var index = 0; index < references.Count; index++)
+        {
+            var reference = references[index];
+            var itemPath = $"{path}[{index}]";
+
+            if (reference is null)
+            {
+                AddError(
+                    errors,
+                    AIAssetDocumentValidationCodes.MissingReference,
+                    "The Agent typed reference is required.",
+                    itemPath);
+                continue;
+            }
+
+            ValidateAgentReference(reference, expectedType, itemPath, errors);
+
+            if (TryCreateReferenceKey(reference, out var key) && !seen.Add(key))
+            {
+                AddError(
+                    errors,
+                    AIAssetDocumentValidationCodes.DuplicateAgentReference,
+                    "The Agent typed reference collection contains a duplicate reference.",
+                    itemPath);
+            }
         }
     }
 
