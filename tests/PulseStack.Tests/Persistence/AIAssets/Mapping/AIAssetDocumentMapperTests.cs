@@ -28,6 +28,18 @@ public sealed class AIAssetDocumentMapperTests
     }
 
     [Fact]
+    public void DocumentRoundTrip_ShouldPreserveCanonicalFoundationDocuments()
+    {
+        foreach (var document in CreateCanonicalFoundationDocuments())
+        {
+            var asset = mapper.FromDocument(document);
+            var restored = mapper.ToDocument(asset);
+
+            restored.Should().Be(document);
+        }
+    }
+
+    [Fact]
     public void RoundTrip_ShouldPreserveCommonEnvelopeReferencesAndDependencies()
     {
         var modelReference = CreateReference(AssetType.Model, "model");
@@ -64,6 +76,22 @@ public sealed class AIAssetDocumentMapperTests
         restored.References.Should().Equal(modelReference);
         restored.Dependencies.Should().Equal(
             new AssetDependency(promptReference, Required: false));
+    }
+
+    [Fact]
+    public void FromDocument_ShouldRejectUnsupportedSchemaVersion()
+    {
+        var document = new PromptAssetDocument(
+            new AIAssetSchemaVersion("2.0"),
+            CreateIdentity("prompt-v2"),
+            new AIAssetMetadataDocument("Prompt"),
+            AIAssetLifecycleDocument.Draft,
+            "Be precise.");
+
+        var action = () => mapper.FromDocument(document);
+
+        action.Should().Throw<NotSupportedException>()
+            .WithMessage("*schema version '2.0'*not supported by the foundation Asset document mapper*");
     }
 
     [Fact]
@@ -131,6 +159,116 @@ public sealed class AIAssetDocumentMapperTests
                 }),
             new ModelAssetFactory(new TestModelCatalog(modelOptions)).Create(modelOptions)
         ];
+    }
+
+    private static IReadOnlyList<AIAssetDocument> CreateCanonicalFoundationDocuments()
+    {
+        var reference = new AIAssetReferenceDocument
+        {
+            AssetType = AIAssetDocumentType.Model,
+            AssetId = Guid.NewGuid().ToString(),
+            Urn = "urn:pulsestack:model:shared",
+            Version = "3.0.0"
+        };
+        var dependencyReference = new AIAssetReferenceDocument
+        {
+            AssetType = AIAssetDocumentType.Prompt,
+            AssetId = Guid.NewGuid().ToString(),
+            Urn = "urn:pulsestack:prompt:shared",
+            Version = "2.0.0"
+        };
+        var dependencies = new[]
+        {
+            new AIAssetDependencyDocument
+            {
+                Reference = dependencyReference,
+                Required = false
+            }
+        };
+        var references = new[] { reference };
+
+        return
+        [
+            new PromptAssetDocument(
+                AIAssetSchemaVersion.V1,
+                CreateIdentity("prompt"),
+                new AIAssetMetadataDocument(
+                    "Assistant Prompt",
+                    author: "PulseStackAI",
+                    tags: ["assistant"]),
+                AIAssetLifecycleDocument.Published,
+                "Be precise.",
+                references,
+                dependencies),
+            new ToolAssetDocument(
+                AIAssetSchemaVersion.V1,
+                CreateIdentity("tool"),
+                new AIAssetMetadataDocument(
+                    "Search",
+                    "Searches business data.",
+                    "PulseStackAI",
+                    ["search", "business"],
+                    "Retrieval"),
+                AIAssetLifecycleDocument.Published,
+                references,
+                dependencies),
+            new KnowledgeAssetDocument(
+                AIAssetSchemaVersion.V1,
+                CreateIdentity("knowledge"),
+                new AIAssetMetadataDocument(
+                    "Customer Knowledge",
+                    "Customer reference material.",
+                    "PulseStackAI",
+                    ["customer"]),
+                AIAssetLifecycleDocument.Validated,
+                references,
+                dependencies),
+            new MemoryAssetDocument(
+                AIAssetSchemaVersion.V1,
+                CreateIdentity("memory"),
+                new AIAssetMetadataDocument(
+                    "Conversation Memory",
+                    "Retains conversation context.",
+                    "PulseStackAI",
+                    ["conversation"]),
+                AIAssetLifecycleDocument.Deprecated,
+                references,
+                dependencies),
+            new PolicyAssetDocument(
+                AIAssetSchemaVersion.V1,
+                CreateIdentity("policy"),
+                new AIAssetMetadataDocument(
+                    "Privacy Policy",
+                    "Protects customer data.",
+                    "PulseStackAI",
+                    ["privacy"]),
+                AIAssetLifecycleDocument.Archived,
+                references,
+                dependencies),
+            new ModelAssetDocument(
+                AIAssetSchemaVersion.V1,
+                CreateIdentity("model"),
+                new AIAssetMetadataDocument(
+                    "test-model",
+                    author: "PulseStackAI",
+                    tags: ["model"]),
+                AIAssetLifecycleDocument.Published,
+                "TestProvider",
+                "test-model",
+                references,
+                dependencies)
+        ];
+    }
+
+    private static AIAssetIdentityDocument CreateIdentity(string name)
+    {
+        var id = Guid.NewGuid();
+        return new AIAssetIdentityDocument
+        {
+            Id = id.ToString(),
+            Urn = $"urn:pulsestack:{name}:{id}",
+            Version = "2.4.0"
+        };
     }
 
     private static void AssertCommonDefinition(IAsset expected, IAsset actual)
