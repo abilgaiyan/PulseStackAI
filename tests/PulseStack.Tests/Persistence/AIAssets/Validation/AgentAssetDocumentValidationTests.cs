@@ -174,8 +174,8 @@ public sealed class AgentAssetDocumentValidationTests
         IEnumerable<string>? responsibilities = null,
         AIAssetReferenceDocument? model = null,
         AIAssetReferenceDocument? prompt = null,
-        IEnumerable<AIAssetReferenceDocument>? tools = null,
         IEnumerable<AIAssetReferenceDocument>? knowledge = null,
+        IEnumerable<AIAssetReferenceDocument>? tools = null,
         AIAssetReferenceDocument? memory = null,
         IEnumerable<AIAssetReferenceDocument>? policies = null,
         IEnumerable<AIAssetReferenceDocument>? references = null)
@@ -190,8 +190,8 @@ public sealed class AgentAssetDocumentValidationTests
             responsibilities ?? ["Answer accurately"],
             model,
             prompt,
-            tools,
             knowledge,
+            tools,
             memory,
             policies,
             references);
