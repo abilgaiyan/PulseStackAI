@@ -6,7 +6,7 @@ namespace PulseStack.Core.Runtime.Realization.Resolution;
 /// <summary>
 /// Resolves assets from an in-memory immutable catalog.
 /// </summary>
-public sealed class InMemoryAssetResolver : IAssetResolver
+public sealed class InMemoryAssetResolver : IAssetResolver, IAssetDefinitionCatalog
 {
     private readonly IReadOnlyDictionary<AssetDefinitionKey, IAsset> _assets;
 
@@ -37,6 +37,15 @@ public sealed class InMemoryAssetResolver : IAssetResolver
         }
 
         _assets = catalog;
+    }
+
+    public ValueTask<IAsset?> FindAsync(
+        AssetDefinitionKey key,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        _assets.TryGetValue(key, out var asset);
+        return ValueTask.FromResult(asset);
     }
 
     public ValueTask<IAsset?> ResolveAsync(
