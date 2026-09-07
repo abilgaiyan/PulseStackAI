@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using PulseStack.Abstractions.Assets;
 using PulseStack.Abstractions.Persistence.AIAssets.Documents;
 using PulseStack.Abstractions.Persistence.AIAssets.Documents.Workflows;
+using PulseStack.Abstractions.Persistence.AIAssets.Schema;
 using PulseStack.Abstractions.Workflows;
 using PulseStack.Abstractions.Workflows.Conditions;
 using PulseStack.Abstractions.Workflows.Definitions;
