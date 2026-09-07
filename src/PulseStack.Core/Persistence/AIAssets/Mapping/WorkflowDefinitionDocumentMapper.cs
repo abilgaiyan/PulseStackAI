@@ -41,55 +41,40 @@ internal static class WorkflowDefinitionDocumentMapper
             dependencies);
     }
 
-    private static WorkflowStepDocument ToDocument(
-        WorkflowStepDefinition step,
-        string path)
+    private static WorkflowStepDocument ToDocument(WorkflowStepDefinition step, string path)
     {
         ArgumentNullException.ThrowIfNull(step);
-
         var stepId = step.Id.Value.ToString("D");
 
         return step switch
         {
-            RunStepDefinition run => new RunStepDocument(
-                stepId,
-                ToDocument(run.Agent)),
-
+            RunStepDefinition run => new RunStepDocument(stepId, ToDocument(run.Agent)),
             ParallelStepDefinition parallel => new ParallelStepDocument(
                 stepId,
                 parallel.Name,
                 MapSteps(parallel.Steps, $"{path}.steps")),
-
             ConditionalStepDefinition conditional => new ConditionalStepDocument(
                 stepId,
                 conditional.Name,
                 ToDocument(conditional.Condition, $"{path}.condition"),
                 ToDocument(conditional.ThenStep, $"{path}.thenStep"),
-                conditional.ElseStep is null
-                    ? null
-                    : ToDocument(conditional.ElseStep, $"{path}.elseStep")),
-
+                conditional.ElseStep is null ? null : ToDocument(conditional.ElseStep, $"{path}.elseStep")),
             RetryStepDefinition retry => new RetryStepDocument(
                 stepId,
                 retry.Name,
                 ToDocument(retry.Step, $"{path}.step"),
                 retry.MaxAttempts),
-
             LoopStepDefinition loop => new LoopStepDocument(
                 stepId,
                 loop.Name,
                 ToDocument(loop.Items, $"{path}.items"),
                 ToDocument(loop.Step, $"{path}.step")),
-
             SwitchStepDefinition @switch => new SwitchStepDocument(
                 stepId,
                 @switch.Name,
                 ToDocument(@switch.Selector, $"{path}.selector"),
                 MapCases(@switch.Cases, $"{path}.cases"),
-                @switch.DefaultStep is null
-                    ? null
-                    : ToDocument(@switch.DefaultStep, $"{path}.defaultStep")),
-
+                @switch.DefaultStep is null ? null : ToDocument(@switch.DefaultStep, $"{path}.defaultStep")),
             _ => throw new NotSupportedException(
                 $"Workflow step type '{step.GetType().FullName}' is not supported for mapping at '{path}'.")
         };
@@ -124,12 +109,9 @@ internal static class WorkflowDefinitionDocumentMapper
         return mapped;
     }
 
-    private static WorkflowConditionDocument ToDocument(
-        ConditionDefinition condition,
-        string path)
+    private static WorkflowConditionDocument ToDocument(ConditionDefinition condition, string path)
     {
         ArgumentNullException.ThrowIfNull(condition);
-
         return condition switch
         {
             NamedConditionDefinition named => new NamedConditionDocument(named.Name),
@@ -138,12 +120,9 @@ internal static class WorkflowDefinitionDocumentMapper
         };
     }
 
-    private static WorkflowValueDocument ToDocument(
-        WorkflowValueDefinition value,
-        string path)
+    private static WorkflowValueDocument ToDocument(WorkflowValueDefinition value, string path)
     {
         ArgumentNullException.ThrowIfNull(value);
-
         return value switch
         {
             InputValueDefinition => new InputValueDocument(),
@@ -200,7 +179,7 @@ internal static class WorkflowDefinitionDocumentMapper
                 throw Unsupported(path, value, "Floating-point values are not supported.");
         }
 
-        if (TryGetMapContract(value, out var mapContract))
+        if (TryGetMapContract(value, path, out var mapContract))
         {
             return NormalizeMap(value, mapContract, path, activeContainers);
         }
@@ -217,7 +196,7 @@ internal static class WorkflowDefinitionDocumentMapper
             return NormalizeArray(array, path, activeContainers);
         }
 
-        if (TryGetListContract(value, out var listContract))
+        if (TryGetListContract(value, path, out var listContract))
         {
             return NormalizeList(value, listContract, path, activeContainers);
         }
@@ -240,10 +219,7 @@ internal static class WorkflowDefinitionDocumentMapper
     {
         if (array.Rank != 1 || array.GetLowerBound(0) != 0)
         {
-            throw Unsupported(
-                path,
-                array,
-                "Only one-dimensional, zero-based arrays are supported.");
+            throw Unsupported(path, array, "Only one-dimensional, zero-based arrays are supported.");
         }
 
         EnterContainer(array, path, activeContainers);
@@ -282,10 +258,7 @@ internal static class WorkflowDefinitionDocumentMapper
             }
             catch (Exception exception)
             {
-                throw Inconsistent(
-                    path,
-                    "Supported ordered collection failed while reading Count.",
-                    exception);
+                throw Inconsistent(path, "Supported ordered collection failed while reading Count.", exception);
             }
 
             if (count < 0)
@@ -309,10 +282,7 @@ internal static class WorkflowDefinitionDocumentMapper
                         exception);
                 }
 
-                items[index] = NormalizeLiteral(
-                    item,
-                    $"{path}.items[{index}]",
-                    activeContainers);
+                items[index] = NormalizeLiteral(item, $"{path}.items[{index}]", activeContainers);
             }
 
             return new ArrayWorkflowLiteralDocument(items);
@@ -339,10 +309,7 @@ internal static class WorkflowDefinitionDocumentMapper
             }
             catch (Exception exception)
             {
-                throw Inconsistent(
-                    path,
-                    "Supported map failed while reading Count.",
-                    exception);
+                throw Inconsistent(path, "Supported map failed while reading Count.", exception);
             }
 
             if (expectedCount < 0)
@@ -381,20 +348,28 @@ internal static class WorkflowDefinitionDocumentMapper
                         break;
                     }
 
+                    if (entries.Count == expectedCount)
+                    {
+                        throw Inconsistent(
+                            path,
+                            $"Supported map advertised Count {expectedCount} but emitted additional entries.");
+                    }
+
                     var entry = contract.ReadEntry(enumerator.Current, path);
                     if (string.IsNullOrWhiteSpace(entry.Key))
                     {
                         throw Inconsistent(path, "Supported map emitted a null, empty, or whitespace key.");
                     }
 
-                    if (!seenKeys.Add(entry.Key))
+                    var key = entry.Key;
+                    if (!seenKeys.Add(key))
                     {
                         throw Inconsistent(
                             path,
-                            $"Supported map emitted duplicate key '{entry.Key}' under ordinal comparison.");
+                            $"Supported map emitted duplicate key '{key}' under ordinal comparison.");
                     }
 
-                    entries.Add(entry);
+                    entries.Add(new MapEntry(key, entry.Value));
                 }
             }
             finally
@@ -409,14 +384,13 @@ internal static class WorkflowDefinitionDocumentMapper
                     $"Supported map advertised Count {expectedCount} but emitted {entries.Count} entries.");
             }
 
-            entries.Sort(static (left, right) =>
-                StringComparer.Ordinal.Compare(left.Key, right.Key));
+            entries.Sort(static (left, right) => StringComparer.Ordinal.Compare(left.Key, right.Key));
 
             var properties = new WorkflowLiteralPropertyDocument[entries.Count];
             for (var index = 0; index < entries.Count; index++)
             {
                 var entry = entries[index];
-                var valuePath = $"{path}.properties[\"{EscapePathKey(entry.Key!)}\"].value";
+                var valuePath = $"{path}.properties[\"{EscapePathKey(entry.Key)}\"].value";
                 properties[index] = new WorkflowLiteralPropertyDocument(
                     entry.Key,
                     NormalizeLiteral(entry.Value, valuePath, activeContainers));
@@ -430,10 +404,7 @@ internal static class WorkflowDefinitionDocumentMapper
         }
     }
 
-    private static void EnterContainer(
-        object container,
-        string path,
-        ISet<object> activeContainers)
+    private static void EnterContainer(object container, string path, ISet<object> activeContainers)
     {
         if (!activeContainers.Add(container))
         {
@@ -441,24 +412,50 @@ internal static class WorkflowDefinitionDocumentMapper
         }
     }
 
-    private static bool TryGetListContract(object value, out ListContract contract)
+    private static bool TryGetListContract(object value, string path, out ListContract contract)
     {
-        var type = value.GetType();
-        var listInterface = FindGenericInterface(type, typeof(IReadOnlyList<>))
-            ?? FindGenericInterface(type, typeof(IList<>));
+        var candidates = value.GetType().GetInterfaces()
+            .Where(static candidate => candidate.IsGenericType)
+            .Where(static candidate =>
+            {
+                var generic = candidate.GetGenericTypeDefinition();
+                return generic == typeof(IReadOnlyList<>) || generic == typeof(IList<>);
+            })
+            .Distinct()
+            .ToArray();
 
-        if (listInterface is null)
+        if (candidates.Length == 0)
         {
             contract = default;
             return false;
         }
+
+        var elementTypes = candidates
+            .Select(static candidate => candidate.GetGenericArguments()[0])
+            .Distinct()
+            .ToArray();
+
+        if (elementTypes.Length != 1)
+        {
+            throw Inconsistent(
+                path,
+                "Supported ordered collection exposes conflicting generic element contracts.");
+        }
+
+        var elementType = elementTypes[0];
+        var listInterface = candidates
+            .Where(candidate => candidate.GetGenericArguments()[0] == elementType)
+            .OrderBy(static candidate =>
+                candidate.GetGenericTypeDefinition() == typeof(IReadOnlyList<>) ? 0 : 1)
+            .ThenBy(static candidate => candidate.FullName, StringComparer.Ordinal)
+            .First();
 
         var countProperty = FindProperty(listInterface, "Count");
         var itemProperty = FindProperty(listInterface, "Item", typeof(int));
         if (countProperty is null || itemProperty is null)
         {
             throw Inconsistent(
-                "$",
+                path,
                 $"Supported ordered collection contract '{listInterface}' does not expose Count and integer indexer.");
         }
 
@@ -469,39 +466,62 @@ internal static class WorkflowDefinitionDocumentMapper
         return true;
     }
 
-    private static bool TryGetMapContract(object value, out MapContract contract)
+    private static bool TryGetMapContract(object value, string path, out MapContract contract)
     {
-        var type = value.GetType();
-        var mapInterface = FindStringKeyMapInterface(type);
-        if (mapInterface is null)
+        var candidates = value.GetType().GetInterfaces()
+            .Where(static candidate => candidate.IsGenericType)
+            .Where(static candidate =>
+            {
+                var generic = candidate.GetGenericTypeDefinition();
+                return generic == typeof(IReadOnlyDictionary<,>) || generic == typeof(IDictionary<,>);
+            })
+            .Where(static candidate => candidate.GetGenericArguments()[0] == typeof(string))
+            .Distinct()
+            .ToArray();
+
+        if (candidates.Length == 0)
         {
             contract = default;
             return false;
         }
 
+        var valueTypes = candidates
+            .Select(static candidate => candidate.GetGenericArguments()[1])
+            .Distinct()
+            .ToArray();
+
+        if (valueTypes.Length != 1)
+        {
+            throw Inconsistent(path, "Supported map exposes conflicting generic value contracts.");
+        }
+
+        var valueType = valueTypes[0];
+        var mapInterface = candidates
+            .Where(candidate => candidate.GetGenericArguments()[1] == valueType)
+            .OrderBy(static candidate =>
+                candidate.GetGenericTypeDefinition() == typeof(IReadOnlyDictionary<,>) ? 0 : 1)
+            .ThenBy(static candidate => candidate.FullName, StringComparer.Ordinal)
+            .First();
+
         var countProperty = FindProperty(mapInterface, "Count");
         if (countProperty is null)
         {
-            throw Inconsistent(
-                "$",
-                $"Supported map contract '{mapInterface}' does not expose Count.");
+            throw Inconsistent(path, $"Supported map contract '{mapInterface}' does not expose Count.");
         }
 
-        var pairType = typeof(KeyValuePair<,>).MakeGenericType(
-            typeof(string),
-            mapInterface.GetGenericArguments()[1]);
+        var pairType = typeof(KeyValuePair<,>).MakeGenericType(typeof(string), valueType);
         var keyProperty = pairType.GetProperty("Key")!;
         var valueProperty = pairType.GetProperty("Value")!;
 
         contract = new MapContract(
             target => (int)(countProperty.GetValue(target)
                 ?? throw new InvalidOperationException("Map Count returned null.")),
-            (entry, path) =>
+            (entry, entryPath) =>
             {
                 if (entry is null || !pairType.IsInstanceOfType(entry))
                 {
                     throw Inconsistent(
-                        path,
+                        entryPath,
                         "Supported map emitted an entry incompatible with its advertised key/value contract.");
                 }
 
@@ -512,29 +532,12 @@ internal static class WorkflowDefinitionDocumentMapper
         return true;
     }
 
-    private static Type? FindStringKeyMapInterface(Type type)
-    {
-        var candidates = type.GetInterfaces()
-            .Where(static candidate => candidate.IsGenericType)
-            .Where(candidate =>
-            {
-                var generic = candidate.GetGenericTypeDefinition();
-                return generic == typeof(IReadOnlyDictionary<,>)
-                    || generic == typeof(IDictionary<,>);
-            })
-            .Where(candidate => candidate.GetGenericArguments()[0] == typeof(string))
-            .OrderBy(candidate =>
-                candidate.GetGenericTypeDefinition() == typeof(IReadOnlyDictionary<,>) ? 0 : 1)
-            .ToArray();
-
-        return candidates.FirstOrDefault();
-    }
-
     private static Type? FindGenericInterface(Type type, Type genericDefinition)
         => type.GetInterfaces()
-            .FirstOrDefault(candidate =>
-                candidate.IsGenericType
-                && candidate.GetGenericTypeDefinition() == genericDefinition);
+            .Where(candidate => candidate.IsGenericType
+                && candidate.GetGenericTypeDefinition() == genericDefinition)
+            .OrderBy(static candidate => candidate.FullName, StringComparer.Ordinal)
+            .FirstOrDefault();
 
     private static bool ImplementsGeneric(Type type, Type genericDefinition)
         => FindGenericInterface(type, genericDefinition) is not null;
@@ -591,10 +594,7 @@ internal static class WorkflowDefinitionDocumentMapper
             Version = reference.Version.Value
         };
 
-    private static NotSupportedException Unsupported(
-        string path,
-        object value,
-        string reason)
+    private static NotSupportedException Unsupported(string path, object value, string reason)
         => new(
             $"Workflow literal value at '{path}' is not supported. {reason} CLR type: '{value.GetType().FullName}'.");
 
@@ -602,9 +602,7 @@ internal static class WorkflowDefinitionDocumentMapper
         string path,
         string reason,
         Exception? innerException = null)
-        => new(
-            $"Workflow literal value at '{path}' is invalid. {reason}",
-            innerException);
+        => new($"Workflow literal value at '{path}' is invalid. {reason}", innerException);
 
     private static string EscapePathKey(string key)
         => key.Replace("\\", "\\\\", StringComparison.Ordinal)
