@@ -13,9 +13,9 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
         EnsureCanonicalMetadata(asset);
 
         IReadOnlyList<AssetReference>? workflowReferences = null;
-        if (asset is WorkflowAsset workflow)
+        if (asset is WorkflowAsset workflowAsset)
         {
-            workflowReferences = EnsureCanonicalWorkflowReferences(workflow);
+            workflowReferences = EnsureCanonicalWorkflowReferences(workflowAsset);
         }
 
         var identity = new AIAssetIdentityDocument
