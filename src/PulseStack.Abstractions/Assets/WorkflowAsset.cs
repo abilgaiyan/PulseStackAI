@@ -40,10 +40,35 @@ public sealed record WorkflowAsset : Asset
 
     private static IReadOnlyCollection<AssetReference> CollectReferences(
         IReadOnlyCollection<WorkflowStepDefinition> steps)
-        => steps
-            .SelectMany(CollectReferences)
-            .Distinct()
-            .ToArray();
+    {
+        var projected = new List<AssetReference>();
+        var seen = new Dictionary<AssetDefinitionKey, AssetReference>();
+
+        foreach (var reference in steps.SelectMany(CollectReferences))
+        {
+            ArgumentNullException.ThrowIfNull(reference);
+
+            var key = AssetDefinitionKey.From(reference);
+            if (seen.TryGetValue(key, out var existing))
+            {
+                if (!string.Equals(
+                        existing.Urn.Value,
+                        reference.Urn.Value,
+                        StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException(
+                        "Workflow Run steps contain conflicting URNs for the same Asset definition identity.");
+                }
+
+                continue;
+            }
+
+            seen.Add(key, reference);
+            projected.Add(reference);
+        }
+
+        return projected.ToArray();
+    }
 
     private static IEnumerable<AssetReference> CollectReferences(
         WorkflowStepDefinition step)
