@@ -32,22 +32,26 @@ public sealed class WorkflowDocumentVocabularyTests
         parallel.Steps.Should().Equal(run);
 
         conditional.Kind.Should().Be(WorkflowStepDocumentKind.Conditional);
+        conditional.StepId.Should().Be(Id(3));
         conditional.Name.Should().Be("Conditional");
         conditional.Condition.Should().Be(condition);
         conditional.ThenStep.Should().Be(run);
         conditional.ElseStep.Should().Be(parallel);
 
         retry.Kind.Should().Be(WorkflowStepDocumentKind.Retry);
+        retry.StepId.Should().Be(Id(4));
         retry.Name.Should().Be("Retry");
         retry.Step.Should().Be(conditional);
         retry.MaxAttempts.Should().Be(3);
 
         loop.Kind.Should().Be(WorkflowStepDocumentKind.Loop);
+        loop.StepId.Should().Be(Id(5));
         loop.Name.Should().Be("Loop");
         loop.Items.Should().BeOfType<InputValueDocument>();
         loop.Step.Should().Be(retry);
 
         @switch.Kind.Should().Be(WorkflowStepDocumentKind.Switch);
+        @switch.StepId.Should().Be(Id(6));
         @switch.Name.Should().Be("Switch");
         @switch.Selector.Should().BeOfType<CurrentOutputValueDocument>();
         @switch.Cases.Should().Equal(cases);
@@ -55,10 +59,12 @@ public sealed class WorkflowDocumentVocabularyTests
     }
 
     [Fact]
-    public void NamedCondition_ShouldUseFixedDiscriminatorAndPreserveSymbolicName()
+    public void WorkflowRootAndNamedCondition_ShouldUseFixedDiscriminatorsAndPreserveSymbolicState()
     {
+        var workflow = CreateWorkflow([]);
         var condition = new NamedConditionDocument("inventory-available");
 
+        workflow.AssetType.Should().Be(AIAssetDocumentType.Workflow);
         condition.Kind.Should().Be(WorkflowConditionDocumentKind.Named);
         condition.Name.Should().Be("inventory-available");
     }
@@ -121,24 +127,32 @@ public sealed class WorkflowDocumentVocabularyTests
     }
 
     [Fact]
-    public void CollectionBearingDocuments_ShouldSnapshotSourceCollections()
+    public void CollectionBearingDocuments_ShouldSnapshotSourcesWithoutChangingEqualityOrHashes()
     {
         var run = CreateRun(1);
 
         var rootSource = new List<WorkflowStepDocument> { run };
         var root = CreateWorkflow(rootSource);
+        var rootEquivalent = CreateWorkflow([run]);
         var rootHash = root.GetHashCode();
 
         var parallelSource = new List<WorkflowStepDocument> { run };
         var parallel = new ParallelStepDocument(Id(2), "Parallel", parallelSource);
+        var parallelEquivalent = new ParallelStepDocument(Id(2), "Parallel", [run]);
         var parallelHash = parallel.GetHashCode();
 
         var switchSource = new List<SwitchCaseDocument> { new("A", run) };
         var @switch = new SwitchStepDocument(Id(3), "Switch", new InputValueDocument(), switchSource);
+        var switchEquivalent = new SwitchStepDocument(
+            Id(3),
+            "Switch",
+            new InputValueDocument(),
+            [new SwitchCaseDocument("A", run)]);
         var switchHash = @switch.GetHashCode();
 
         var arraySource = new List<WorkflowLiteralDocument> { new StringWorkflowLiteralDocument("A") };
         var array = new ArrayWorkflowLiteralDocument(arraySource);
+        var arrayEquivalent = new ArrayWorkflowLiteralDocument([new StringWorkflowLiteralDocument("A")]);
         var arrayHash = array.GetHashCode();
 
         var objectSource = new List<WorkflowLiteralPropertyDocument>
@@ -146,6 +160,10 @@ public sealed class WorkflowDocumentVocabularyTests
             new("a", new IntegerWorkflowLiteralDocument(1))
         };
         var obj = new ObjectWorkflowLiteralDocument(objectSource);
+        var objectEquivalent = new ObjectWorkflowLiteralDocument(
+        [
+            new WorkflowLiteralPropertyDocument("a", new IntegerWorkflowLiteralDocument(1))
+        ]);
         var objectHash = obj.GetHashCode();
 
         rootSource.Add(CreateRun(10));
@@ -154,15 +172,15 @@ public sealed class WorkflowDocumentVocabularyTests
         arraySource.Add(new StringWorkflowLiteralDocument("B"));
         objectSource.Add(new WorkflowLiteralPropertyDocument("b", new IntegerWorkflowLiteralDocument(2)));
 
-        root.Steps.Should().Equal(run);
+        root.Should().Be(rootEquivalent);
         root.GetHashCode().Should().Be(rootHash);
-        parallel.Steps.Should().Equal(run);
+        parallel.Should().Be(parallelEquivalent);
         parallel.GetHashCode().Should().Be(parallelHash);
-        @switch.Cases.Should().ContainSingle();
+        @switch.Should().Be(switchEquivalent);
         @switch.GetHashCode().Should().Be(switchHash);
-        array.Items.Should().ContainSingle();
+        array.Should().Be(arrayEquivalent);
         array.GetHashCode().Should().Be(arrayHash);
-        obj.Properties.Should().ContainSingle();
+        obj.Should().Be(objectEquivalent);
         obj.GetHashCode().Should().Be(objectHash);
     }
 
@@ -182,23 +200,38 @@ public sealed class WorkflowDocumentVocabularyTests
         var firstRun = CreateRun(1);
         var secondRun = CreateRun(2);
 
-        var ordered = CreateWorkflow([firstRun, secondRun]);
-        var reversed = CreateWorkflow([secondRun, firstRun]);
+        CreateWorkflow([firstRun, secondRun])
+            .Should().NotBe(CreateWorkflow([secondRun, firstRun]));
 
-        ordered.Should().NotBe(reversed);
+        new ParallelStepDocument(Id(3), "Parallel", [firstRun, secondRun])
+            .Should().NotBe(new ParallelStepDocument(Id(3), "Parallel", [secondRun, firstRun]));
 
-        var firstArray = new ArrayWorkflowLiteralDocument(
-        [
-            new StringWorkflowLiteralDocument("a"),
-            new StringWorkflowLiteralDocument("b")
-        ]);
-        var secondArray = new ArrayWorkflowLiteralDocument(
-        [
-            new StringWorkflowLiteralDocument("b"),
-            new StringWorkflowLiteralDocument("a")
-        ]);
+        new SwitchStepDocument(
+                Id(4),
+                "Switch",
+                new InputValueDocument(),
+                [new SwitchCaseDocument("A", firstRun), new SwitchCaseDocument("B", secondRun)])
+            .Should().NotBe(new SwitchStepDocument(
+                Id(4),
+                "Switch",
+                new InputValueDocument(),
+                [new SwitchCaseDocument("B", secondRun), new SwitchCaseDocument("A", firstRun)]));
 
-        firstArray.Should().NotBe(secondArray);
+        new ArrayWorkflowLiteralDocument(
+                [new StringWorkflowLiteralDocument("a"), new StringWorkflowLiteralDocument("b")])
+            .Should().NotBe(new ArrayWorkflowLiteralDocument(
+                [new StringWorkflowLiteralDocument("b"), new StringWorkflowLiteralDocument("a")]));
+
+        new ObjectWorkflowLiteralDocument(
+                [
+                    new WorkflowLiteralPropertyDocument("a", new IntegerWorkflowLiteralDocument(1)),
+                    new WorkflowLiteralPropertyDocument("b", new IntegerWorkflowLiteralDocument(2))
+                ])
+            .Should().NotBe(new ObjectWorkflowLiteralDocument(
+                [
+                    new WorkflowLiteralPropertyDocument("b", new IntegerWorkflowLiteralDocument(2)),
+                    new WorkflowLiteralPropertyDocument("a", new IntegerWorkflowLiteralDocument(1))
+                ]));
     }
 
     private static WorkflowAssetDocument CreateRepresentativeWorkflow()
