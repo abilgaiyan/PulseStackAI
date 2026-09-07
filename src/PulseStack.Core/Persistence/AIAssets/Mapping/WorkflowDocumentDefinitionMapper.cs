@@ -37,86 +37,97 @@ internal static class WorkflowDocumentDefinitionMapper
         string path)
     {
         ArgumentNullException.ThrowIfNull(document);
-        var id = ParseStepId(document.StepId, $"{path}.stepId");
 
         return document switch
         {
-            RunStepDocument run => EnsureKind(
-                run,
-                WorkflowStepDocumentKind.Run,
-                path,
-                new RunStepDefinition
-                {
-                    Id = id,
-                    Agent = FromDocument(run.Agent, $"{path}.agent")
-                }),
-
-            ParallelStepDocument parallel => EnsureKind(
-                parallel,
-                WorkflowStepDocumentKind.Parallel,
-                path,
-                new ParallelStepDefinition
-                {
-                    Id = id,
-                    Name = parallel.Name,
-                    Steps = MapSteps(parallel.Steps, $"{path}.steps")
-                }),
-
-            ConditionalStepDocument conditional => EnsureKind(
-                conditional,
-                WorkflowStepDocumentKind.Conditional,
-                path,
-                new ConditionalStepDefinition
-                {
-                    Id = id,
-                    Name = conditional.Name,
-                    Condition = FromDocument(conditional.Condition, $"{path}.condition"),
-                    ThenStep = FromDocument(conditional.ThenStep, $"{path}.thenStep"),
-                    ElseStep = conditional.ElseStep is null
-                        ? null
-                        : FromDocument(conditional.ElseStep, $"{path}.elseStep")
-                }),
-
-            RetryStepDocument retry => EnsureKind(
-                retry,
-                WorkflowStepDocumentKind.Retry,
-                path,
-                new RetryStepDefinition
-                {
-                    Id = id,
-                    Name = retry.Name,
-                    Step = FromDocument(retry.Step, $"{path}.step"),
-                    MaxAttempts = retry.MaxAttempts
-                }),
-
-            LoopStepDocument loop => EnsureKind(
-                loop,
-                WorkflowStepDocumentKind.Loop,
-                path,
-                new LoopStepDefinition
-                {
-                    Id = id,
-                    Name = loop.Name,
-                    Items = FromDocument(loop.Items, $"{path}.items"),
-                    Step = FromDocument(loop.Step, $"{path}.step")
-                }),
-
-            SwitchStepDocument @switch => EnsureKind(
-                @switch,
-                WorkflowStepDocumentKind.Switch,
-                path,
-                new SwitchStepDefinition
-                {
-                    Id = id,
-                    Name = @switch.Name,
-                    Selector = FromDocument(@switch.Selector, $"{path}.selector"),
-                    Cases = MapCases(@switch.Cases, $"{path}.cases"),
-                    DefaultStep = @switch.DefaultStep is null
-                        ? null
-                        : FromDocument(@switch.DefaultStep, $"{path}.defaultStep")
-                }),
-
+            RunStepDocument run => FromRun(run, path),
+            ParallelStepDocument parallel => FromParallel(parallel, path),
+            ConditionalStepDocument conditional => FromConditional(conditional, path),
+            RetryStepDocument retry => FromRetry(retry, path),
+            LoopStepDocument loop => FromLoop(loop, path),
+            SwitchStepDocument @switch => FromSwitch(@switch, path),
             _ => throw Unsupported(path, "Workflow step", document.GetType())
+        };
+    }
+
+    private static RunStepDefinition FromRun(RunStepDocument document, string path)
+    {
+        EnsureKind(document, WorkflowStepDocumentKind.Run, path);
+        return new RunStepDefinition
+        {
+            Id = ParseStepId(document.StepId, $"{path}.stepId"),
+            Agent = FromDocument(document.Agent, $"{path}.agent")
+        };
+    }
+
+    private static ParallelStepDefinition FromParallel(
+        ParallelStepDocument document,
+        string path)
+    {
+        EnsureKind(document, WorkflowStepDocumentKind.Parallel, path);
+        return new ParallelStepDefinition
+        {
+            Id = ParseStepId(document.StepId, $"{path}.stepId"),
+            Name = document.Name,
+            Steps = MapSteps(document.Steps, $"{path}.steps")
+        };
+    }
+
+    private static ConditionalStepDefinition FromConditional(
+        ConditionalStepDocument document,
+        string path)
+    {
+        EnsureKind(document, WorkflowStepDocumentKind.Conditional, path);
+        return new ConditionalStepDefinition
+        {
+            Id = ParseStepId(document.StepId, $"{path}.stepId"),
+            Name = document.Name,
+            Condition = FromDocument(document.Condition, $"{path}.condition"),
+            ThenStep = FromDocument(document.ThenStep, $"{path}.thenStep"),
+            ElseStep = document.ElseStep is null
+                ? null
+                : FromDocument(document.ElseStep, $"{path}.elseStep")
+        };
+    }
+
+    private static RetryStepDefinition FromRetry(RetryStepDocument document, string path)
+    {
+        EnsureKind(document, WorkflowStepDocumentKind.Retry, path);
+        return new RetryStepDefinition
+        {
+            Id = ParseStepId(document.StepId, $"{path}.stepId"),
+            Name = document.Name,
+            Step = FromDocument(document.Step, $"{path}.step"),
+            MaxAttempts = document.MaxAttempts
+        };
+    }
+
+    private static LoopStepDefinition FromLoop(LoopStepDocument document, string path)
+    {
+        EnsureKind(document, WorkflowStepDocumentKind.Loop, path);
+        return new LoopStepDefinition
+        {
+            Id = ParseStepId(document.StepId, $"{path}.stepId"),
+            Name = document.Name,
+            Items = FromDocument(document.Items, $"{path}.items"),
+            Step = FromDocument(document.Step, $"{path}.step")
+        };
+    }
+
+    private static SwitchStepDefinition FromSwitch(
+        SwitchStepDocument document,
+        string path)
+    {
+        EnsureKind(document, WorkflowStepDocumentKind.Switch, path);
+        return new SwitchStepDefinition
+        {
+            Id = ParseStepId(document.StepId, $"{path}.stepId"),
+            Name = document.Name,
+            Selector = FromDocument(document.Selector, $"{path}.selector"),
+            Cases = MapCases(document.Cases, $"{path}.cases"),
+            DefaultStep = document.DefaultStep is null
+                ? null
+                : FromDocument(document.DefaultStep, $"{path}.defaultStep")
         };
     }
 
@@ -140,8 +151,7 @@ internal static class WorkflowDocumentDefinitionMapper
         var cases = new SwitchCaseDefinition[documents.Count];
         for (var index = 0; index < documents.Count; index++)
         {
-            var document = documents[index]
-                ?? throw Invalid($"{path}[{index}]", "Switch case is required.");
+            var document = documents[index];
             cases[index] = new SwitchCaseDefinition
             {
                 Value = document.Value,
@@ -160,15 +170,19 @@ internal static class WorkflowDocumentDefinitionMapper
 
         return document switch
         {
-            NamedConditionDocument named => EnsureKind(
-                named,
-                WorkflowConditionDocumentKind.Named,
-                path,
-                new NamedConditionDefinition
-                {
-                    Name = named.Name
-                }),
+            NamedConditionDocument named => FromNamedCondition(named, path),
             _ => throw Unsupported(path, "Workflow condition", document.GetType())
+        };
+    }
+
+    private static NamedConditionDefinition FromNamedCondition(
+        NamedConditionDocument document,
+        string path)
+    {
+        EnsureKind(document, WorkflowConditionDocumentKind.Named, path);
+        return new NamedConditionDefinition
+        {
+            Name = document.Name
         };
     }
 
@@ -180,37 +194,47 @@ internal static class WorkflowDocumentDefinitionMapper
 
         return document switch
         {
-            InputValueDocument input => EnsureKind(
-                input,
-                WorkflowValueDocumentKind.Input,
-                path,
-                new InputValueDefinition()),
-
-            CurrentOutputValueDocument currentOutput => EnsureKind(
-                currentOutput,
-                WorkflowValueDocumentKind.CurrentOutput,
-                path,
-                new CurrentOutputValueDefinition()),
-
-            ContextItemValueDocument contextItem => EnsureKind(
-                contextItem,
-                WorkflowValueDocumentKind.ContextItem,
-                path,
-                new ContextItemValueDefinition
-                {
-                    Key = contextItem.Key
-                }),
-
-            LiteralValueDocument literal => EnsureKind(
-                literal,
-                WorkflowValueDocumentKind.Literal,
-                path,
-                new LiteralValueDefinition
-                {
-                    Value = FromDocument(literal.Literal, $"{path}.literal")
-                }),
-
+            InputValueDocument input => FromInput(input, path),
+            CurrentOutputValueDocument currentOutput => FromCurrentOutput(currentOutput, path),
+            ContextItemValueDocument contextItem => FromContextItem(contextItem, path),
+            LiteralValueDocument literal => FromLiteralValue(literal, path),
             _ => throw Unsupported(path, "Workflow value", document.GetType())
+        };
+    }
+
+    private static InputValueDefinition FromInput(InputValueDocument document, string path)
+    {
+        EnsureKind(document, WorkflowValueDocumentKind.Input, path);
+        return new InputValueDefinition();
+    }
+
+    private static CurrentOutputValueDefinition FromCurrentOutput(
+        CurrentOutputValueDocument document,
+        string path)
+    {
+        EnsureKind(document, WorkflowValueDocumentKind.CurrentOutput, path);
+        return new CurrentOutputValueDefinition();
+    }
+
+    private static ContextItemValueDefinition FromContextItem(
+        ContextItemValueDocument document,
+        string path)
+    {
+        EnsureKind(document, WorkflowValueDocumentKind.ContextItem, path);
+        return new ContextItemValueDefinition
+        {
+            Key = document.Key
+        };
+    }
+
+    private static LiteralValueDefinition FromLiteralValue(
+        LiteralValueDocument document,
+        string path)
+    {
+        EnsureKind(document, WorkflowValueDocumentKind.Literal, path);
+        return new LiteralValueDefinition
+        {
+            Value = FromDocument(document.Literal, $"{path}.literal")
         };
     }
 
@@ -220,52 +244,39 @@ internal static class WorkflowDocumentDefinitionMapper
     {
         ArgumentNullException.ThrowIfNull(document);
 
-        return document switch
+        switch (document)
         {
-            NullWorkflowLiteralDocument literal => EnsureKind<object?>(
-                literal,
-                WorkflowLiteralDocumentKind.Null,
-                path,
-                null),
+            case NullWorkflowLiteralDocument literal:
+                EnsureKind(literal, WorkflowLiteralDocumentKind.Null, path);
+                return null;
 
-            StringWorkflowLiteralDocument literal => EnsureKind(
-                literal,
-                WorkflowLiteralDocumentKind.String,
-                path,
-                literal.Value),
+            case StringWorkflowLiteralDocument literal:
+                EnsureKind(literal, WorkflowLiteralDocumentKind.String, path);
+                return literal.Value;
 
-            BooleanWorkflowLiteralDocument literal => EnsureKind(
-                literal,
-                WorkflowLiteralDocumentKind.Boolean,
-                path,
-                literal.Value),
+            case BooleanWorkflowLiteralDocument literal:
+                EnsureKind(literal, WorkflowLiteralDocumentKind.Boolean, path);
+                return literal.Value;
 
-            IntegerWorkflowLiteralDocument literal => EnsureKind(
-                literal,
-                WorkflowLiteralDocumentKind.Integer,
-                path,
-                literal.Value),
+            case IntegerWorkflowLiteralDocument literal:
+                EnsureKind(literal, WorkflowLiteralDocumentKind.Integer, path);
+                return literal.Value;
 
-            DecimalWorkflowLiteralDocument literal => EnsureKind(
-                literal,
-                WorkflowLiteralDocumentKind.Decimal,
-                path,
-                literal.Value),
+            case DecimalWorkflowLiteralDocument literal:
+                EnsureKind(literal, WorkflowLiteralDocumentKind.Decimal, path);
+                return literal.Value;
 
-            ArrayWorkflowLiteralDocument literal => EnsureKind<object?>(
-                literal,
-                WorkflowLiteralDocumentKind.Array,
-                path,
-                ReconstructArray(literal, path)),
+            case ArrayWorkflowLiteralDocument literal:
+                EnsureKind(literal, WorkflowLiteralDocumentKind.Array, path);
+                return ReconstructArray(literal, path);
 
-            ObjectWorkflowLiteralDocument literal => EnsureKind<object?>(
-                literal,
-                WorkflowLiteralDocumentKind.Object,
-                path,
-                ReconstructObject(literal, path)),
+            case ObjectWorkflowLiteralDocument literal:
+                EnsureKind(literal, WorkflowLiteralDocumentKind.Object, path);
+                return ReconstructObject(literal, path);
 
-            _ => throw Unsupported(path, "Workflow literal", document.GetType())
-        };
+            default:
+                throw Unsupported(path, "Workflow literal", document.GetType());
+        }
     }
 
     private static IReadOnlyList<object?> ReconstructArray(
@@ -288,23 +299,10 @@ internal static class WorkflowDocumentDefinitionMapper
         var values = new SortedDictionary<string, object?>(StringComparer.Ordinal);
         for (var index = 0; index < document.Properties.Count; index++)
         {
-            var property = document.Properties[index]
-                ?? throw Invalid($"{path}.properties[{index}]", "Workflow object property is required.");
-            var name = Require(
+            var property = document.Properties[index];
+            values.Add(
                 property.Name,
-                "Workflow object property name",
-                $"{path}.properties[{index}].name");
-
-            if (!values.TryAdd(
-                    name,
-                    FromDocument(
-                        property.Value,
-                        $"{path}.properties[{index}].value")))
-            {
-                throw Invalid(
-                    $"{path}.properties[{index}].name",
-                    $"Workflow object property '{name}' is duplicated under ordinal comparison.");
-            }
+                FromDocument(property.Value, $"{path}.properties[{index}].value"));
         }
 
         return new ReadOnlyDictionary<string, object?>(values);
@@ -358,60 +356,48 @@ internal static class WorkflowDocumentDefinitionMapper
         return new WorkflowStepId(parsed);
     }
 
-    private static T EnsureKind<T>(
+    private static void EnsureKind(
         WorkflowStepDocument document,
         WorkflowStepDocumentKind expected,
-        string path,
-        T value)
+        string path)
     {
         if (document.Kind != expected)
         {
             throw Invalid(path, $"Workflow step discriminator '{document.Kind}' does not match '{expected}'.");
         }
-
-        return value;
     }
 
-    private static T EnsureKind<T>(
+    private static void EnsureKind(
         WorkflowConditionDocument document,
         WorkflowConditionDocumentKind expected,
-        string path,
-        T value)
+        string path)
     {
         if (document.Kind != expected)
         {
             throw Invalid(path, $"Workflow condition discriminator '{document.Kind}' does not match '{expected}'.");
         }
-
-        return value;
     }
 
-    private static T EnsureKind<T>(
+    private static void EnsureKind(
         WorkflowValueDocument document,
         WorkflowValueDocumentKind expected,
-        string path,
-        T value)
+        string path)
     {
         if (document.Kind != expected)
         {
             throw Invalid(path, $"Workflow value discriminator '{document.Kind}' does not match '{expected}'.");
         }
-
-        return value;
     }
 
-    private static T EnsureKind<T>(
+    private static void EnsureKind(
         WorkflowLiteralDocument document,
         WorkflowLiteralDocumentKind expected,
-        string path,
-        T value)
+        string path)
     {
         if (document.Kind != expected)
         {
             throw Invalid(path, $"Workflow literal discriminator '{document.Kind}' does not match '{expected}'.");
         }
-
-        return value;
     }
 
     private static string Require(string? value, string field, string path)
