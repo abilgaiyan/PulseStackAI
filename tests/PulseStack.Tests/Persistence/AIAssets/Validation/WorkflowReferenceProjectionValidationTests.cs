@@ -87,6 +87,83 @@ public sealed class WorkflowReferenceProjectionValidationTests
     }
 
     [Fact]
+    public async Task ValidateAsync_ShouldReportMissingEnvelopeReference()
+    {
+        var first = AgentReference(1, "1.0", "urn:pulsestack:agent:one");
+        var second = AgentReference(2, "1.0", "urn:pulsestack:agent:two");
+        var document = CreateWorkflow(
+            [Run(1, first), Run(2, second)],
+            [first]);
+
+        var result = await validator.ValidateAsync(document);
+
+        ProjectionErrors(result).Should().Equal(
+            Error(AIAssetDocumentValidationCodes.WorkflowReferenceProjectionMismatch, "$.references"));
+    }
+
+    [Fact]
+    public async Task ValidateAsync_ShouldReportExtraEnvelopeReference()
+    {
+        var projected = AgentReference(1, "1.0", "urn:pulsestack:agent:one");
+        var extra = AgentReference(2, "1.0", "urn:pulsestack:agent:two");
+        var document = CreateWorkflow(
+            [Run(1, projected)],
+            [projected, extra]);
+
+        var result = await validator.ValidateAsync(document);
+
+        ProjectionErrors(result).Should().Equal(
+            Error(AIAssetDocumentValidationCodes.WorkflowReferenceProjectionMismatch, "$.references"));
+    }
+
+    [Fact]
+    public async Task ValidateAsync_ShouldReportDuplicateEnvelopeReference()
+    {
+        var agent = AgentReference(1, "1.0", "urn:pulsestack:agent:one");
+        var document = CreateWorkflow(
+            [Run(1, agent)],
+            [agent, agent]);
+
+        var result = await validator.ValidateAsync(document);
+
+        result.Errors.Should().Contain(error =>
+            error.Code == AIAssetDocumentValidationCodes.DuplicateReference
+            && error.Path == "$.references[1]");
+        ProjectionErrors(result).Should().Equal(
+            Error(AIAssetDocumentValidationCodes.WorkflowReferenceProjectionMismatch, "$.references"));
+    }
+
+    [Fact]
+    public async Task ValidateAsync_ShouldReportWrongEnvelopeUrn()
+    {
+        var projected = AgentReference(1, "1.0", "urn:pulsestack:agent:one");
+        var wrongUrn = projected with { Urn = "urn:pulsestack:agent:wrong" };
+        var document = CreateWorkflow(
+            [Run(1, projected)],
+            [wrongUrn]);
+
+        var result = await validator.ValidateAsync(document);
+
+        ProjectionErrors(result).Should().Equal(
+            Error(AIAssetDocumentValidationCodes.WorkflowReferenceProjectionMismatch, "$.references"));
+    }
+
+    [Fact]
+    public async Task ValidateAsync_ShouldReportWrongEnvelopeVersion()
+    {
+        var projected = AgentReference(1, "1.0", "urn:pulsestack:agent:one");
+        var wrongVersion = projected with { Version = "2.0" };
+        var document = CreateWorkflow(
+            [Run(1, projected)],
+            [wrongVersion]);
+
+        var result = await validator.ValidateAsync(document);
+
+        ProjectionErrors(result).Should().Equal(
+            Error(AIAssetDocumentValidationCodes.WorkflowReferenceProjectionMismatch, "$.references"));
+    }
+
+    [Fact]
     public async Task ValidateAsync_ShouldPreserveNestedAuthoredRunOrder()
     {
         var first = AgentReference(1, "1.0", "urn:pulsestack:agent:one");
@@ -129,6 +206,86 @@ public sealed class WorkflowReferenceProjectionValidationTests
             error.Code == AIAssetDocumentValidationCodes.InvalidRunAgentReference
             && error.Path == "$.steps[0].agent");
         ProjectionErrors(result).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ValidateAsync_ShouldExcludeMissingRunReferenceFromProjection()
+    {
+        var document = CreateWorkflow(
+            [new RunStepDocument(Id(1), null!)],
+            []);
+
+        var result = await validator.ValidateAsync(document);
+
+        result.Errors.Should().ContainSingle(error =>
+            error.Code == AIAssetDocumentValidationCodes.MissingRunAgentReference
+            && error.Path == "$.steps[0].agent");
+        ProjectionErrors(result).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ValidateAsync_ShouldExcludeWrongTypeRunReferenceFromProjection()
+    {
+        var wrongType = AgentReference(1, "1.0", "urn:pulsestack:prompt:one") with
+        {
+            AssetType = AIAssetDocumentType.Prompt
+        };
+        var document = CreateWorkflow(
+            [Run(1, wrongType)],
+            []);
+
+        var result = await validator.ValidateAsync(document);
+
+        result.Errors.Should().ContainSingle(error =>
+            error.Code == AIAssetDocumentValidationCodes.InvalidRunAgentReferenceType
+            && error.Path == "$.steps[0].agent");
+        ProjectionErrors(result).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ValidateAsync_ShouldReportNestedConflictingUrnAtLaterRunPath()
+    {
+        var first = AgentReference(1, "1.0", "urn:pulsestack:agent:one");
+        var conflicting = AgentReference(1, "1.0", "urn:pulsestack:agent:other");
+        var nested = new ParallelStepDocument(
+            Id(1),
+            "parallel",
+            [
+                Run(2, first),
+                new ConditionalStepDocument(
+                    Id(3),
+                    "conditional",
+                    new NamedConditionDocument("condition"),
+                    Run(4, AgentReference(2, "1.0", "urn:pulsestack:agent:two")),
+                    new RetryStepDocument(Id(5), "retry", Run(6, conflicting), 2))
+            ]);
+        var second = AgentReference(2, "1.0", "urn:pulsestack:agent:two");
+        var document = CreateWorkflow([nested], [first, second]);
+
+        var result = await validator.ValidateAsync(document);
+
+        ProjectionErrors(result).Should().Equal(
+            Error(
+                AIAssetDocumentValidationCodes.ConflictingRunReferenceUrn,
+                "$.steps[0].steps[1].elseStep.step.agent.urn"));
+    }
+
+    [Fact]
+    public async Task ValidateAsync_ShouldReportCommonEnvelopeErrorAndProjectionMismatchIndependently()
+    {
+        var projected = AgentReference(1, "1.0", "urn:pulsestack:agent:one");
+        var malformedEnvelope = projected with { AssetId = Guid.Empty.ToString("D") };
+        var document = CreateWorkflow(
+            [Run(1, projected)],
+            [malformedEnvelope]);
+
+        var result = await validator.ValidateAsync(document);
+
+        result.Errors.Should().Contain(error =>
+            error.Code == AIAssetDocumentValidationCodes.InvalidReferenceAssetId
+            && error.Path == "$.references[0].assetId");
+        ProjectionErrors(result).Should().Equal(
+            Error(AIAssetDocumentValidationCodes.WorkflowReferenceProjectionMismatch, "$.references"));
     }
 
     [Fact]
