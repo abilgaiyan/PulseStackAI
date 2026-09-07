@@ -390,9 +390,11 @@ internal static class WorkflowDefinitionDocumentMapper
             for (var index = 0; index < entries.Count; index++)
             {
                 var entry = entries[index];
-                var valuePath = $"{path}.properties[\"{EscapePathKey(entry.Key)}\"].value";
+                var key = entry.Key
+                    ?? throw Inconsistent(path, "Supported map emitted a null key after validation.");
+                var valuePath = $"{path}.properties[\"{EscapePathKey(key)}\"].value";
                 properties[index] = new WorkflowLiteralPropertyDocument(
-                    entry.Key,
+                    key,
                     NormalizeLiteral(entry.Value, valuePath, activeContainers));
             }
 
