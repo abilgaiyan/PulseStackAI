@@ -5,7 +5,7 @@ namespace PulseStack.Abstractions.Persistence.AIAssets.Documents.Workflows;
 /// </summary>
 public abstract record WorkflowStepDocument
 {
-    protected WorkflowStepDocument(
+    private protected WorkflowStepDocument(
         WorkflowStepDocumentKind kind,
         string stepId)
     {
