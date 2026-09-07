@@ -2,7 +2,6 @@ using PulseStack.Abstractions.Assets;
 using PulseStack.Abstractions.Persistence.AIAssets.Documents;
 using PulseStack.Abstractions.Persistence.AIAssets.Mapping;
 using PulseStack.Abstractions.Persistence.AIAssets.Schema;
-using PulseStack.Abstractions.Workflows.Definitions;
 
 namespace PulseStack.Core.Persistence.AIAssets.Mapping;
 
@@ -301,65 +300,13 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
 
     private static void EnsureCanonicalWorkflowReferences(WorkflowAsset workflow)
     {
-        var projected = new List<AssetReference>();
-        var seen = new Dictionary<AssetDefinitionKey, AssetReference>();
-
-        foreach (var reference in workflow.Options.Steps.SelectMany(CollectWorkflowReferences))
-        {
-            ArgumentNullException.ThrowIfNull(reference);
-
-            var key = AssetDefinitionKey.From(reference);
-            if (seen.TryGetValue(key, out var existing))
-            {
-                if (!string.Equals(
-                        existing.Urn.Value,
-                        reference.Urn.Value,
-                        StringComparison.Ordinal))
-                {
-                    throw new InvalidOperationException(
-                        "Workflow Run steps contain conflicting URNs for the same Asset definition identity.");
-                }
-
-                continue;
-            }
-
-            seen.Add(key, reference);
-            projected.Add(reference);
-        }
+        var projected = WorkflowReferenceProjection.Create(workflow.Options.Steps);
 
         if (!projected.SequenceEqual(workflow.References))
         {
             throw new InvalidOperationException(
                 "Workflow Asset Run-step references do not match the canonical common References projection.");
         }
-    }
-
-    private static IEnumerable<AssetReference> CollectWorkflowReferences(
-        WorkflowStepDefinition step)
-    {
-        ArgumentNullException.ThrowIfNull(step);
-
-        return step switch
-        {
-            RunStepDefinition run => [run.Agent],
-            ParallelStepDefinition parallel => parallel.Steps.SelectMany(CollectWorkflowReferences),
-            ConditionalStepDefinition conditional =>
-                CollectWorkflowReferences(conditional.ThenStep)
-                    .Concat(
-                        conditional.ElseStep is null
-                            ? []
-                            : CollectWorkflowReferences(conditional.ElseStep)),
-            RetryStepDefinition retry => CollectWorkflowReferences(retry.Step),
-            LoopStepDefinition loop => CollectWorkflowReferences(loop.Step),
-            SwitchStepDefinition @switch =>
-                @switch.Cases
-                    .SelectMany(@case => CollectWorkflowReferences(@case.Step))
-                    .Concat(
-                        @switch.DefaultStep is null
-                            ? []
-                            : CollectWorkflowReferences(@switch.DefaultStep)),
-            _ => []
-        };
     }
 
     private static void EnsureCanonicalAgentReferences(AgentDefinition agent)
@@ -568,12 +515,16 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
         => lifecycle switch
         {
             AssetLifecycle.Draft => AIAssetLifecycleDocument.Draft,
-            AssetLifecycle.Validated => AIAssetLifecycleDocument.Validated,
-            AssetLifecycle.Published => AIAssetLifecycleDocument.Published,
-            AssetLifecycle.Deprecated => AIAssetLifecycleDocument.Deprecated,
-            AssetLifecycle.Archived => AIAssetLifecycleDocument.Archived,
-            _ => throw new NotSupportedException(
-                $"Asset lifecycle '{lifecycle}' is not supported by schema v1 mapping.")
+            AIAssetLifecycleDocument.Validated => throw new InvalidOperationException(),
+            _ => lifecycle switch
+            {
+                AssetLifecycle.Validated => AIAssetLifecycleDocument.Validated,
+                AssetLifecycle.Published => AIAssetLifecycleDocument.Published,
+                AssetLifecycle.Deprecated => AIAssetLifecycleDocument.Deprecated,
+                AssetLifecycle.Archived => AIAssetLifecycleDocument.Archived,
+                _ => throw new NotSupportedException(
+                    $"Asset lifecycle '{lifecycle}' is not supported by schema v1 mapping.")
+            }
         };
 
     private static AssetLifecycle FromDocument(AIAssetLifecycleDocument lifecycle)
