@@ -214,19 +214,23 @@ public sealed class WorkflowAssetDocumentStructuralValidationTests
     }
 
     [Fact]
-    public async Task ValidateAsync_ShouldHonorCancellationAtTraversalBoundary()
+    public void StructuralValidator_ShouldHonorCancellationAtTraversalBoundary()
     {
         using var source = new CancellationTokenSource();
-        var first = new ParallelStepDocument(Id(1), " ", []);
-        var second = Run(2);
-        var document = CreateWorkflow(first, second);
+        var document = CreateWorkflow(
+            new ParallelStepDocument(Id(1), " ", []),
+            Run(2));
+        var errors = new CancellingErrorCollection(source);
 
-        source.Token.Register(() => { });
-        source.CancelAfter(TimeSpan.FromMilliseconds(1));
+        Action act = () => WorkflowDocumentStructuralValidator.Validate(
+            document,
+            errors,
+            source.Token);
 
-        var act = () => validator.ValidateAsync(document, source.Token).AsTask();
-
-        await act.Should().ThrowAsync<OperationCanceledException>();
+        act.Should().Throw<OperationCanceledException>();
+        errors.Should().ContainSingle(error =>
+            error.Code == AIAssetDocumentValidationCodes.MissingWorkflowStepName
+            && error.Path == "$.steps[0].name");
     }
 
     private static WorkflowAssetDocument CreateWorkflow(params WorkflowStepDocument[] steps)
@@ -301,5 +305,41 @@ public sealed class WorkflowAssetDocumentStructuralValidationTests
             : base(source)
         {
         }
+    }
+
+    private sealed class CancellingErrorCollection : ICollection<AIAssetDocumentValidationError>
+    {
+        private readonly List<AIAssetDocumentValidationError> errors = [];
+        private readonly CancellationTokenSource source;
+
+        public CancellingErrorCollection(CancellationTokenSource source)
+        {
+            this.source = source;
+        }
+
+        public int Count => errors.Count;
+
+        public bool IsReadOnly => false;
+
+        public void Add(AIAssetDocumentValidationError item)
+        {
+            errors.Add(item);
+            source.Cancel();
+        }
+
+        public void Clear() => errors.Clear();
+
+        public bool Contains(AIAssetDocumentValidationError item) => errors.Contains(item);
+
+        public void CopyTo(AIAssetDocumentValidationError[] array, int arrayIndex)
+            => errors.CopyTo(array, arrayIndex);
+
+        public IEnumerator<AIAssetDocumentValidationError> GetEnumerator()
+            => errors.GetEnumerator();
+
+        public bool Remove(AIAssetDocumentValidationError item) => errors.Remove(item);
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+            => GetEnumerator();
     }
 }
