@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using FluentAssertions;
 using PulseStack.Abstractions.Assets;
 using PulseStack.Abstractions.Persistence.AIAssets.Documents.Workflows;
+using PulseStack.Abstractions.Persistence.AIAssets.Schema;
 using PulseStack.Abstractions.Workflows.Conditions;
 using PulseStack.Abstractions.Workflows.Definitions;
 using PulseStack.Abstractions.Workflows.Values;
@@ -178,7 +179,7 @@ public sealed class WorkflowDocumentDefinitionReconstructionTests
         restored.References.Should().Equal(first, second);
         restored.References.Should().Equal(
             document.References.Select(reference => new AssetReference(
-                reference.AssetType == Abstractions.Persistence.AIAssets.Documents.AIAssetDocumentType.Agent
+                reference.AssetType == AIAssetDocumentType.Agent
                     ? AssetType.Agent
                     : throw new InvalidOperationException(),
                 new AssetId(Guid.Parse(reference.AssetId)),
@@ -254,7 +255,7 @@ public sealed class WorkflowDocumentDefinitionReconstructionTests
         var run = source.Steps.Single().Should().BeOfType<RunStepDocument>().Subject;
         var invalidReference = run.Agent with
         {
-            AssetType = (Abstractions.Persistence.AIAssets.Documents.AIAssetDocumentType)999
+            AssetType = (AIAssetDocumentType)999
         };
         var document = new WorkflowAssetDocument(
             source.SchemaVersion,
