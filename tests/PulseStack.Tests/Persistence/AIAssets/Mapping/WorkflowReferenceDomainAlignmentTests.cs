@@ -1,5 +1,6 @@
 using FluentAssertions;
 using PulseStack.Abstractions.Assets;
+using PulseStack.Abstractions.Persistence.AIAssets.Documents.Workflows;
 using PulseStack.Abstractions.Workflows.Definitions;
 using PulseStack.Core.Assets;
 using PulseStack.Core.Persistence.AIAssets.Mapping;
@@ -189,10 +190,16 @@ public sealed class WorkflowReferenceDomainAlignmentTests
 
         workflow.References.Should().Equal(first, second);
 
-        var act = () => new AIAssetDocumentMapper().ToDocument(workflow);
+        var document = new AIAssetDocumentMapper().ToDocument(workflow)
+            .Should().BeOfType<WorkflowAssetDocument>().Subject;
 
-        act.Should().Throw<NotSupportedException>()
-            .WithMessage("*Workflow*");
+        document.References.Should().HaveCount(2);
+        document.References.Select(reference => reference.AssetId)
+            .Should().Equal(first.Id.ToString(), second.Id.ToString());
+        document.References.Select(reference => reference.Urn)
+            .Should().Equal(first.Urn.Value, second.Urn.Value);
+        document.References.Select(reference => reference.Version)
+            .Should().Equal(first.Version.Value, second.Version.Value);
     }
 
     private static void AssertProjectionMismatch(WorkflowAsset workflow)
