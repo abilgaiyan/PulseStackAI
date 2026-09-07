@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
+using System.Reflection;
 using FluentAssertions;
 using PulseStack.Abstractions.Assets;
+using PulseStack.Abstractions.Persistence.AIAssets.Documents;
 using PulseStack.Abstractions.Persistence.AIAssets.Documents.Workflows;
 using PulseStack.Abstractions.Persistence.AIAssets.Schema;
 using PulseStack.Abstractions.Workflows.Conditions;
@@ -188,6 +190,28 @@ public sealed class WorkflowDocumentDefinitionReconstructionTests
     }
 
     [Fact]
+    public void FromDocument_DefensiveBoundary_ShouldIgnoreDifferentValidEnvelopeReferenceAndDeriveFromRunSteps()
+    {
+        var runReference = AgentReference("1.0.0");
+        var source = Map(CreateWorkflow(new RunStepDefinition { Agent = runReference }));
+        var wrongEnvelopeReference = AgentReference("9.9.9");
+        var document = new WorkflowAssetDocument(
+            source.SchemaVersion,
+            source.Identity,
+            source.Metadata,
+            source.Lifecycle,
+            source.Steps,
+            [ToDocumentReference(wrongEnvelopeReference)],
+            source.Dependencies);
+
+        var restored = Restore(document);
+
+        restored.References.Should().ContainSingle()
+            .Which.Should().Be(runReference);
+        restored.References.Should().NotContain(wrongEnvelopeReference);
+    }
+
+    [Fact]
     public void FromDocument_ShouldRestorePersistedAssetStateAndCanonicalWorkflowMetadata()
     {
         var dependencyReference = new AssetReference(
@@ -269,6 +293,83 @@ public sealed class WorkflowDocumentDefinitionReconstructionTests
         var act = () => new AIAssetDocumentMapper().FromDocument(document);
 
         act.Should().Throw<NotSupportedException>();
+    }
+
+    [Fact]
+    public void FromDocument_DefensiveBoundary_ShouldRejectStepDiscriminatorMismatch()
+    {
+        var source = Map(CreateWorkflow(new ParallelStepDefinition { Name = "root", Steps = [] }));
+        var step = source.Steps.Single().Should().BeOfType<ParallelStepDocument>().Subject;
+        CorruptDiscriminator(
+            step,
+            typeof(WorkflowStepDocument),
+            WorkflowStepDocumentKind.Run);
+
+        var act = () => new AIAssetDocumentMapper().FromDocument(source);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*$.steps[0]*Workflow step discriminator 'Run' does not match 'Parallel'*");
+    }
+
+    [Fact]
+    public void FromDocument_DefensiveBoundary_ShouldRejectConditionDiscriminatorMismatch()
+    {
+        var source = Map(CreateWorkflow(
+            new ConditionalStepDefinition
+            {
+                Name = "if",
+                Condition = new NamedConditionDefinition { Name = "ready" },
+                ThenStep = new ParallelStepDefinition { Name = "then", Steps = [] }
+            }));
+        var condition = source.Steps.Single()
+            .Should().BeOfType<ConditionalStepDocument>().Subject.Condition
+            .Should().BeOfType<NamedConditionDocument>().Subject;
+        CorruptDiscriminator(
+            condition,
+            typeof(WorkflowConditionDocument),
+            (WorkflowConditionDocumentKind)999);
+
+        var act = () => new AIAssetDocumentMapper().FromDocument(source);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*$.steps[0].condition*Workflow condition discriminator '999' does not match 'Named'*");
+    }
+
+    [Fact]
+    public void FromDocument_DefensiveBoundary_ShouldRejectValueDiscriminatorMismatch()
+    {
+        var source = Map(CreateWorkflow(Loop("input", new InputValueDefinition())));
+        var value = source.Steps.Single()
+            .Should().BeOfType<LoopStepDocument>().Subject.Items
+            .Should().BeOfType<InputValueDocument>().Subject;
+        CorruptDiscriminator(
+            value,
+            typeof(WorkflowValueDocument),
+            WorkflowValueDocumentKind.Literal);
+
+        var act = () => new AIAssetDocumentMapper().FromDocument(source);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*$.steps[0].items*Workflow value discriminator 'Literal' does not match 'Input'*");
+    }
+
+    [Fact]
+    public void FromDocument_DefensiveBoundary_ShouldRejectLiteralDiscriminatorMismatch()
+    {
+        var source = Map(CreateWorkflow(Loop("literal", new LiteralValueDefinition { Value = 42L })));
+        var literal = source.Steps.Single()
+            .Should().BeOfType<LoopStepDocument>().Subject.Items
+            .Should().BeOfType<LiteralValueDocument>().Subject.Literal
+            .Should().BeOfType<IntegerWorkflowLiteralDocument>().Subject;
+        CorruptDiscriminator(
+            literal,
+            typeof(WorkflowLiteralDocument),
+            WorkflowLiteralDocumentKind.String);
+
+        var act = () => new AIAssetDocumentMapper().FromDocument(source);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*$.steps[0].items.literal*Workflow literal discriminator 'String' does not match 'Integer'*");
     }
 
     [Fact]
@@ -373,5 +474,29 @@ public sealed class WorkflowDocumentDefinitionReconstructionTests
             id,
             new AssetUrn($"urn:pulsestack:agent:{id}"),
             new AssetVersion(version));
+    }
+
+    private static AIAssetReferenceDocument ToDocumentReference(AssetReference reference)
+        => new()
+        {
+            AssetType = AIAssetDocumentType.Agent,
+            AssetId = reference.Id.ToString(),
+            Urn = reference.Urn.Value,
+            Version = reference.Version.Value
+        };
+
+    private static void CorruptDiscriminator<TEnum>(
+        object document,
+        Type declaringType,
+        TEnum value)
+        where TEnum : struct, Enum
+    {
+        var field = declaringType.GetField(
+            "<Kind>k__BackingField",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException(
+                $"Could not locate discriminator backing field on '{declaringType.FullName}'.");
+
+        field.SetValue(document, value);
     }
 }
