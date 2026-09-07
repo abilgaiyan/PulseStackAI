@@ -86,8 +86,8 @@ public sealed class WorkflowLiteralCanonicalValidationTests
         LiteralErrors(result).Should().Equal(
             Error(AIAssetDocumentValidationCodes.InvalidWorkflowObjectPropertyName, "$.steps[0].items.literal.properties[1].name"),
             Error(AIAssetDocumentValidationCodes.MissingWorkflowObjectProperty, "$.steps[0].items.literal.properties[2]"),
-            Error(AIAssetDocumentValidationCodes.NonCanonicalWorkflowObjectPropertyOrder, "$.steps[0].items.literal.properties[3].name"),
             Error(AIAssetDocumentValidationCodes.MissingWorkflowObjectPropertyValue, "$.steps[0].items.literal.properties[3].value"),
+            Error(AIAssetDocumentValidationCodes.NonCanonicalWorkflowObjectPropertyOrder, "$.steps[0].items.literal.properties[3].name"),
             Error(AIAssetDocumentValidationCodes.DuplicateWorkflowObjectPropertyName, "$.steps[0].items.literal.properties[4].name"),
             Error(AIAssetDocumentValidationCodes.NonCanonicalWorkflowObjectPropertyOrder, "$.steps[0].items.literal.properties[5].name"));
     }
