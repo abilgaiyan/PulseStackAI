@@ -42,11 +42,7 @@ internal static class WorkflowDocumentStructuralValidator
 
         if (step is null)
         {
-            AddError(
-                errors,
-                AIAssetDocumentValidationCodes.MissingWorkflowStep,
-                "Workflow step is required.",
-                path);
+            AddError(errors, AIAssetDocumentValidationCodes.MissingWorkflowStep, "Workflow step is required.", path);
             return;
         }
 
@@ -54,21 +50,13 @@ internal static class WorkflowDocumentStructuralValidator
 
         if (!TryGetExpectedStepKind(step, out var expectedKind))
         {
-            AddError(
-                errors,
-                AIAssetDocumentValidationCodes.UnsupportedWorkflowStep,
-                "Workflow step type is not supported.",
-                path);
+            AddError(errors, AIAssetDocumentValidationCodes.UnsupportedWorkflowStep, "Workflow step type is not supported.", path);
             return;
         }
 
         if (step.Kind != expectedKind)
         {
-            AddError(
-                errors,
-                AIAssetDocumentValidationCodes.WorkflowStepTypeMismatch,
-                "Workflow step type does not match its discriminator.",
-                $"{path}.kind");
+            AddError(errors, AIAssetDocumentValidationCodes.WorkflowStepTypeMismatch, "Workflow step type does not match its discriminator.", $"{path}.kind");
             return;
         }
 
@@ -80,134 +68,66 @@ internal static class WorkflowDocumentStructuralValidator
 
             case ParallelStepDocument parallel:
                 ValidateStepName(parallel.Name, $"{path}.name", errors);
-
                 for (var index = 0; index < parallel.Steps.Count; index++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    ValidateStep(
-                        parallel.Steps[index],
-                        $"{path}.steps[{index}]",
-                        seenStepIds,
-                        errors,
-                        cancellationToken);
+                    ValidateStep(parallel.Steps[index], $"{path}.steps[{index}]", seenStepIds, errors, cancellationToken);
                 }
-
                 return;
 
             case ConditionalStepDocument conditional:
                 ValidateStepName(conditional.Name, $"{path}.name", errors);
-                ValidateCondition(
-                    conditional.Condition,
-                    $"{path}.condition",
-                    errors,
-                    cancellationToken);
-                ValidateStep(
-                    conditional.ThenStep,
-                    $"{path}.thenStep",
-                    seenStepIds,
-                    errors,
-                    cancellationToken);
-
+                ValidateCondition(conditional.Condition, $"{path}.condition", errors, cancellationToken);
+                ValidateStep(conditional.ThenStep, $"{path}.thenStep", seenStepIds, errors, cancellationToken);
                 if (conditional.ElseStep is not null)
                 {
-                    ValidateStep(
-                        conditional.ElseStep,
-                        $"{path}.elseStep",
-                        seenStepIds,
-                        errors,
-                        cancellationToken);
+                    ValidateStep(conditional.ElseStep, $"{path}.elseStep", seenStepIds, errors, cancellationToken);
                 }
-
                 return;
 
             case RetryStepDocument retry:
                 ValidateStepName(retry.Name, $"{path}.name", errors);
-
                 if (retry.MaxAttempts < 1)
                 {
-                    AddError(
-                        errors,
-                        AIAssetDocumentValidationCodes.InvalidRetryMaxAttempts,
-                        "Retry max attempts must be at least one.",
-                        $"{path}.maxAttempts");
+                    AddError(errors, AIAssetDocumentValidationCodes.InvalidRetryMaxAttempts, "Retry max attempts must be at least one.", $"{path}.maxAttempts");
                 }
-
-                ValidateStep(
-                    retry.Step,
-                    $"{path}.step",
-                    seenStepIds,
-                    errors,
-                    cancellationToken);
+                ValidateStep(retry.Step, $"{path}.step", seenStepIds, errors, cancellationToken);
                 return;
 
             case LoopStepDocument loop:
                 ValidateStepName(loop.Name, $"{path}.name", errors);
                 ValidateValue(loop.Items, $"{path}.items", errors, cancellationToken);
-                ValidateStep(
-                    loop.Step,
-                    $"{path}.step",
-                    seenStepIds,
-                    errors,
-                    cancellationToken);
+                ValidateStep(loop.Step, $"{path}.step", seenStepIds, errors, cancellationToken);
                 return;
 
             case SwitchStepDocument @switch:
                 ValidateStepName(@switch.Name, $"{path}.name", errors);
                 ValidateValue(@switch.Selector, $"{path}.selector", errors, cancellationToken);
-
                 var seenCaseValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
                 for (var index = 0; index < @switch.Cases.Count; index++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     var @case = @switch.Cases[index];
                     var casePath = $"{path}.cases[{index}]";
-
                     if (@case is null)
                     {
-                        AddError(
-                            errors,
-                            AIAssetDocumentValidationCodes.MissingSwitchCase,
-                            "Switch case is required.",
-                            casePath);
+                        AddError(errors, AIAssetDocumentValidationCodes.MissingSwitchCase, "Switch case is required.", casePath);
                         continue;
                     }
-
                     if (string.IsNullOrWhiteSpace(@case.Value))
                     {
-                        AddError(
-                            errors,
-                            AIAssetDocumentValidationCodes.InvalidSwitchCaseValue,
-                            "Switch case value is required.",
-                            $"{casePath}.value");
+                        AddError(errors, AIAssetDocumentValidationCodes.InvalidSwitchCaseValue, "Switch case value is required.", $"{casePath}.value");
                     }
                     else if (!seenCaseValues.Add(@case.Value))
                     {
-                        AddError(
-                            errors,
-                            AIAssetDocumentValidationCodes.DuplicateSwitchCaseValue,
-                            "Switch case values must be unique using ordinal-ignore-case comparison.",
-                            $"{casePath}.value");
+                        AddError(errors, AIAssetDocumentValidationCodes.DuplicateSwitchCaseValue, "Switch case values must be unique using ordinal-ignore-case comparison.", $"{casePath}.value");
                     }
-
-                    ValidateStep(
-                        @case.Step,
-                        $"{casePath}.step",
-                        seenStepIds,
-                        errors,
-                        cancellationToken);
+                    ValidateStep(@case.Step, $"{casePath}.step", seenStepIds, errors, cancellationToken);
                 }
-
                 if (@switch.DefaultStep is not null)
                 {
-                    ValidateStep(
-                        @switch.DefaultStep,
-                        $"{path}.defaultStep",
-                        seenStepIds,
-                        errors,
-                        cancellationToken);
+                    ValidateStep(@switch.DefaultStep, $"{path}.defaultStep", seenStepIds, errors, cancellationToken);
                 }
-
                 return;
         }
     }
@@ -219,44 +139,24 @@ internal static class WorkflowDocumentStructuralValidator
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-
         if (condition is null)
         {
-            AddError(
-                errors,
-                AIAssetDocumentValidationCodes.MissingWorkflowCondition,
-                "Workflow condition is required.",
-                path);
+            AddError(errors, AIAssetDocumentValidationCodes.MissingWorkflowCondition, "Workflow condition is required.", path);
             return;
         }
-
         if (condition is not NamedConditionDocument named)
         {
-            AddError(
-                errors,
-                AIAssetDocumentValidationCodes.UnsupportedWorkflowCondition,
-                "Workflow condition type is not supported.",
-                path);
+            AddError(errors, AIAssetDocumentValidationCodes.UnsupportedWorkflowCondition, "Workflow condition type is not supported.", path);
             return;
         }
-
         if (condition.Kind != WorkflowConditionDocumentKind.Named)
         {
-            AddError(
-                errors,
-                AIAssetDocumentValidationCodes.WorkflowConditionTypeMismatch,
-                "Workflow condition type does not match its discriminator.",
-                $"{path}.kind");
+            AddError(errors, AIAssetDocumentValidationCodes.WorkflowConditionTypeMismatch, "Workflow condition type does not match its discriminator.", $"{path}.kind");
             return;
         }
-
         if (string.IsNullOrWhiteSpace(named.Name))
         {
-            AddError(
-                errors,
-                AIAssetDocumentValidationCodes.MissingNamedConditionName,
-                "Named condition name is required.",
-                $"{path}.name");
+            AddError(errors, AIAssetDocumentValidationCodes.MissingNamedConditionName, "Named condition name is required.", $"{path}.name");
         }
     }
 
@@ -267,34 +167,19 @@ internal static class WorkflowDocumentStructuralValidator
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-
         if (value is null)
         {
-            AddError(
-                errors,
-                AIAssetDocumentValidationCodes.MissingWorkflowValue,
-                "Workflow value is required.",
-                path);
+            AddError(errors, AIAssetDocumentValidationCodes.MissingWorkflowValue, "Workflow value is required.", path);
             return;
         }
-
         if (!TryGetExpectedValueKind(value, out var expectedKind))
         {
-            AddError(
-                errors,
-                AIAssetDocumentValidationCodes.UnsupportedWorkflowValue,
-                "Workflow value type is not supported.",
-                path);
+            AddError(errors, AIAssetDocumentValidationCodes.UnsupportedWorkflowValue, "Workflow value type is not supported.", path);
             return;
         }
-
         if (value.Kind != expectedKind)
         {
-            AddError(
-                errors,
-                AIAssetDocumentValidationCodes.WorkflowValueTypeMismatch,
-                "Workflow value type does not match its discriminator.",
-                $"{path}.kind");
+            AddError(errors, AIAssetDocumentValidationCodes.WorkflowValueTypeMismatch, "Workflow value type does not match its discriminator.", $"{path}.kind");
             return;
         }
 
@@ -303,87 +188,128 @@ internal static class WorkflowDocumentStructuralValidator
             case InputValueDocument:
             case CurrentOutputValueDocument:
                 return;
-
             case ContextItemValueDocument contextItem:
                 if (string.IsNullOrWhiteSpace(contextItem.Key))
                 {
-                    AddError(
-                        errors,
-                        AIAssetDocumentValidationCodes.MissingContextItemKey,
-                        "Context-item key is required.",
-                        $"{path}.key");
+                    AddError(errors, AIAssetDocumentValidationCodes.MissingContextItemKey, "Context-item key is required.", $"{path}.key");
                 }
-
                 return;
-
             case LiteralValueDocument literalValue:
                 if (literalValue.Literal is null)
                 {
-                    AddError(
-                        errors,
-                        AIAssetDocumentValidationCodes.MissingWorkflowLiteral,
-                        "Workflow literal is required.",
-                        $"{path}.literal");
+                    AddError(errors, AIAssetDocumentValidationCodes.MissingWorkflowLiteral, "Workflow literal is required.", $"{path}.literal");
                     return;
                 }
-
-                ValidateLiteral(
-                    literalValue.Literal,
-                    $"{path}.literal",
-                    cancellationToken);
+                ValidateLiteral(literalValue.Literal, $"{path}.literal", errors, cancellationToken);
                 return;
         }
     }
 
     private static void ValidateLiteral(
-        WorkflowLiteralDocument? literal,
+        WorkflowLiteralDocument literal,
         string path,
+        ICollection<AIAssetDocumentValidationError> errors,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
+        if (!TryGetExpectedLiteralKind(literal, out var expectedKind))
+        {
+            AddError(errors, AIAssetDocumentValidationCodes.UnsupportedWorkflowLiteral, "Workflow literal type is not supported.", path);
+            return;
+        }
+
+        if (literal.Kind != expectedKind)
+        {
+            AddError(errors, AIAssetDocumentValidationCodes.WorkflowLiteralTypeMismatch, "Workflow literal type does not match its discriminator.", $"{path}.kind");
+            return;
+        }
+
         switch (literal)
         {
-            case null:
             case NullWorkflowLiteralDocument:
-            case StringWorkflowLiteralDocument:
             case BooleanWorkflowLiteralDocument:
             case IntegerWorkflowLiteralDocument:
             case DecimalWorkflowLiteralDocument:
+                return;
+
+            case StringWorkflowLiteralDocument @string:
+                if (@string.Value is null)
+                {
+                    AddError(errors, AIAssetDocumentValidationCodes.MissingWorkflowStringLiteralValue, "Workflow string literal value is required.", $"{path}.value");
+                }
                 return;
 
             case ArrayWorkflowLiteralDocument array:
                 for (var index = 0; index < array.Items.Count; index++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    ValidateLiteral(
-                        array.Items[index],
-                        $"{path}.items[{index}]",
-                        cancellationToken);
+                    var itemPath = $"{path}.items[{index}]";
+                    var item = array.Items[index];
+                    if (item is null)
+                    {
+                        AddError(errors, AIAssetDocumentValidationCodes.MissingWorkflowArrayItem, "Workflow literal array item is required.", itemPath);
+                        continue;
+                    }
+                    ValidateLiteral(item, itemPath, errors, cancellationToken);
                 }
-
                 return;
 
             case ObjectWorkflowLiteralDocument @object:
-                for (var index = 0; index < @object.Properties.Count; index++)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    var property = @object.Properties[index];
-                    if (property is null)
-                    {
-                        continue;
-                    }
+                ValidateObjectLiteral(@object, path, errors, cancellationToken);
+                return;
+        }
+    }
 
-                    ValidateLiteral(
-                        property.Value,
-                        $"{path}.properties[{index}].value",
-                        cancellationToken);
+    private static void ValidateObjectLiteral(
+        ObjectWorkflowLiteralDocument @object,
+        string path,
+        ICollection<AIAssetDocumentValidationError> errors,
+        CancellationToken cancellationToken)
+    {
+        var seenNames = new HashSet<string>(StringComparer.Ordinal);
+        string? previousValidName = null;
+
+        for (var index = 0; index < @object.Properties.Count; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var property = @object.Properties[index];
+            var propertyPath = $"{path}.properties[{index}]";
+
+            if (property is null)
+            {
+                AddError(errors, AIAssetDocumentValidationCodes.MissingWorkflowObjectProperty, "Workflow literal object property is required.", propertyPath);
+                continue;
+            }
+
+            var hasValidName = !string.IsNullOrWhiteSpace(property.Name);
+            if (!hasValidName)
+            {
+                AddError(errors, AIAssetDocumentValidationCodes.InvalidWorkflowObjectPropertyName, "Workflow literal object property name is required.", $"{propertyPath}.name");
+            }
+            else
+            {
+                if (!seenNames.Add(property.Name))
+                {
+                    AddError(errors, AIAssetDocumentValidationCodes.DuplicateWorkflowObjectPropertyName, "Workflow literal object property names must be unique using ordinal comparison.", $"{propertyPath}.name");
                 }
 
-                return;
+                if (previousValidName is not null
+                    && StringComparer.Ordinal.Compare(previousValidName, property.Name) > 0)
+                {
+                    AddError(errors, AIAssetDocumentValidationCodes.NonCanonicalWorkflowObjectPropertyOrder, "Workflow literal object properties must be ordered by name using ordinal comparison.", $"{propertyPath}.name");
+                }
 
-            default:
-                return;
+                previousValidName = property.Name;
+            }
+
+            if (property.Value is null)
+            {
+                AddError(errors, AIAssetDocumentValidationCodes.MissingWorkflowObjectPropertyValue, "Workflow literal object property value is required.", $"{propertyPath}.value");
+                continue;
+            }
+
+            ValidateLiteral(property.Value, $"{propertyPath}.value", errors, cancellationToken);
         }
     }
 
@@ -394,11 +320,7 @@ internal static class WorkflowDocumentStructuralValidator
     {
         if (reference is null)
         {
-            AddError(
-                errors,
-                AIAssetDocumentValidationCodes.MissingRunAgentReference,
-                "Run step Agent reference is required.",
-                path);
+            AddError(errors, AIAssetDocumentValidationCodes.MissingRunAgentReference, "Run step Agent reference is required.", path);
             return;
         }
 
@@ -410,90 +332,62 @@ internal static class WorkflowDocumentStructuralValidator
 
         if (!isStructurallyValid)
         {
-            AddError(
-                errors,
-                AIAssetDocumentValidationCodes.InvalidRunAgentReference,
-                "Run step Agent reference is invalid.",
-                path);
+            AddError(errors, AIAssetDocumentValidationCodes.InvalidRunAgentReference, "Run step Agent reference is invalid.", path);
             return;
         }
 
         if (reference.AssetType != AIAssetDocumentType.Agent)
         {
-            AddError(
-                errors,
-                AIAssetDocumentValidationCodes.InvalidRunAgentReferenceType,
-                "Run step reference must target an Agent asset.",
-                path);
+            AddError(errors, AIAssetDocumentValidationCodes.InvalidRunAgentReferenceType, "Run step reference must target an Agent asset.", path);
         }
     }
 
-    private static void ValidateStepName(
-        string? name,
-        string path,
-        ICollection<AIAssetDocumentValidationError> errors)
+    private static void ValidateStepName(string? name, string path, ICollection<AIAssetDocumentValidationError> errors)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
-            AddError(
-                errors,
-                AIAssetDocumentValidationCodes.MissingWorkflowStepName,
-                "Workflow step name is required.",
-                path);
+            AddError(errors, AIAssetDocumentValidationCodes.MissingWorkflowStepName, "Workflow step name is required.", path);
         }
     }
 
-    private static bool TryGetExpectedStepKind(
-        WorkflowStepDocument step,
-        out WorkflowStepDocumentKind kind)
+    private static bool TryGetExpectedStepKind(WorkflowStepDocument step, out WorkflowStepDocumentKind kind)
     {
         switch (step)
         {
-            case RunStepDocument:
-                kind = WorkflowStepDocumentKind.Run;
-                return true;
-            case ParallelStepDocument:
-                kind = WorkflowStepDocumentKind.Parallel;
-                return true;
-            case ConditionalStepDocument:
-                kind = WorkflowStepDocumentKind.Conditional;
-                return true;
-            case RetryStepDocument:
-                kind = WorkflowStepDocumentKind.Retry;
-                return true;
-            case LoopStepDocument:
-                kind = WorkflowStepDocumentKind.Loop;
-                return true;
-            case SwitchStepDocument:
-                kind = WorkflowStepDocumentKind.Switch;
-                return true;
-            default:
-                kind = default;
-                return false;
+            case RunStepDocument: kind = WorkflowStepDocumentKind.Run; return true;
+            case ParallelStepDocument: kind = WorkflowStepDocumentKind.Parallel; return true;
+            case ConditionalStepDocument: kind = WorkflowStepDocumentKind.Conditional; return true;
+            case RetryStepDocument: kind = WorkflowStepDocumentKind.Retry; return true;
+            case LoopStepDocument: kind = WorkflowStepDocumentKind.Loop; return true;
+            case SwitchStepDocument: kind = WorkflowStepDocumentKind.Switch; return true;
+            default: kind = default; return false;
         }
     }
 
-    private static bool TryGetExpectedValueKind(
-        WorkflowValueDocument value,
-        out WorkflowValueDocumentKind kind)
+    private static bool TryGetExpectedValueKind(WorkflowValueDocument value, out WorkflowValueDocumentKind kind)
     {
         switch (value)
         {
-            case InputValueDocument:
-                kind = WorkflowValueDocumentKind.Input;
-                return true;
-            case CurrentOutputValueDocument:
-                kind = WorkflowValueDocumentKind.CurrentOutput;
-                return true;
-            case ContextItemValueDocument:
-                kind = WorkflowValueDocumentKind.ContextItem;
-                return true;
-            case LiteralValueDocument:
-                kind = WorkflowValueDocumentKind.Literal;
-                return true;
-            default:
-                kind = default;
-                return false;
+            case InputValueDocument: kind = WorkflowValueDocumentKind.Input; return true;
+            case CurrentOutputValueDocument: kind = WorkflowValueDocumentKind.CurrentOutput; return true;
+            case ContextItemValueDocument: kind = WorkflowValueDocumentKind.ContextItem; return true;
+            case LiteralValueDocument: kind = WorkflowValueDocumentKind.Literal; return true;
+            default: kind = default; return false;
+        }
+    }
+
+    private static bool TryGetExpectedLiteralKind(WorkflowLiteralDocument literal, out WorkflowLiteralDocumentKind kind)
+    {
+        switch (literal)
+        {
+            case NullWorkflowLiteralDocument: kind = WorkflowLiteralDocumentKind.Null; return true;
+            case StringWorkflowLiteralDocument: kind = WorkflowLiteralDocumentKind.String; return true;
+            case BooleanWorkflowLiteralDocument: kind = WorkflowLiteralDocumentKind.Boolean; return true;
+            case IntegerWorkflowLiteralDocument: kind = WorkflowLiteralDocumentKind.Integer; return true;
+            case DecimalWorkflowLiteralDocument: kind = WorkflowLiteralDocumentKind.Decimal; return true;
+            case ArrayWorkflowLiteralDocument: kind = WorkflowLiteralDocumentKind.Array; return true;
+            case ObjectWorkflowLiteralDocument: kind = WorkflowLiteralDocumentKind.Object; return true;
+            default: kind = default; return false;
         }
     }
 
@@ -507,21 +401,12 @@ internal static class WorkflowDocumentStructuralValidator
             || parsed == Guid.Empty
             || !string.Equals(value, parsed.ToString("D"), StringComparison.Ordinal))
         {
-            AddError(
-                errors,
-                AIAssetDocumentValidationCodes.InvalidWorkflowStepId,
-                "Workflow step ID must be a non-empty canonical lowercase GUID D value.",
-                path);
+            AddError(errors, AIAssetDocumentValidationCodes.InvalidWorkflowStepId, "Workflow step ID must be a non-empty canonical lowercase GUID D value.", path);
             return;
         }
-
         if (!seenStepIds.Add(parsed))
         {
-            AddError(
-                errors,
-                AIAssetDocumentValidationCodes.DuplicateWorkflowStepId,
-                "Workflow step ID must be unique across the Workflow.",
-                path);
+            AddError(errors, AIAssetDocumentValidationCodes.DuplicateWorkflowStepId, "Workflow step ID must be unique across the Workflow.", path);
         }
     }
 
