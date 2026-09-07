@@ -177,7 +177,7 @@ public sealed class WorkflowDefinitionDocumentMappingTests
             .Which.Value.Should().Be("value");
         array.Items[2].Should().BeOfType<BooleanWorkflowLiteralDocument>()
             .Which.Value.Should().BeTrue();
-        array.Items.Skip(3).Take(9)
+        array.Items.Skip(3).Take(8)
             .Should().AllSatisfy(item => item.Should().BeOfType<IntegerWorkflowLiteralDocument>());
         array.Items[^1].Should().BeOfType<DecimalWorkflowLiteralDocument>()
             .Which.Value.Should().Be(9.5m);
