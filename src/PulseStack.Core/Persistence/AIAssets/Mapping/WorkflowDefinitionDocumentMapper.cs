@@ -416,7 +416,7 @@ internal static class WorkflowDefinitionDocumentMapper
             for (var index = 0; index < entries.Count; index++)
             {
                 var entry = entries[index];
-                var valuePath = $"{path}.properties[\"{EscapePathKey(entry.Key)}\"].value";
+                var valuePath = $"{path}.properties[\"{EscapePathKey(entry.Key!)}\"].value";
                 properties[index] = new WorkflowLiteralPropertyDocument(
                     entry.Key,
                     NormalizeLiteral(entry.Value, valuePath, activeContainers));
