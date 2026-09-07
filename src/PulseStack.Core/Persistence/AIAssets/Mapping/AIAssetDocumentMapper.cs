@@ -515,16 +515,12 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
         => lifecycle switch
         {
             AssetLifecycle.Draft => AIAssetLifecycleDocument.Draft,
-            AIAssetLifecycleDocument.Validated => throw new InvalidOperationException(),
-            _ => lifecycle switch
-            {
-                AssetLifecycle.Validated => AIAssetLifecycleDocument.Validated,
-                AssetLifecycle.Published => AIAssetLifecycleDocument.Published,
-                AssetLifecycle.Deprecated => AIAssetLifecycleDocument.Deprecated,
-                AssetLifecycle.Archived => AIAssetLifecycleDocument.Archived,
-                _ => throw new NotSupportedException(
-                    $"Asset lifecycle '{lifecycle}' is not supported by schema v1 mapping.")
-            }
+            AssetLifecycle.Validated => AIAssetLifecycleDocument.Validated,
+            AssetLifecycle.Published => AIAssetLifecycleDocument.Published,
+            AssetLifecycle.Deprecated => AIAssetLifecycleDocument.Deprecated,
+            AssetLifecycle.Archived => AIAssetLifecycleDocument.Archived,
+            _ => throw new NotSupportedException(
+                $"Asset lifecycle '{lifecycle}' is not supported by schema v1 mapping.")
         };
 
     private static AssetLifecycle FromDocument(AIAssetLifecycleDocument lifecycle)
