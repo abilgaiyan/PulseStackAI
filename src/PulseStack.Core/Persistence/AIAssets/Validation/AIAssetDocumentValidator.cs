@@ -1,4 +1,5 @@
 using PulseStack.Abstractions.Persistence.AIAssets.Documents;
+using PulseStack.Abstractions.Persistence.AIAssets.Documents.Workflows;
 using PulseStack.Abstractions.Persistence.AIAssets.Schema;
 using PulseStack.Abstractions.Persistence.AIAssets.Validation;
 
@@ -20,7 +21,7 @@ public sealed class AIAssetDocumentValidator : IAIAssetDocumentValidator
         ValidateMetadata(document.Metadata, errors);
         ValidateReferences(document.References, errors, cancellationToken);
         ValidateDependencies(document.Dependencies, errors, cancellationToken);
-        ValidateAssetPayload(document, errors);
+        ValidateAssetPayload(document, errors, cancellationToken);
 
         return ValueTask.FromResult(new AIAssetDocumentValidationResult(errors));
     }
@@ -82,6 +83,7 @@ public sealed class AIAssetDocumentValidator : IAIAssetDocumentValidator
             PolicyAssetDocument => AIAssetDocumentType.Policy,
             ModelAssetDocument => AIAssetDocumentType.Model,
             AgentAssetDocument => AIAssetDocumentType.Agent,
+            WorkflowAssetDocument => AIAssetDocumentType.Workflow,
             _ => default
         };
 
@@ -91,7 +93,8 @@ public sealed class AIAssetDocumentValidator : IAIAssetDocumentValidator
             or MemoryAssetDocument
             or PolicyAssetDocument
             or ModelAssetDocument
-            or AgentAssetDocument;
+            or AgentAssetDocument
+            or WorkflowAssetDocument;
     }
 
     private static void ValidateIdentity(
@@ -258,7 +261,8 @@ public sealed class AIAssetDocumentValidator : IAIAssetDocumentValidator
 
     private static void ValidateAssetPayload(
         AIAssetDocument document,
-        ICollection<AIAssetDocumentValidationError> errors)
+        ICollection<AIAssetDocumentValidationError> errors,
+        CancellationToken cancellationToken)
     {
         switch (document)
         {
@@ -344,6 +348,13 @@ public sealed class AIAssetDocumentValidator : IAIAssetDocumentValidator
 
             case AgentAssetDocument agent:
                 ValidateAgent(agent, errors);
+                break;
+
+            case WorkflowAssetDocument workflow:
+                WorkflowDocumentStructuralValidator.Validate(
+                    workflow,
+                    errors,
+                    cancellationToken);
                 break;
         }
     }
