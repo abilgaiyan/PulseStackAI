@@ -42,4 +42,37 @@ public static class AIAssetDocumentValidationCodes
     public const string InvalidAgentReferenceType = "AD710";
     public const string DuplicateAgentReference = "AD720";
     public const string AgentReferenceProjectionMismatch = "AD730";
+
+    public const string MissingWorkflowStep = "AD740";
+    public const string UnsupportedWorkflowStep = "AD750";
+    public const string WorkflowStepTypeMismatch = "AD760";
+    public const string InvalidWorkflowStepId = "AD770";
+    public const string DuplicateWorkflowStepId = "AD780";
+    public const string MissingWorkflowStepName = "AD790";
+    public const string MissingRunAgentReference = "AD800";
+    public const string InvalidRunAgentReference = "AD810";
+    public const string InvalidRunAgentReferenceType = "AD820";
+    public const string MissingWorkflowCondition = "AD830";
+    public const string UnsupportedWorkflowCondition = "AD840";
+    public const string WorkflowConditionTypeMismatch = "AD850";
+    public const string MissingNamedConditionName = "AD860";
+    public const string InvalidRetryMaxAttempts = "AD870";
+    public const string MissingSwitchCase = "AD880";
+    public const string InvalidSwitchCaseValue = "AD890";
+    public const string DuplicateSwitchCaseValue = "AD900";
+    public const string MissingWorkflowValue = "AD910";
+    public const string UnsupportedWorkflowValue = "AD920";
+    public const string WorkflowValueTypeMismatch = "AD930";
+    public const string MissingContextItemKey = "AD940";
+    public const string MissingWorkflowLiteral = "AD950";
+    public const string UnsupportedWorkflowLiteral = "AD960";
+    public const string WorkflowLiteralTypeMismatch = "AD970";
+    public const string MissingWorkflowArrayItem = "AD980";
+    public const string MissingWorkflowObjectProperty = "AD990";
+    public const string MissingWorkflowObjectPropertyValue = "AD1000";
+    public const string InvalidWorkflowObjectPropertyName = "AD1010";
+    public const string DuplicateWorkflowObjectPropertyName = "AD1020";
+    public const string NonCanonicalWorkflowObjectPropertyOrder = "AD1030";
+    public const string ConflictingRunReferenceUrn = "AD1040";
+    public const string WorkflowReferenceProjectionMismatch = "AD1050";
 }
