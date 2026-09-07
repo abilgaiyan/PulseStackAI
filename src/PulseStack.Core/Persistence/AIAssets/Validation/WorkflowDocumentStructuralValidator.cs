@@ -29,6 +29,8 @@ internal static class WorkflowDocumentStructuralValidator
                 errors,
                 cancellationToken);
         }
+
+        ValidateRunReferenceProjection(workflow, errors, cancellationToken);
     }
 
     private static void ValidateStep(
@@ -316,6 +318,151 @@ internal static class WorkflowDocumentStructuralValidator
         }
     }
 
+    private static void ValidateRunReferenceProjection(
+        WorkflowAssetDocument workflow,
+        ICollection<AIAssetDocumentValidationError> errors,
+        CancellationToken cancellationToken)
+    {
+        var projected = new List<AIAssetReferenceDocument>();
+        var seen = new Dictionary<RunReferenceKey, AIAssetReferenceDocument>();
+
+        for (var index = 0; index < workflow.Steps.Count; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            CollectRunReferences(
+                workflow.Steps[index],
+                $"$.steps[{index}]",
+                projected,
+                seen,
+                errors,
+                cancellationToken);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!workflow.References.SequenceEqual(projected))
+        {
+            AddError(
+                errors,
+                AIAssetDocumentValidationCodes.WorkflowReferenceProjectionMismatch,
+                "Workflow envelope references must exactly match the deterministic Run-step reference projection.",
+                "$.references");
+        }
+    }
+
+    private static void CollectRunReferences(
+        WorkflowStepDocument? step,
+        string path,
+        ICollection<AIAssetReferenceDocument> projected,
+        IDictionary<RunReferenceKey, AIAssetReferenceDocument> seen,
+        ICollection<AIAssetDocumentValidationError> errors,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (step is null
+            || !TryGetExpectedStepKind(step, out var expectedKind)
+            || step.Kind != expectedKind)
+        {
+            return;
+        }
+
+        switch (step)
+        {
+            case RunStepDocument run:
+                CollectRunReference(run.Agent, $"{path}.agent", projected, seen, errors);
+                return;
+
+            case ParallelStepDocument parallel:
+                for (var index = 0; index < parallel.Steps.Count; index++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    CollectRunReferences(parallel.Steps[index], $"{path}.steps[{index}]", projected, seen, errors, cancellationToken);
+                }
+                return;
+
+            case ConditionalStepDocument conditional:
+                CollectRunReferences(conditional.ThenStep, $"{path}.thenStep", projected, seen, errors, cancellationToken);
+                if (conditional.ElseStep is not null)
+                {
+                    CollectRunReferences(conditional.ElseStep, $"{path}.elseStep", projected, seen, errors, cancellationToken);
+                }
+                return;
+
+            case RetryStepDocument retry:
+                CollectRunReferences(retry.Step, $"{path}.step", projected, seen, errors, cancellationToken);
+                return;
+
+            case LoopStepDocument loop:
+                CollectRunReferences(loop.Step, $"{path}.step", projected, seen, errors, cancellationToken);
+                return;
+
+            case SwitchStepDocument @switch:
+                for (var index = 0; index < @switch.Cases.Count; index++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var @case = @switch.Cases[index];
+                    if (@case is not null)
+                    {
+                        CollectRunReferences(@case.Step, $"{path}.cases[{index}].step", projected, seen, errors, cancellationToken);
+                    }
+                }
+                if (@switch.DefaultStep is not null)
+                {
+                    CollectRunReferences(@switch.DefaultStep, $"{path}.defaultStep", projected, seen, errors, cancellationToken);
+                }
+                return;
+        }
+    }
+
+    private static void CollectRunReference(
+        AIAssetReferenceDocument? reference,
+        string path,
+        ICollection<AIAssetReferenceDocument> projected,
+        IDictionary<RunReferenceKey, AIAssetReferenceDocument> seen,
+        ICollection<AIAssetDocumentValidationError> errors)
+    {
+        if (!TryCreateRunReferenceKey(reference, out var key))
+        {
+            return;
+        }
+
+        if (!seen.TryGetValue(key, out var existing))
+        {
+            seen.Add(key, reference!);
+            projected.Add(reference!);
+            return;
+        }
+
+        if (!string.Equals(existing.Urn, reference!.Urn, StringComparison.Ordinal))
+        {
+            AddError(
+                errors,
+                AIAssetDocumentValidationCodes.ConflictingRunReferenceUrn,
+                "Run step Agent references with the same asset definition key must use the same URN.",
+                $"{path}.urn");
+        }
+    }
+
+    private static bool TryCreateRunReferenceKey(
+        AIAssetReferenceDocument? reference,
+        out RunReferenceKey key)
+    {
+        if (reference is null
+            || reference.AssetType != AIAssetDocumentType.Agent
+            || !Guid.TryParse(reference.AssetId, out var assetId)
+            || assetId == Guid.Empty
+            || string.IsNullOrWhiteSpace(reference.Urn)
+            || string.IsNullOrWhiteSpace(reference.Version))
+        {
+            key = default;
+            return false;
+        }
+
+        key = new RunReferenceKey(reference.AssetType, assetId, reference.Version);
+        return true;
+    }
+
     private static void ValidateRunReference(
         AIAssetReferenceDocument? reference,
         string path,
@@ -421,4 +568,9 @@ internal static class WorkflowDocumentStructuralValidator
     {
         errors.Add(new AIAssetDocumentValidationError(code, message, path));
     }
+
+    private readonly record struct RunReferenceKey(
+        AIAssetDocumentType AssetType,
+        Guid AssetId,
+        string Version);
 }
