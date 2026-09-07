@@ -5,7 +5,7 @@ namespace PulseStack.Abstractions.Persistence.AIAssets.Documents.Workflows;
 /// </summary>
 public abstract record WorkflowValueDocument
 {
-    protected WorkflowValueDocument(WorkflowValueDocumentKind kind)
+    private protected WorkflowValueDocument(WorkflowValueDocumentKind kind)
     {
         Kind = kind;
     }
