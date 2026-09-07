@@ -99,6 +99,7 @@ internal static class WorkflowDocumentStructuralValidator
                 return;
 
             case LoopStepDocument loop:
+                ValidateValue(loop.Items, $"{path}.items", cancellationToken);
                 ValidateStep(
                     loop.Step,
                     $"{path}.step",
@@ -108,6 +109,8 @@ internal static class WorkflowDocumentStructuralValidator
                 return;
 
             case SwitchStepDocument @switch:
+                ValidateValue(@switch.Selector, $"{path}.selector", cancellationToken);
+
                 for (var index = 0; index < @switch.Cases.Count; index++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -135,6 +138,85 @@ internal static class WorkflowDocumentStructuralValidator
                         cancellationToken);
                 }
 
+                return;
+        }
+    }
+
+    private static void ValidateValue(
+        WorkflowValueDocument? value,
+        string path,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        switch (value)
+        {
+            case null:
+            case InputValueDocument:
+            case CurrentOutputValueDocument:
+            case ContextItemValueDocument:
+                return;
+
+            case LiteralValueDocument literalValue:
+                ValidateLiteral(
+                    literalValue.Literal,
+                    $"{path}.literal",
+                    cancellationToken);
+                return;
+
+            default:
+                return;
+        }
+    }
+
+    private static void ValidateLiteral(
+        WorkflowLiteralDocument? literal,
+        string path,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        switch (literal)
+        {
+            case null:
+            case NullWorkflowLiteralDocument:
+            case StringWorkflowLiteralDocument:
+            case BooleanWorkflowLiteralDocument:
+            case IntegerWorkflowLiteralDocument:
+            case DecimalWorkflowLiteralDocument:
+                return;
+
+            case ArrayWorkflowLiteralDocument array:
+                for (var index = 0; index < array.Items.Count; index++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    ValidateLiteral(
+                        array.Items[index],
+                        $"{path}.items[{index}]",
+                        cancellationToken);
+                }
+
+                return;
+
+            case ObjectWorkflowLiteralDocument @object:
+                for (var index = 0; index < @object.Properties.Count; index++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var property = @object.Properties[index];
+                    if (property is null)
+                    {
+                        continue;
+                    }
+
+                    ValidateLiteral(
+                        property.Value,
+                        $"{path}.properties[{index}].value",
+                        cancellationToken);
+                }
+
+                return;
+
+            default:
                 return;
         }
     }
