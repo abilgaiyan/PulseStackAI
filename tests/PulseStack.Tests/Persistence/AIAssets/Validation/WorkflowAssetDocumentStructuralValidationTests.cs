@@ -190,16 +190,38 @@ public sealed class WorkflowAssetDocumentStructuralValidationTests
     }
 
     [Fact]
-    public async Task ValidateAsync_ShouldAllowReadinessOnlyEmptyStates()
+    public async Task ValidateAsync_ShouldTraverseNestedArrayAndObjectWithoutLiteralSemantics()
     {
         var document = CreateWorkflow(
-            new ParallelStepDocument(Id(1), "parallel", []),
-            new SwitchStepDocument(Id(2), "switch", new InputValueDocument(), []));
+            new LoopStepDocument(
+                Id(1),
+                "loop",
+                new LiteralValueDocument(
+                    new ObjectWorkflowLiteralDocument(
+                        [new WorkflowLiteralPropertyDocument(
+                            "payload",
+                            new ArrayWorkflowLiteralDocument(
+                                [new StringWorkflowLiteralDocument("ok")]))])),
+                Run(2)));
 
         var result = await validator.ValidateAsync(document);
 
         result.IsValid.Should().BeTrue();
         result.Errors.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ValidateAsync_ShouldAllowReadinessOnlyEmptyStates()
+    {
+        var emptyRoot = await validator.ValidateAsync(CreateWorkflow());
+        var emptyComposites = await validator.ValidateAsync(CreateWorkflow(
+            new ParallelStepDocument(Id(1), "parallel", []),
+            new SwitchStepDocument(Id(2), "switch", new InputValueDocument(), [])));
+
+        emptyRoot.IsValid.Should().BeTrue();
+        emptyRoot.Errors.Should().BeEmpty();
+        emptyComposites.IsValid.Should().BeTrue();
+        emptyComposites.Errors.Should().BeEmpty();
     }
 
     [Fact]
@@ -214,18 +236,29 @@ public sealed class WorkflowAssetDocumentStructuralValidationTests
     }
 
     [Fact]
-    public async Task ValidateAsync_ShouldHonorCancellationAtTraversalBoundary()
+    public void StructuralValidator_ShouldHonorCancellationAtRecursiveTraversalBoundary()
     {
         using var source = new CancellationTokenSource();
+        var errors = new CancellingErrorCollection(source);
         var document = CreateWorkflow(
-            new ParallelStepDocument(
-                Id(1),
-                "parallel",
-                new CancellingStepList(source, Run(2), Run(3))));
+            new ParallelStepDocument(Id(1), " ", [Run(2)]));
 
-        var act = () => validator.ValidateAsync(document, source.Token).AsTask();
+        var validatorType = typeof(AIAssetDocumentValidator).Assembly.GetType(
+            "PulseStack.Core.Persistence.AIAssets.Validation.WorkflowDocumentStructuralValidator",
+            throwOnError: true)!;
+        var validate = validatorType.GetMethod(
+            "Validate",
+            BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!;
 
-        await act.Should().ThrowAsync<OperationCanceledException>();
+        Action act = () => validate.Invoke(
+            null,
+            [document, errors, source.Token]);
+
+        var exception = act.Should().Throw<TargetInvocationException>().Which;
+        exception.InnerException.Should().BeOfType<OperationCanceledException>();
+        errors.Should().ContainSingle(error =>
+            error.Code == AIAssetDocumentValidationCodes.MissingWorkflowStepName
+            && error.Path == "$.steps[0].name");
     }
 
     private static WorkflowAssetDocument CreateWorkflow(params WorkflowStepDocument[] steps)
@@ -300,28 +333,37 @@ public sealed class WorkflowAssetDocumentStructuralValidationTests
         }
     }
 
-    private sealed class CancellingStepList : IEnumerable<WorkflowStepDocument>
+    private sealed class CancellingErrorCollection : ICollection<AIAssetDocumentValidationError>
     {
+        private readonly List<AIAssetDocumentValidationError> inner = [];
         private readonly CancellationTokenSource source;
-        private readonly WorkflowStepDocument first;
-        private readonly WorkflowStepDocument second;
 
-        public CancellingStepList(
-            CancellationTokenSource source,
-            WorkflowStepDocument first,
-            WorkflowStepDocument second)
+        public CancellingErrorCollection(CancellationTokenSource source)
         {
             this.source = source;
-            this.first = first;
-            this.second = second;
         }
 
-        public IEnumerator<WorkflowStepDocument> GetEnumerator()
+        public int Count => inner.Count;
+
+        public bool IsReadOnly => false;
+
+        public void Add(AIAssetDocumentValidationError item)
         {
-            yield return first;
+            inner.Add(item);
             source.Cancel();
-            yield return second;
         }
+
+        public void Clear() => inner.Clear();
+
+        public bool Contains(AIAssetDocumentValidationError item) => inner.Contains(item);
+
+        public void CopyTo(AIAssetDocumentValidationError[] array, int arrayIndex)
+            => inner.CopyTo(array, arrayIndex);
+
+        public bool Remove(AIAssetDocumentValidationError item) => inner.Remove(item);
+
+        public IEnumerator<AIAssetDocumentValidationError> GetEnumerator()
+            => inner.GetEnumerator();
 
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
             => GetEnumerator();
