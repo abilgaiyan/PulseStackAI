@@ -1,5 +1,6 @@
 using PulseStack.Abstractions.Assets;
 using PulseStack.Abstractions.Persistence.AIAssets.Documents;
+using PulseStack.Abstractions.Persistence.AIAssets.Documents.Workflows;
 using PulseStack.Abstractions.Persistence.AIAssets.Mapping;
 using PulseStack.Abstractions.Persistence.AIAssets.Schema;
 
@@ -235,6 +236,15 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
                     Memory = agent.Memory is null ? null : FromDocument(agent.Memory),
                     Policies = agent.Policies.Select(FromDocument).ToArray()
                 }),
+
+            WorkflowAssetDocument workflow => WorkflowAssetRehydrator.Rehydrate(
+                id,
+                urn,
+                version,
+                metadata,
+                lifecycle,
+                dependencies,
+                WorkflowDocumentDefinitionMapper.ToOptions(workflow, metadata)),
 
             _ => throw new NotSupportedException(
                 $"Document type '{document.AssetType}' is not supported by the foundation Asset document mapper.")
