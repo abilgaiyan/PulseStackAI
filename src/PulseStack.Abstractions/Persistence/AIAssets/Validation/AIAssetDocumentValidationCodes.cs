@@ -75,4 +75,5 @@ public static class AIAssetDocumentValidationCodes
     public const string NonCanonicalWorkflowObjectPropertyOrder = "AD1030";
     public const string ConflictingRunReferenceUrn = "AD1040";
     public const string WorkflowReferenceProjectionMismatch = "AD1050";
+    public const string MissingWorkflowStringLiteralValue = "AD1060";
 }
