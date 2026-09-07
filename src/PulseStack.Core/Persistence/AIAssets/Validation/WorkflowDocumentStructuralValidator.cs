@@ -282,6 +282,12 @@ internal static class WorkflowDocumentStructuralValidator
                 continue;
             }
 
+            var hasValue = property.Value is not null;
+            if (!hasValue)
+            {
+                AddError(errors, AIAssetDocumentValidationCodes.MissingWorkflowObjectPropertyValue, "Workflow literal object property value is required.", $"{propertyPath}.value");
+            }
+
             var hasValidName = !string.IsNullOrWhiteSpace(property.Name);
             if (!hasValidName)
             {
@@ -303,13 +309,10 @@ internal static class WorkflowDocumentStructuralValidator
                 previousValidName = property.Name;
             }
 
-            if (property.Value is null)
+            if (hasValue)
             {
-                AddError(errors, AIAssetDocumentValidationCodes.MissingWorkflowObjectPropertyValue, "Workflow literal object property value is required.", $"{propertyPath}.value");
-                continue;
+                ValidateLiteral(property.Value!, $"{propertyPath}.value", errors, cancellationToken);
             }
-
-            ValidateLiteral(property.Value, $"{propertyPath}.value", errors, cancellationToken);
         }
     }
 
