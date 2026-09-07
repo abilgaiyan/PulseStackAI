@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using PulseStack.Abstractions.Workflows.Definitions;
 
 namespace PulseStack.Abstractions.Assets;
 
@@ -33,77 +32,8 @@ public sealed record WorkflowAsset : Asset
         };
         Lifecycle = AssetLifecycle.Draft;
         Options = normalized;
-        References = CollectReferences(normalized.Steps);
+        References = WorkflowReferenceProjection.Create(normalized.Steps);
     }
 
     public WorkflowAssetOptions Options { get; }
-
-    private static IReadOnlyCollection<AssetReference> CollectReferences(
-        IReadOnlyCollection<WorkflowStepDefinition> steps)
-    {
-        var projected = new List<AssetReference>();
-        var seen = new Dictionary<AssetDefinitionKey, AssetReference>();
-
-        foreach (var reference in steps.SelectMany(CollectReferences))
-        {
-            ArgumentNullException.ThrowIfNull(reference);
-
-            var key = AssetDefinitionKey.From(reference);
-            if (seen.TryGetValue(key, out var existing))
-            {
-                if (!string.Equals(
-                        existing.Urn.Value,
-                        reference.Urn.Value,
-                        StringComparison.Ordinal))
-                {
-                    throw new InvalidOperationException(
-                        "Workflow Run steps contain conflicting URNs for the same Asset definition identity.");
-                }
-
-                continue;
-            }
-
-            seen.Add(key, reference);
-            projected.Add(reference);
-        }
-
-        return projected.ToArray();
-    }
-
-    private static IEnumerable<AssetReference> CollectReferences(
-        WorkflowStepDefinition step)
-    {
-        ArgumentNullException.ThrowIfNull(step);
-
-        return step switch
-        {
-            RunStepDefinition run => [run.Agent],
-
-            ParallelStepDefinition parallel =>
-                parallel.Steps.SelectMany(CollectReferences),
-
-            ConditionalStepDefinition conditional =>
-                CollectReferences(conditional.ThenStep)
-                    .Concat(
-                        conditional.ElseStep is null
-                            ? []
-                            : CollectReferences(conditional.ElseStep)),
-
-            RetryStepDefinition retry =>
-                CollectReferences(retry.Step),
-
-            LoopStepDefinition loop =>
-                CollectReferences(loop.Step),
-
-            SwitchStepDefinition @switch =>
-                @switch.Cases
-                    .SelectMany(@case => CollectReferences(@case.Step))
-                    .Concat(
-                        @switch.DefaultStep is null
-                            ? []
-                            : CollectReferences(@switch.DefaultStep)),
-
-            _ => []
-        };
-    }
 }
