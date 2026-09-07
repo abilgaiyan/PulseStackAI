@@ -186,7 +186,8 @@ public sealed class WorkflowAssetDocumentStructuralValidationTests
             (AIAssetDocumentValidationCodes.InvalidRetryMaxAttempts, "$.steps[0].steps[0].thenStep.maxAttempts"),
             (AIAssetDocumentValidationCodes.MissingContextItemKey, "$.steps[0].steps[0].thenStep.step.items.key"),
             (AIAssetDocumentValidationCodes.MissingRunAgentReference, "$.steps[0].steps[0].thenStep.step.step.cases[0].step.agent"),
-            (AIAssetDocumentValidationCodes.DuplicateWorkflowStepId, "$.steps[0].steps[0].thenStep.step.step.defaultStep.stepId"));
+            (AIAssetDocumentValidationCodes.DuplicateWorkflowStepId, "$.steps[0].steps[0].thenStep.step.step.defaultStep.stepId"),
+            (AIAssetDocumentValidationCodes.WorkflowReferenceProjectionMismatch, "$.references"));
     }
 
     [Fact]
