@@ -12,9 +12,10 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
         ArgumentNullException.ThrowIfNull(asset);
         EnsureCanonicalMetadata(asset);
 
+        IReadOnlyList<AssetReference>? workflowReferences = null;
         if (asset is WorkflowAsset workflow)
         {
-            EnsureCanonicalWorkflowReferences(workflow);
+            workflowReferences = EnsureCanonicalWorkflowReferences(workflow);
         }
 
         var identity = new AIAssetIdentityDocument
@@ -25,7 +26,9 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
         };
         var metadata = ToDocument(asset.Metadata);
         var lifecycle = ToDocument(asset.Lifecycle);
-        var references = asset.References.Select(ToDocument).ToArray();
+        var references = (workflowReferences ?? asset.References)
+            .Select(ToDocument)
+            .ToArray();
         var dependencies = asset.Dependencies.Select(ToDocument).ToArray();
 
         return asset switch
@@ -83,6 +86,15 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
 
             AgentDefinition agent => ToDocument(
                 agent,
+                identity,
+                metadata,
+                lifecycle,
+                references,
+                dependencies),
+
+            WorkflowAsset workflow => WorkflowDefinitionDocumentMapper.ToDocument(
+                workflow,
+                AIAssetSchemaVersion.V1,
                 identity,
                 metadata,
                 lifecycle,
@@ -295,10 +307,16 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
             case AgentDefinition agent:
                 EnsureEqual(agent.Type, "Name", agent.Options.Name, asset.Metadata.Name);
                 break;
+
+            case WorkflowAsset workflow:
+                EnsureEqual(workflow.Type, "Name", workflow.Options.Name, asset.Metadata.Name);
+                EnsureEqual(workflow.Type, "Description", workflow.Options.Description, asset.Metadata.Description);
+                break;
         }
     }
 
-    private static void EnsureCanonicalWorkflowReferences(WorkflowAsset workflow)
+    private static IReadOnlyList<AssetReference> EnsureCanonicalWorkflowReferences(
+        WorkflowAsset workflow)
     {
         var projected = WorkflowReferenceProjection.Create(workflow.Options.Steps);
 
@@ -307,6 +325,8 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
             throw new InvalidOperationException(
                 "Workflow Asset Run-step references do not match the canonical common References projection.");
         }
+
+        return projected;
     }
 
     private static void EnsureCanonicalAgentReferences(AgentDefinition agent)
