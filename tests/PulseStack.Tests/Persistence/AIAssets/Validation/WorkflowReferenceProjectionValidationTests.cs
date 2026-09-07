@@ -1,3 +1,4 @@
+using System.Collections;
 using FluentAssertions;
 using PulseStack.Abstractions.Persistence.AIAssets.Documents;
 using PulseStack.Abstractions.Persistence.AIAssets.Documents.Workflows;
@@ -113,6 +114,70 @@ public sealed class WorkflowReferenceProjectionValidationTests
         ProjectionErrors(result).Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task ValidateAsync_ShouldExcludeMalformedRunReferenceFromProjection()
+    {
+        var malformed = AgentReference(1, "1.0", "urn:pulsestack:agent:one") with
+        {
+            AssetId = Guid.Empty.ToString("D")
+        };
+        var document = CreateWorkflow([Run(1, malformed)], []);
+
+        var result = await validator.ValidateAsync(document);
+
+        result.Errors.Should().ContainSingle(error =>
+            error.Code == AIAssetDocumentValidationCodes.InvalidRunAgentReference
+            && error.Path == "$.steps[0].agent");
+        ProjectionErrors(result).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ValidateAsync_ShouldAggregateUrnConflictBeforeEnvelopeMismatch()
+    {
+        var first = AgentReference(1, "1.0", "urn:pulsestack:agent:one");
+        var conflicting = AgentReference(1, "1.0", "urn:pulsestack:agent:other");
+        var document = CreateWorkflow(
+            [Run(1, first), Run(2, conflicting)],
+            []);
+
+        var result = await validator.ValidateAsync(document);
+
+        ProjectionErrors(result).Should().Equal(
+            Error(
+                AIAssetDocumentValidationCodes.ConflictingRunReferenceUrn,
+                "$.steps[1].agent.urn"),
+            Error(
+                AIAssetDocumentValidationCodes.WorkflowReferenceProjectionMismatch,
+                "$.references"));
+    }
+
+    [Fact]
+    public void Validate_ShouldHonorCancellationDuringProjectionTraversal()
+    {
+        using var source = new CancellationTokenSource();
+        var errors = new CancellingErrorCollection(
+            source,
+            AIAssetDocumentValidationCodes.ConflictingRunReferenceUrn);
+        var first = AgentReference(1, "1.0", "urn:pulsestack:agent:one");
+        var conflicting = AgentReference(1, "1.0", "urn:pulsestack:agent:other");
+        var later = AgentReference(2, "1.0", "urn:pulsestack:agent:two");
+        var document = CreateWorkflow(
+            [Run(1, first), Run(2, conflicting), Run(3, later)],
+            [first, later]);
+
+        var act = () => WorkflowDocumentStructuralValidator.Validate(
+            document,
+            errors,
+            source.Token);
+
+        act.Should().Throw<OperationCanceledException>();
+        errors.Where(error => error.Code == AIAssetDocumentValidationCodes.ConflictingRunReferenceUrn)
+            .Should().ContainSingle()
+            .Which.Path.Should().Be("$.steps[1].agent.urn");
+        errors.Should().NotContain(error =>
+            error.Code == AIAssetDocumentValidationCodes.WorkflowReferenceProjectionMismatch);
+    }
+
     private static IEnumerable<(string Code, string Path)> ProjectionErrors(
         AIAssetDocumentValidationResult result)
         => result.Errors
@@ -157,4 +222,48 @@ public sealed class WorkflowReferenceProjectionValidationTests
 
     private static string Id(int value)
         => Guid.Parse($"10000000-0000-0000-0000-{value:D12}").ToString("D");
+
+    private sealed class CancellingErrorCollection : ICollection<AIAssetDocumentValidationError>
+    {
+        private readonly List<AIAssetDocumentValidationError> inner = [];
+        private readonly CancellationTokenSource source;
+        private readonly string cancelOnCode;
+
+        public CancellingErrorCollection(
+            CancellationTokenSource source,
+            string cancelOnCode)
+        {
+            this.source = source;
+            this.cancelOnCode = cancelOnCode;
+        }
+
+        public int Count => inner.Count;
+
+        public bool IsReadOnly => false;
+
+        public void Add(AIAssetDocumentValidationError item)
+        {
+            inner.Add(item);
+            if (item.Code == cancelOnCode)
+            {
+                source.Cancel();
+            }
+        }
+
+        public void Clear() => inner.Clear();
+
+        public bool Contains(AIAssetDocumentValidationError item) => inner.Contains(item);
+
+        public void CopyTo(AIAssetDocumentValidationError[] array, int arrayIndex)
+            => inner.CopyTo(array, arrayIndex);
+
+        public IEnumerator<AIAssetDocumentValidationError> GetEnumerator()
+            => inner.GetEnumerator();
+
+        public bool Remove(AIAssetDocumentValidationError item)
+            => inner.Remove(item);
+
+        IEnumerator IEnumerable.GetEnumerator()
+            => GetEnumerator();
+    }
 }
