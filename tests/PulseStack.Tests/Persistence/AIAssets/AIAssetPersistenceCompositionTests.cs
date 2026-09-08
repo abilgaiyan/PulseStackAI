@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using PulseStack.Abstractions.Persistence.AIAssets.Mapping;
 using PulseStack.Abstractions.Persistence.AIAssets.Validation;
+using PulseStack.Core.Assets;
 using PulseStack.Core.DependencyInjection;
 using PulseStack.Core.Persistence.AIAssets.Mapping;
 using PulseStack.Core.Persistence.AIAssets.Validation;
@@ -27,5 +28,20 @@ public sealed class AIAssetPersistenceCompositionTests
         mapper.Should().BeOfType<AIAssetDocumentMapper>();
         provider.GetRequiredService<IAIAssetDocumentValidator>().Should().BeSameAs(validator);
         provider.GetRequiredService<IAIAssetDocumentMapper>().Should().BeSameAs(mapper);
+    }
+
+    [Fact]
+    public void AddPulseStack_ShouldRegisterProjectAssetFactory()
+    {
+        var services = new ServiceCollection();
+
+        services.AddPulseStack();
+
+        using var provider = services.BuildServiceProvider();
+
+        var factory = provider.GetRequiredService<ProjectAssetFactory>();
+
+        factory.Should().NotBeNull();
+        provider.GetRequiredService<ProjectAssetFactory>().Should().BeSameAs(factory);
     }
 }
