@@ -10,7 +10,6 @@ public sealed class LibraryAssetFactory
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.Name);
-        ArgumentException.ThrowIfNullOrWhiteSpace(options.Description);
 
         var id = AssetId.New();
 
