@@ -30,8 +30,10 @@ internal static class AgentTestFactory
         var modelAsset = factory.Create(options);
 
         var modelReference = new AssetReference(
+            modelAsset.Type,
             modelAsset.Id,
-            modelAsset.Urn);
+            modelAsset.Urn,
+            modelAsset.Version);
 
         var definition = new AgentBuilder("Test Agent")
             .WithGoal("Execute test behavior.")

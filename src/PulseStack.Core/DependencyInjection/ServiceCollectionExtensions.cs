@@ -3,6 +3,8 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using PulseStack.Abstractions.Assets;
 using PulseStack.Abstractions.Chat;
 using PulseStack.Abstractions.Memory;
+using PulseStack.Abstractions.Persistence.AIAssets.Mapping;
+using PulseStack.Abstractions.Persistence.AIAssets.Validation;
 using PulseStack.Abstractions.Persistence.Mapping;
 using PulseStack.Abstractions.Persistence.Serialization;
 using PulseStack.Abstractions.Persistence.Validation;
@@ -11,11 +13,14 @@ using PulseStack.Abstractions.Runtime.Realization.Binding;
 using PulseStack.Abstractions.Runtime.Realization.Composition;
 using PulseStack.Abstractions.Runtime.Realization.Evaluation;
 using PulseStack.Abstractions.Runtime.Realization.Resolution;
+using PulseStack.Abstractions.Runtime.Realization.Validation;
 using PulseStack.Abstractions.Security;
 using PulseStack.Abstractions.Tools;
 using PulseStack.Core.Assets;
 using PulseStack.Core.Chat;
 using PulseStack.Core.Memory;
+using PulseStack.Core.Persistence.AIAssets.Mapping;
+using PulseStack.Core.Persistence.AIAssets.Validation;
 using PulseStack.Core.Persistence.Mapping;
 using PulseStack.Core.Persistence.Serialization;
 using PulseStack.Core.Persistence.Validation;
@@ -25,6 +30,7 @@ using PulseStack.Core.Runtime.Realization.Binding;
 using PulseStack.Core.Runtime.Realization.Composition;
 using PulseStack.Core.Runtime.Realization.Evaluation;
 using PulseStack.Core.Runtime.Realization.Resolution;
+using PulseStack.Core.Runtime.Realization.Validation;
 using PulseStack.Core.Security;
 using PulseStack.Core.Tools;
 
@@ -63,6 +69,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<MemoryAssetFactory>();
         services.TryAddSingleton<PolicyAssetFactory>();
         services.TryAddSingleton<WorkflowAssetFactory>();
+        services.TryAddSingleton<ProjectAssetFactory>();
         services.TryAddSingleton<IChatClientFactoryRegistry>(sp =>
             new ChatClientFactoryRegistry(
                 sp.GetServices<ChatClientFactoryRegistration>()));
@@ -73,7 +80,12 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IKnowledgeBindingResolver, KnowledgeBindingResolver>();
         services.TryAddSingleton<IMemoryBindingResolver, MemoryBindingResolver>();
         services.TryAddSingleton<IPolicyBindingResolver, PolicyBindingResolver>();
-        services.TryAddSingleton<IConditionBindingResolver, ConditionBindingResolver>();
+        services.TryAddSingleton<ConditionBindingCatalog>();
+        services.TryAddSingleton<IConditionBindingCatalog>(sp =>
+            sp.GetRequiredService<ConditionBindingCatalog>());
+        services.TryAddSingleton<IConditionBindingResolver>(sp =>
+            new ConditionBindingResolver(
+                sp.GetRequiredService<ConditionBindingCatalog>()));
         services.TryAddSingleton<IWorkflowValueEvaluator, WorkflowValueEvaluator>();
         services.TryAddScoped<IWorkflowComposer, WorkflowComposer>();
 
@@ -81,9 +93,17 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IWorkflowSerializer, JsonWorkflowSerializer>();
         services.TryAddSingleton<IWorkflowDeserializer, JsonWorkflowDeserializer>();
         services.TryAddSingleton<IWorkflowValidator, WorkflowValidator>();
+        services.TryAddSingleton<IAIAssetDocumentValidator, AIAssetDocumentValidator>();
+        services.TryAddSingleton<IAIAssetDocumentMapper, AIAssetDocumentMapper>();
 
-        services.TryAddScoped<IAssetResolver>(sp =>
+        services.TryAddScoped<InMemoryAssetResolver>(sp =>
             new InMemoryAssetResolver(sp.GetServices<IAsset>()));
+        services.TryAddScoped<IAssetResolver>(sp =>
+            sp.GetRequiredService<InMemoryAssetResolver>());
+        services.TryAddScoped<IAssetDefinitionCatalog>(sp =>
+            sp.GetRequiredService<InMemoryAssetResolver>());
+        services.TryAddScoped<IAgentGraphValidator, AgentGraphValidator>();
+        services.TryAddScoped<IWorkflowGraphValidator, WorkflowGraphValidator>();
 
         return services;
     }

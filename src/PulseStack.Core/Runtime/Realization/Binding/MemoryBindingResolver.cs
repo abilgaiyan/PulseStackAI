@@ -6,7 +6,7 @@ namespace PulseStack.Core.Runtime.Realization.Binding;
 
 public sealed class MemoryBindingResolver : IMemoryBindingResolver
 {
-    private readonly IReadOnlyDictionary<AssetId, MemoryBindingRegistration> _bindings;
+    private readonly IReadOnlyDictionary<AssetReferenceKey, MemoryBindingRegistration> _bindings;
     private readonly IReadOnlyDictionary<string, IConversationMemoryFactory> _factories;
 
     public MemoryBindingResolver(
@@ -16,7 +16,8 @@ public sealed class MemoryBindingResolver : IMemoryBindingResolver
         ArgumentNullException.ThrowIfNull(bindings);
         ArgumentNullException.ThrowIfNull(factories);
 
-        _bindings = bindings.ToDictionary(binding => binding.Asset.Id);
+        _bindings = bindings.ToDictionary(
+            binding => AssetReferenceKey.From(binding.Asset));
         _factories = factories.ToDictionary(factory => factory.Name, StringComparer.OrdinalIgnoreCase);
     }
 
@@ -24,8 +25,7 @@ public sealed class MemoryBindingResolver : IMemoryBindingResolver
     {
         ArgumentNullException.ThrowIfNull(asset);
 
-        if (!_bindings.TryGetValue(asset.Id, out var binding) ||
-            !string.Equals(binding.Asset.Urn.Value, asset.Urn.Value, StringComparison.Ordinal))
+        if (!_bindings.TryGetValue(AssetReferenceKey.From(asset), out var binding))
         {
             throw new InvalidOperationException(
                 $"Memory Asset '{asset.Urn.Value}' is not bound to a runtime Memory factory.");

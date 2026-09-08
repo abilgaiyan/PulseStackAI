@@ -16,9 +16,7 @@ public sealed class KnowledgeBindingResolverTests
         var asset = CreateKnowledgeAsset();
         var source = new StubKnowledgeSource("customer-source");
         var resolver = new KnowledgeBindingResolver(
-            [new KnowledgeBindingRegistration(
-                new AssetReference(asset.Id, asset.Urn),
-                source.Name)],
+            [new KnowledgeBindingRegistration(Reference(asset), source.Name)],
             [source]);
 
         resolver.Resolve(asset).Should().BeSameAs(source);
@@ -32,9 +30,59 @@ public sealed class KnowledgeBindingResolverTests
 
         var action = () => resolver.Resolve(asset);
 
-        action.Should().Throw<InvalidOperationException>()
-            .WithMessage("*not bound*");
+        action.Should().Throw<InvalidOperationException>().WithMessage("*not bound*");
     }
+
+    [Fact]
+    public void Resolve_ShouldRejectBindingWithWrongAssetType()
+    {
+        var asset = CreateKnowledgeAsset();
+        var source = new StubKnowledgeSource("customer-source");
+        var resolver = new KnowledgeBindingResolver(
+            [new KnowledgeBindingRegistration(
+                new AssetReference(AssetType.Tool, asset.Id, asset.Urn, asset.Version),
+                source.Name)],
+            [source]);
+
+        var action = () => resolver.Resolve(asset);
+
+        action.Should().Throw<InvalidOperationException>().WithMessage("*not bound*");
+    }
+
+    [Fact]
+    public void Resolve_ShouldRejectBindingWithWrongAssetVersion()
+    {
+        var asset = CreateKnowledgeAsset();
+        var source = new StubKnowledgeSource("customer-source");
+        var resolver = new KnowledgeBindingResolver(
+            [new KnowledgeBindingRegistration(
+                new AssetReference(asset.Type, asset.Id, asset.Urn, new AssetVersion("2.0.0")),
+                source.Name)],
+            [source]);
+
+        var action = () => resolver.Resolve(asset);
+
+        action.Should().Throw<InvalidOperationException>().WithMessage("*not bound*");
+    }
+
+    [Fact]
+    public void Resolve_ShouldRejectBindingWithWrongAssetUrn()
+    {
+        var asset = CreateKnowledgeAsset();
+        var source = new StubKnowledgeSource("customer-source");
+        var resolver = new KnowledgeBindingResolver(
+            [new KnowledgeBindingRegistration(
+                new AssetReference(asset.Type, asset.Id, new AssetUrn("urn:pulsestack:knowledge:other"), asset.Version),
+                source.Name)],
+            [source]);
+
+        var action = () => resolver.Resolve(asset);
+
+        action.Should().Throw<InvalidOperationException>().WithMessage("*not bound*");
+    }
+
+    private static AssetReference Reference(IAsset asset) =>
+        new(asset.Type, asset.Id, asset.Urn, asset.Version);
 
     private static KnowledgeAsset CreateKnowledgeAsset() =>
         new KnowledgeAssetFactory().Create(

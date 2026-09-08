@@ -6,7 +6,7 @@ namespace PulseStack.Core.Runtime.Realization.Binding;
 
 public sealed class PolicyBindingResolver : IPolicyBindingResolver
 {
-    private readonly IReadOnlyDictionary<AssetId, PolicyBindingRegistration> _bindings;
+    private readonly IReadOnlyDictionary<AssetReferenceKey, PolicyBindingRegistration> _bindings;
     private readonly IReadOnlyDictionary<string, IRuntimePolicy> _policies;
 
     public PolicyBindingResolver(
@@ -16,7 +16,8 @@ public sealed class PolicyBindingResolver : IPolicyBindingResolver
         ArgumentNullException.ThrowIfNull(bindings);
         ArgumentNullException.ThrowIfNull(policies);
 
-        _bindings = bindings.ToDictionary(binding => binding.Asset.Id);
+        _bindings = bindings.ToDictionary(
+            binding => AssetReferenceKey.From(binding.Asset));
         _policies = policies.ToDictionary(policy => policy.Name, StringComparer.OrdinalIgnoreCase);
     }
 
@@ -24,8 +25,7 @@ public sealed class PolicyBindingResolver : IPolicyBindingResolver
     {
         ArgumentNullException.ThrowIfNull(asset);
 
-        if (!_bindings.TryGetValue(asset.Id, out var binding) ||
-            !string.Equals(binding.Asset.Urn.Value, asset.Urn.Value, StringComparison.Ordinal))
+        if (!_bindings.TryGetValue(AssetReferenceKey.From(asset), out var binding))
         {
             throw new InvalidOperationException(
                 $"Policy Asset '{asset.Urn.Value}' is not bound to a runtime Policy implementation.");

@@ -27,12 +27,12 @@ public sealed class AgentDefinitionFactoryTests
     [Fact]
     public void Create_ShouldCollectAssetReferences()
     {
-        var model = Reference("urn:pulsestack:model:openai:gpt-4.1-mini");
-        var prompt = Reference("urn:pulsestack:prompt:contract-review");
-        var knowledge = Reference("urn:pulsestack:knowledge:contracts");
-        var tool = Reference("urn:pulsestack:tool:document-search");
-        var memory = Reference("urn:pulsestack:memory:conversation");
-        var policy = Reference("urn:pulsestack:policy:privacy");
+        var model = Reference(AssetType.Model, "urn:pulsestack:model:openai:gpt-4.1-mini");
+        var prompt = Reference(AssetType.Prompt, "urn:pulsestack:prompt:contract-review");
+        var knowledge = Reference(AssetType.Knowledge, "urn:pulsestack:knowledge:contracts");
+        var tool = Reference(AssetType.Tool, "urn:pulsestack:tool:document-search");
+        var memory = Reference(AssetType.Memory, "urn:pulsestack:memory:conversation");
+        var policy = Reference(AssetType.Policy, "urn:pulsestack:policy:privacy");
 
         var factory = new AgentDefinitionFactory();
         var agent = factory.Create(new AgentDefinitionOptions
@@ -99,6 +99,6 @@ public sealed class AgentDefinitionFactoryTests
             Role = "Contract review specialist"
         };
 
-    private static AssetReference Reference(string urn)
-        => new(AssetId.New(), new AssetUrn(urn));
+    private static AssetReference Reference(AssetType type, string urn)
+        => new(type, AssetId.New(), new AssetUrn(urn), AssetVersion.Initial);
 }

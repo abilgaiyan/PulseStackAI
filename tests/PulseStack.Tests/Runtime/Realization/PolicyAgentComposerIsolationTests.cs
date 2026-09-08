@@ -51,13 +51,8 @@ public sealed class PolicyAgentComposerIsolationTests
                 Name = "PolicyAgent",
                 Goal = "Use only explicitly referenced policies",
                 Role = "Governed worker",
-                Model = new AssetReference(modelAsset.Id, modelAsset.Urn),
-                Policies =
-                [
-                    new AssetReference(
-                        referencedAsset.Id,
-                        referencedAsset.Urn)
-                ]
+                Model = Reference(modelAsset),
+                Policies = [Reference(referencedAsset)]
             });
 
         var agent = await composer.ComposeAsync(definition);
@@ -67,6 +62,9 @@ public sealed class PolicyAgentComposerIsolationTests
             .Which.Should().Be(referencedAsset.Id);
         bindingResolver.ResolvedAssets.Should().NotContain(unreferencedAsset.Id);
     }
+
+    private static AssetReference Reference(IAsset asset) =>
+        new(asset.Type, asset.Id, asset.Urn, asset.Version);
 
     private static ModelAsset CreateModelAsset()
     {
