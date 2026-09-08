@@ -13,10 +13,14 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
         ArgumentNullException.ThrowIfNull(asset);
         EnsureCanonicalMetadata(asset);
 
-        IReadOnlyList<AssetReference>? workflowReferences = null;
+        IReadOnlyList<AssetReference>? canonicalReferences = null;
         if (asset is WorkflowAsset workflowAsset)
         {
-            workflowReferences = EnsureCanonicalWorkflowReferences(workflowAsset);
+            canonicalReferences = EnsureCanonicalWorkflowReferences(workflowAsset);
+        }
+        else if (asset is ProjectAsset projectAsset)
+        {
+            canonicalReferences = EnsureCanonicalProjectReferences(projectAsset);
         }
 
         var identity = new AIAssetIdentityDocument
@@ -27,7 +31,7 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
         };
         var metadata = ToDocument(asset.Metadata);
         var lifecycle = ToDocument(asset.Lifecycle);
-        var references = (workflowReferences ?? asset.References)
+        var references = (canonicalReferences ?? asset.References)
             .Select(ToDocument)
             .ToArray();
         var dependencies = asset.Dependencies.Select(ToDocument).ToArray();
@@ -99,6 +103,16 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
                 identity,
                 metadata,
                 lifecycle,
+                references,
+                dependencies),
+
+            ProjectAsset project => new ProjectAssetDocument(
+                AIAssetSchemaVersion.V1,
+                identity,
+                metadata,
+                lifecycle,
+                ToDocument(project.Options.EntryWorkflow),
+                project.Options.OwnedAssets.Select(ToDocument),
                 references,
                 dependencies),
 
@@ -246,6 +260,21 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
                 dependencies,
                 WorkflowDocumentDefinitionMapper.ToOptions(workflow, metadata)),
 
+            ProjectAssetDocument project => ProjectAssetRehydrator.Rehydrate(
+                id,
+                urn,
+                version,
+                metadata,
+                lifecycle,
+                dependencies,
+                new ProjectAssetOptions
+                {
+                    Name = Require(metadata.Name, "Project name"),
+                    Description = metadata.Description,
+                    EntryWorkflow = FromDocument(project.EntryWorkflow!),
+                    OwnedAssets = project.OwnedAssets.Select(FromDocument).ToArray()
+                }),
+
             _ => throw new NotSupportedException(
                 $"Document type '{document.AssetType}' is not supported by the foundation Asset document mapper.")
         };
@@ -322,6 +351,11 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
                 EnsureEqual(workflow.Type, "Name", workflow.Options.Name, asset.Metadata.Name);
                 EnsureEqual(workflow.Type, "Description", workflow.Options.Description, asset.Metadata.Description);
                 break;
+
+            case ProjectAsset project:
+                EnsureEqual(project.Type, "Name", project.Options.Name, asset.Metadata.Name);
+                EnsureEqual(project.Type, "Description", project.Options.Description, asset.Metadata.Description);
+                break;
         }
     }
 
@@ -334,6 +368,22 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
         {
             throw new InvalidOperationException(
                 "Workflow Asset Run-step references do not match the canonical common References projection.");
+        }
+
+        return projected;
+    }
+
+    private static IReadOnlyList<AssetReference> EnsureCanonicalProjectReferences(
+        ProjectAsset project)
+    {
+        var projected = ProjectReferenceProjection.Create(
+            project.Options.EntryWorkflow,
+            project.Options.OwnedAssets);
+
+        if (!projected.SequenceEqual(project.References))
+        {
+            throw new InvalidOperationException(
+                "Project Asset References do not match the canonical ownership projection.");
         }
 
         return projected;
