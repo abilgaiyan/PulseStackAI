@@ -5,17 +5,11 @@ namespace PulseStack.Core.Runtime.Realization.Binding;
 
 public sealed class ConditionBindingResolver : IConditionBindingResolver
 {
-    private readonly IReadOnlyDictionary<string, ICondition> _conditions;
+    private readonly ConditionBindingCatalog _catalog;
 
-    public ConditionBindingResolver(
-        IEnumerable<ConditionBindingRegistration> registrations)
+    public ConditionBindingResolver(ConditionBindingCatalog catalog)
     {
-        ArgumentNullException.ThrowIfNull(registrations);
-
-        _conditions = registrations.ToDictionary(
-            registration => registration.Name,
-            registration => registration.Condition,
-            StringComparer.OrdinalIgnoreCase);
+        _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
     }
 
     public ICondition Resolve(ConditionDefinition definition)
@@ -33,13 +27,6 @@ public sealed class ConditionBindingResolver : IConditionBindingResolver
     private ICondition ResolveNamed(NamedConditionDefinition definition)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(definition.Name);
-
-        if (_conditions.TryGetValue(definition.Name, out var condition))
-        {
-            return condition;
-        }
-
-        throw new InvalidOperationException(
-            $"Runtime condition '{definition.Name}' is not registered.");
+        return _catalog.ResolveExact(definition.Name);
     }
 }
