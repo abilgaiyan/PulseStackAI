@@ -165,7 +165,9 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
                 new PromptAssetOptions
                 {
                     Name = Require(metadata.Name, "Prompt name"),
-                    SystemInstructions = Require(prompt.SystemInstructions, "Prompt system instructions")
+                    SystemInstructions = Require(
+                        prompt.SystemInstructions,
+                        "Prompt system instructions")
                 }),
 
             ToolAssetDocument => FoundationAssetRehydrator.RehydrateTool(
@@ -296,7 +298,7 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
                 new LibraryAssetOptions
                 {
                     Name = Require(metadata.Name, "Library name"),
-                    Description = metadata.Description ?? string.Empty,
+                    Description = metadata.Description!,
                     Members = library.Members.Select(FromDocument).ToArray()
                 }),
 
@@ -389,7 +391,8 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
         }
     }
 
-    private static IReadOnlyList<AssetReference> EnsureCanonicalWorkflowReferences(WorkflowAsset workflow)
+    private static IReadOnlyList<AssetReference> EnsureCanonicalWorkflowReferences(
+        WorkflowAsset workflow)
     {
         var projected = WorkflowReferenceProjection.Create(workflow.Options.Steps);
 
@@ -402,7 +405,8 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
         return projected;
     }
 
-    private static IReadOnlyCollection<AssetReference> EnsureCanonicalProjectReferences(ProjectAsset project)
+    private static IReadOnlyCollection<AssetReference> EnsureCanonicalProjectReferences(
+        ProjectAsset project)
     {
         var projected = ProjectReferenceProjection.Create(
             project.Options.EntryWorkflow,
@@ -417,7 +421,8 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
         return projected;
     }
 
-    private static IReadOnlyCollection<AssetReference> EnsureCanonicalLibraryReferences(LibraryAsset library)
+    private static IReadOnlyCollection<AssetReference> EnsureCanonicalLibraryReferences(
+        LibraryAsset library)
     {
         var projected = LibraryReferenceProjection.Create(library.Options.Members);
 
