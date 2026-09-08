@@ -57,10 +57,21 @@ public sealed class ProjectAssetDocumentMapperTests
         var agent = Reference(AssetType.Agent, "agent");
         var tool = Reference(AssetType.Tool, "tool");
         var external = Reference(AssetType.Model, "external-model");
-        var original = CreateProject(
+        var project = CreateProject(
             entry,
             [tool, entry, agent],
             [new AssetDependency(external, false)]);
+        var original = project with
+        {
+            Version = new AssetVersion("2.3.0"),
+            Lifecycle = AssetLifecycle.Published,
+            Metadata = project.Metadata with
+            {
+                Author = "PulseStackAI Team",
+                Category = "Application",
+                Tags = ["factory", "intelligence"]
+            }
+        };
 
         var document = (ProjectAssetDocument)mapper.ToDocument(original);
         var reconstructed = mapper.FromDocument(document)
@@ -68,15 +79,23 @@ public sealed class ProjectAssetDocumentMapperTests
 
         reconstructed.Id.Should().Be(original.Id);
         reconstructed.Urn.Should().Be(original.Urn);
-        reconstructed.Version.Should().Be(original.Version);
+        reconstructed.Version.Should().Be(new AssetVersion("2.3.0"));
         reconstructed.Metadata.Should().Be(original.Metadata);
-        reconstructed.Lifecycle.Should().Be(original.Lifecycle);
+        reconstructed.Metadata.Author.Should().Be("PulseStackAI Team");
+        reconstructed.Metadata.Category.Should().Be("Application");
+        reconstructed.Metadata.Tags.Should().Equal("factory", "intelligence");
+        reconstructed.Lifecycle.Should().Be(AssetLifecycle.Published);
         reconstructed.Options.Name.Should().Be(original.Options.Name);
         reconstructed.Options.Description.Should().Be(original.Options.Description);
         reconstructed.Options.EntryWorkflow.Should().Be(entry);
         reconstructed.Options.OwnedAssets.Should().Equal(tool, entry, agent);
         reconstructed.References.Should().Equal(entry, tool, agent);
         reconstructed.Dependencies.Should().Equal(original.Dependencies);
+
+        var roundTrippedDocument = mapper.ToDocument(reconstructed)
+            .Should().BeOfType<ProjectAssetDocument>().Subject;
+
+        roundTrippedDocument.Should().Be(document);
     }
 
     [Fact]
