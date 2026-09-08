@@ -13,7 +13,7 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
         ArgumentNullException.ThrowIfNull(asset);
         EnsureCanonicalMetadata(asset);
 
-        IReadOnlyList<AssetReference>? canonicalReferences = null;
+        IReadOnlyCollection<AssetReference>? canonicalReferences = null;
         if (asset is WorkflowAsset workflowAsset)
         {
             canonicalReferences = EnsureCanonicalWorkflowReferences(workflowAsset);
@@ -373,7 +373,7 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
         return projected;
     }
 
-    private static IReadOnlyList<AssetReference> EnsureCanonicalProjectReferences(
+    private static IReadOnlyCollection<AssetReference> EnsureCanonicalProjectReferences(
         ProjectAsset project)
     {
         var projected = ProjectReferenceProjection.Create(
