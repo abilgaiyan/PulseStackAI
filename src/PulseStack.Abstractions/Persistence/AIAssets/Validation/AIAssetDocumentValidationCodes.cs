@@ -76,4 +76,14 @@ public static class AIAssetDocumentValidationCodes
     public const string ConflictingRunReferenceUrn = "AD1040";
     public const string WorkflowReferenceProjectionMismatch = "AD1050";
     public const string MissingWorkflowStringLiteralValue = "AD1060";
+
+    public const string MissingEntryWorkflow = "AD1100";
+    public const string InvalidEntryWorkflowType = "AD1110";
+    public const string MissingOwnedAsset = "AD1120";
+    public const string InvalidOwnedAssetType = "AD1130";
+    public const string DuplicateOwnedAsset = "AD1140";
+    public const string ConflictingOwnedAssetUrn = "AD1150";
+    public const string EntryWorkflowNotOwned = "AD1160";
+    public const string OwnedAssetDependencyOverlap = "AD1170";
+    public const string ProjectReferenceProjectionMismatch = "AD1180";
 }
