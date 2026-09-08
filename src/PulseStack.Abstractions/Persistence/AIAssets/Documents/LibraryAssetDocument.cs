@@ -1,9 +1,10 @@
-using PulseStack.Abstractions.AIAssets;
-using PulseStack.Abstractions.AIAssets.References;
-using PulseStack.Abstractions.Persistence.AIAssets.Internal;
+using PulseStack.Abstractions.Persistence.AIAssets.Schema;
 
 namespace PulseStack.Abstractions.Persistence.AIAssets.Documents;
 
+/// <summary>
+/// Canonical portable representation of a declarative Library Asset.
+/// </summary>
 public sealed record LibraryAssetDocument : AIAssetDocument
 {
     private readonly StructuralReadOnlyList<AIAssetReferenceDocument> members;
@@ -13,9 +14,9 @@ public sealed record LibraryAssetDocument : AIAssetDocument
         AIAssetIdentityDocument identity,
         AIAssetMetadataDocument metadata,
         AIAssetLifecycleDocument lifecycle,
-        IEnumerable<AIAssetReferenceDocument>? members,
-        IEnumerable<AIAssetReferenceDocument>? references,
-        IEnumerable<AIAssetDependencyDocument>? dependencies)
+        IEnumerable<AIAssetReferenceDocument>? members = null,
+        IEnumerable<AIAssetReferenceDocument>? references = null,
+        IEnumerable<AIAssetDependencyDocument>? dependencies = null)
         : base(
             schemaVersion,
             AIAssetDocumentType.Library,
@@ -28,6 +29,8 @@ public sealed record LibraryAssetDocument : AIAssetDocument
         this.members = new StructuralReadOnlyList<AIAssetReferenceDocument>(members);
     }
 
-    public IReadOnlyList<AIAssetReferenceDocument> Members
-        => members;
+    /// <summary>
+    /// Ordered semantic membership owned by the Library.
+    /// </summary>
+    public IReadOnlyList<AIAssetReferenceDocument> Members => members;
 }
