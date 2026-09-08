@@ -126,7 +126,7 @@ public sealed class LibraryAssetDocumentMapperTests
             source.Lifecycle,
             source.Members,
             references: [],
-            source.Dependencies);
+            dependencies: source.Dependencies);
 
         var reconstructed = mapper.FromDocument(corruptedEnvelope)
             .Should().BeOfType<LibraryAsset>().Subject;
