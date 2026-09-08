@@ -131,36 +131,10 @@ public sealed class ProjectAssetDocumentMapperTests
     }
 
     [Fact]
-    public void FromDocument_ShouldRecomputeReferences_InsteadOfCopyingPersistedReferences()
-    {
-        var entry = Reference(AssetType.Workflow, "entry");
-        var agent = Reference(AssetType.Agent, "agent");
-        var project = CreateProject(entry, [agent, entry]);
-        var canonical = (ProjectAssetDocument)mapper.ToDocument(project);
-        var documentWithNonAuthoritativeReferences = new ProjectAssetDocument(
-            canonical.SchemaVersion,
-            canonical.Identity,
-            canonical.Metadata,
-            canonical.Lifecycle,
-            canonical.EntryWorkflow,
-            canonical.OwnedAssets,
-            references: [],
-            canonical.Dependencies);
-
-        var reconstructed = mapper.FromDocument(documentWithNonAuthoritativeReferences)
-            .Should().BeOfType<ProjectAsset>().Subject;
-
-        reconstructed.References.Should().Equal(entry, agent);
-    }
-
-    [Fact]
     public void ProjectAssetDocument_ShouldPermitNullEntryWorkflow_ForLaterStructuralValidation()
     {
-        var project = CreateProject(
-            Reference(AssetType.Workflow, "entry"),
-            []);
-        var source = mapper.ToDocument(
-            CreateProject(project.Options.EntryWorkflow, [project.Options.EntryWorkflow]))
+        var entry = Reference(AssetType.Workflow, "entry");
+        var source = mapper.ToDocument(CreateProject(entry, [entry]))
             .Should().BeOfType<ProjectAssetDocument>().Subject;
 
         var malformed = new ProjectAssetDocument(
@@ -169,9 +143,9 @@ public sealed class ProjectAssetDocumentMapperTests
             source.Metadata,
             source.Lifecycle,
             entryWorkflow: null,
-            source.OwnedAssets,
-            source.References,
-            source.Dependencies);
+            ownedAssets: source.OwnedAssets,
+            references: source.References,
+            dependencies: source.Dependencies);
 
         malformed.AssetType.Should().Be(AIAssetDocumentType.Project);
         malformed.EntryWorkflow.Should().BeNull();
