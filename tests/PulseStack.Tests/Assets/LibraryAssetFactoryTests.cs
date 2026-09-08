@@ -76,6 +76,21 @@ public sealed class LibraryAssetFactoryTests
         library.References.Should().Equal(member);
     }
 
+    [Fact]
+    public void Create_ShouldAllowExternalLibraryDependency()
+    {
+        var member = Reference(AssetType.Agent, "member");
+        var externalLibrary = Reference(AssetType.Library, "external-library");
+
+        var library = Create(
+            [member],
+            [new AssetDependency(externalLibrary)]);
+
+        library.Dependencies.Should().ContainSingle();
+        library.Dependencies.Single().Reference.Should().Be(externalLibrary);
+        library.References.Should().Equal(member);
+    }
+
     [Theory]
     [InlineData(AssetType.Workflow)]
     [InlineData(AssetType.Agent)]
