@@ -80,7 +80,8 @@ public sealed class ProjectAssetDocumentMapperTests
         reconstructed.Id.Should().Be(original.Id);
         reconstructed.Urn.Should().Be(original.Urn);
         reconstructed.Version.Should().Be(new AssetVersion("2.3.0"));
-        reconstructed.Metadata.Should().Be(original.Metadata);
+        reconstructed.Metadata.Name.Should().Be(original.Metadata.Name);
+        reconstructed.Metadata.Description.Should().Be(original.Metadata.Description);
         reconstructed.Metadata.Author.Should().Be("PulseStackAI Team");
         reconstructed.Metadata.Category.Should().Be("Application");
         reconstructed.Metadata.Tags.Should().Equal("factory", "intelligence");
