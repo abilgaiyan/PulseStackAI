@@ -13,12 +13,13 @@ public sealed class ConditionBindingResolverTests
     public void Resolve_ShouldBindNamedCondition()
     {
         var condition = new StubCondition("requires-approval");
-        var resolver = new ConditionBindingResolver(
+        var catalog = new ConditionBindingCatalog(
         [
             new ConditionBindingRegistration(
                 "requires-approval",
                 condition)
         ]);
+        var resolver = new ConditionBindingResolver(catalog);
 
         var result = resolver.Resolve(
             new NamedConditionDefinition
@@ -32,7 +33,8 @@ public sealed class ConditionBindingResolverTests
     [Fact]
     public void Resolve_ShouldRejectUnregisteredCondition()
     {
-        var resolver = new ConditionBindingResolver([]);
+        var catalog = new ConditionBindingCatalog([]);
+        var resolver = new ConditionBindingResolver(catalog);
 
         var action = () => resolver.Resolve(
             new NamedConditionDefinition
