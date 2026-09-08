@@ -69,6 +69,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<MemoryAssetFactory>();
         services.TryAddSingleton<PolicyAssetFactory>();
         services.TryAddSingleton<WorkflowAssetFactory>();
+        services.TryAddSingleton<ProjectAssetFactory>();
         services.TryAddSingleton<IChatClientFactoryRegistry>(sp =>
             new ChatClientFactoryRegistry(
                 sp.GetServices<ChatClientFactoryRegistration>()));
