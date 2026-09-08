@@ -207,10 +207,19 @@ public sealed class WorkflowGraphValidatorTests
         var catalog = new StubCatalog(_ => agent);
         var validator = CreateValidator(catalog: catalog);
 
+        // Author a valid Workflow first because WorkflowReferenceProjection correctly
+        // rejects conflicting URNs at construction time. Then corrupt the detached
+        // step snapshot to prove the readiness validator's defensive invariant.
         var workflow = CreateWorkflow([
             Run(agent),
-            new RunStepDefinition { Id = WorkflowStepId.New(), Agent = conflicting }
+            Run(agent)
         ]);
+        var steps = (WorkflowStepDefinition[])workflow.Options.Steps;
+        steps[1] = new RunStepDefinition
+        {
+            Id = WorkflowStepId.New(),
+            Agent = conflicting
+        };
 
         var result = await validator.ValidateAsync(workflow);
 
