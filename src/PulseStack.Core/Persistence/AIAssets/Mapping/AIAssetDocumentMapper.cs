@@ -22,6 +22,10 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
         {
             canonicalReferences = EnsureCanonicalProjectReferences(projectAsset);
         }
+        else if (asset is LibraryAsset libraryAsset)
+        {
+            canonicalReferences = EnsureCanonicalLibraryReferences(libraryAsset);
+        }
 
         var identity = new AIAssetIdentityDocument
         {
@@ -116,6 +120,15 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
                 references,
                 dependencies),
 
+            LibraryAsset library => new LibraryAssetDocument(
+                AIAssetSchemaVersion.V1,
+                identity,
+                metadata,
+                lifecycle,
+                library.Options.Members.Select(ToDocument),
+                references,
+                dependencies),
+
             _ => throw new NotSupportedException(
                 $"Asset type '{asset.Type}' is not supported by the foundation Asset document mapper.")
         };
@@ -152,9 +165,7 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
                 new PromptAssetOptions
                 {
                     Name = Require(metadata.Name, "Prompt name"),
-                    SystemInstructions = Require(
-                        prompt.SystemInstructions,
-                        "Prompt system instructions")
+                    SystemInstructions = Require(prompt.SystemInstructions, "Prompt system instructions")
                 }),
 
             ToolAssetDocument => FoundationAssetRehydrator.RehydrateTool(
@@ -275,6 +286,20 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
                     OwnedAssets = project.OwnedAssets.Select(FromDocument).ToArray()
                 }),
 
+            LibraryAssetDocument library => LibraryAssetRehydrator.Rehydrate(
+                id,
+                urn,
+                version,
+                metadata,
+                lifecycle,
+                dependencies,
+                new LibraryAssetOptions
+                {
+                    Name = Require(metadata.Name, "Library name"),
+                    Description = metadata.Description ?? string.Empty,
+                    Members = library.Members.Select(FromDocument).ToArray()
+                }),
+
             _ => throw new NotSupportedException(
                 $"Document type '{document.AssetType}' is not supported by the foundation Asset document mapper.")
         };
@@ -356,11 +381,15 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
                 EnsureEqual(project.Type, "Name", project.Options.Name, asset.Metadata.Name);
                 EnsureEqual(project.Type, "Description", project.Options.Description, asset.Metadata.Description);
                 break;
+
+            case LibraryAsset library:
+                EnsureEqual(library.Type, "Name", library.Options.Name, asset.Metadata.Name);
+                EnsureEqual(library.Type, "Description", library.Options.Description, asset.Metadata.Description);
+                break;
         }
     }
 
-    private static IReadOnlyList<AssetReference> EnsureCanonicalWorkflowReferences(
-        WorkflowAsset workflow)
+    private static IReadOnlyList<AssetReference> EnsureCanonicalWorkflowReferences(WorkflowAsset workflow)
     {
         var projected = WorkflowReferenceProjection.Create(workflow.Options.Steps);
 
@@ -373,8 +402,7 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
         return projected;
     }
 
-    private static IReadOnlyCollection<AssetReference> EnsureCanonicalProjectReferences(
-        ProjectAsset project)
+    private static IReadOnlyCollection<AssetReference> EnsureCanonicalProjectReferences(ProjectAsset project)
     {
         var projected = ProjectReferenceProjection.Create(
             project.Options.EntryWorkflow,
@@ -384,6 +412,19 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
         {
             throw new InvalidOperationException(
                 "Project Asset References do not match the canonical ownership projection.");
+        }
+
+        return projected;
+    }
+
+    private static IReadOnlyCollection<AssetReference> EnsureCanonicalLibraryReferences(LibraryAsset library)
+    {
+        var projected = LibraryReferenceProjection.Create(library.Options.Members);
+
+        if (!projected.SequenceEqual(library.References))
+        {
+            throw new InvalidOperationException(
+                "Library Asset References do not match the canonical membership projection.");
         }
 
         return projected;
