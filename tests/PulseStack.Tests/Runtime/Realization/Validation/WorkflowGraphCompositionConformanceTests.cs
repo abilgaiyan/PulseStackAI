@@ -1,10 +1,14 @@
 using System.Reflection;
 using FluentAssertions;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using PulseStack.Abstractions.Assets;
+using PulseStack.Abstractions.Chat;
+using PulseStack.Abstractions.Models;
 using PulseStack.Abstractions.Persistence.AIAssets.Documents.Workflows;
 using PulseStack.Abstractions.Persistence.AIAssets.Mapping;
 using PulseStack.Abstractions.Persistence.AIAssets.Validation;
+using PulseStack.Abstractions.Providers;
 using PulseStack.Abstractions.Runtime.Realization.Binding;
 using PulseStack.Abstractions.Runtime.Realization.Composition;
 using PulseStack.Abstractions.Runtime.Realization.Resolution;
@@ -12,6 +16,7 @@ using PulseStack.Abstractions.Runtime.Realization.Validation;
 using PulseStack.Abstractions.Workflows;
 using PulseStack.Abstractions.Workflows.Conditions;
 using PulseStack.Abstractions.Workflows.Definitions;
+using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Agents.DependencyInjection;
 using PulseStack.Core.Assets;
 using PulseStack.Core.DependencyInjection;
@@ -65,6 +70,70 @@ public sealed class WorkflowGraphCompositionConformanceTests
 
         runtime.Should().NotBeNull();
         condition.EvaluationCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ReconstructedRunDocument_ShouldValidateNestedAgentGraphAndComposeRuntimeRunStepWithoutExecution()
+    {
+        var chatClient = new TrackingChatClient();
+        var model = CreateModelAsset();
+        var agent = new AgentDefinitionFactory().Create(
+            new AgentDefinitionOptions
+            {
+                Name = "handoff-agent",
+                Goal = "Prove Workflow to Agent realization handoff",
+                Role = "Conformance worker",
+                Model = Reference(model)
+            });
+
+        var services = new ServiceCollection();
+        services.AddSingleton<IProviderResolver>(new StubProviderResolver(chatClient));
+        services.AddSingleton<IAsset>(model);
+        services.AddSingleton<IAsset>(agent);
+        services.AddPulseStack();
+        services.AddPulseStackAgents();
+
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+
+        var mapper = scope.ServiceProvider.GetRequiredService<IAIAssetDocumentMapper>();
+        var documentValidator = scope.ServiceProvider.GetRequiredService<IAIAssetDocumentValidator>();
+        var graphValidator = scope.ServiceProvider.GetRequiredService<IWorkflowGraphValidator>();
+        var agentValidator = scope.ServiceProvider.GetRequiredService<IAgentGraphValidator>();
+        var composer = scope.ServiceProvider.GetRequiredService<IWorkflowComposer>();
+
+        var authored = CreateWorkflow([
+            new RunStepDefinition
+            {
+                Id = WorkflowStepId.New(),
+                Agent = Reference(agent)
+            }
+        ]);
+        var document = mapper.ToDocument(authored)
+            .Should().BeOfType<WorkflowAssetDocument>().Subject;
+        document.Steps.Should().ContainSingle()
+            .Which.Should().BeOfType<RunStepDocument>();
+
+        var structural = await documentValidator.ValidateAsync(document);
+        structural.IsValid.Should().BeTrue();
+
+        var reconstructed = mapper.FromDocument(document)
+            .Should().BeOfType<WorkflowAsset>().Subject;
+        reconstructed.Options.Steps.Should().ContainSingle()
+            .Which.Should().BeOfType<RunStepDefinition>();
+
+        var nestedAgentReadiness = await agentValidator.ValidateAsync(agent);
+        nestedAgentReadiness.IsValid.Should().BeTrue();
+
+        var readiness = await graphValidator.ValidateAsync(reconstructed);
+        readiness.IsValid.Should().BeTrue();
+
+        var runtime = await composer.ComposeAsync(reconstructed);
+
+        runtime.Should().NotBeNull();
+        runtime.Steps.Should().ContainSingle()
+            .Which.Should().BeOfType<RunStep>();
+        chatClient.InvocationCount.Should().Be(0);
     }
 
     [Fact]
@@ -245,6 +314,16 @@ public sealed class WorkflowGraphCompositionConformanceTests
             Steps = []
         };
 
+    private static AssetReference Reference(IAsset asset)
+        => new(asset.Type, asset.Id, asset.Urn, asset.Version);
+
+    private static ModelAsset CreateModelAsset()
+    {
+        var catalog = new StubModelCatalog();
+        var factory = new ModelAssetFactory(catalog);
+        return factory.Create(new ModelAssetOptions("Stub", "stub-model"));
+    }
+
     private static T GetField<T>(object instance, string name)
         where T : class
         => (T)(instance.GetType()
@@ -278,6 +357,74 @@ public sealed class WorkflowGraphCompositionConformanceTests
         {
             ComposeCount++;
             throw new InvalidOperationException("Invalid Workflow must not reach composition.");
+        }
+    }
+
+    private sealed class StubModelCatalog : IModelCatalog
+    {
+        public IReadOnlyCollection<ProviderModelDescriptor> GetModels()
+            => [new ProviderModelDescriptor("Stub", "stub-model")];
+
+        public bool Contains(string provider, string model)
+            => provider == "Stub" && model == "stub-model";
+    }
+
+    private sealed class StubProviderResolver(IChatClient client) : IProviderResolver
+    {
+        private readonly IChatClientFactory _factory = new StubChatClientFactory(client);
+
+        public IChatClientFactory Resolve(string provider)
+        {
+            if (provider != "Stub")
+            {
+                throw new InvalidOperationException($"Unexpected provider '{provider}'.");
+            }
+
+            return _factory;
+        }
+    }
+
+    private sealed class StubChatClientFactory(IChatClient client) : IChatClientFactory
+    {
+        public IChatClient Create(string model)
+        {
+            if (model != "stub-model")
+            {
+                throw new InvalidOperationException($"Unexpected model '{model}'.");
+            }
+
+            return client;
+        }
+    }
+
+    private sealed class TrackingChatClient : IChatClient
+    {
+        public int InvocationCount { get; private set; }
+
+        public Task<ChatResponse> GetResponseAsync(
+            IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null,
+            CancellationToken cancellationToken = default)
+        {
+            InvocationCount++;
+            throw new InvalidOperationException("Chat client must not be invoked during composition conformance.");
+        }
+
+        public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+            IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null,
+            [System.Runtime.CompilerServices.EnumeratorCancellation]
+            CancellationToken cancellationToken = default)
+        {
+            InvocationCount++;
+            await Task.CompletedTask;
+            yield break;
+        }
+
+        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+
+        public void Dispose()
+        {
         }
     }
 }
