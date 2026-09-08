@@ -102,6 +102,7 @@ public static class ServiceCollectionExtensions
         services.TryAddScoped<IAssetDefinitionCatalog>(sp =>
             sp.GetRequiredService<InMemoryAssetResolver>());
         services.TryAddScoped<IAgentGraphValidator, AgentGraphValidator>();
+        services.TryAddScoped<IWorkflowGraphValidator, WorkflowGraphValidator>();
 
         return services;
     }
