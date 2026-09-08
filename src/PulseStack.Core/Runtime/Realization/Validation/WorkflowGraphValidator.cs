@@ -33,17 +33,19 @@ public sealed class WorkflowGraphValidator(
         var agents = new Dictionary<AssetDefinitionKey, CachedAgentReference>();
         var conditions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        for (var index = 0; index < workflow.Options.Steps.Count; index++)
+        var index = 0;
+        foreach (var step in workflow.Options.Steps)
         {
             cancellationToken.ThrowIfCancellationRequested();
             await ValidateStepAsync(
-                    workflow.Options.Steps[index],
+                    step,
                     $"$.steps[{index}]",
                     agents,
                     conditions,
                     errors,
                     cancellationToken)
                 .ConfigureAwait(false);
+            index++;
         }
 
         return new WorkflowGraphValidationResult(errors);
@@ -200,7 +202,7 @@ public sealed class WorkflowGraphValidator(
             return;
         }
 
-        agents.Add(key, new CachedAgentReference(reference.Urn, path));
+        agents.Add(key, new CachedAgentReference(reference.Urn));
 
         cancellationToken.ThrowIfCancellationRequested();
         var asset = await _assetCatalog.FindAsync(key, cancellationToken)
@@ -286,7 +288,5 @@ public sealed class WorkflowGraphValidator(
         }
     }
 
-    private sealed record CachedAgentReference(
-        AssetUrn Urn,
-        string FirstPath);
+    private sealed record CachedAgentReference(AssetUrn Urn);
 }
