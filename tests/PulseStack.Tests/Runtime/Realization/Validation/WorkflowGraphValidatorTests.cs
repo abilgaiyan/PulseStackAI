@@ -75,13 +75,10 @@ public sealed class WorkflowGraphValidatorTests
     public async Task ValidateAsync_ShouldReturnOnlyWfg002_WhenCatalogUrnDoesNotMatch()
     {
         var requested = CreateAgent();
-        var returned = AgentDefinitionRehydrator.Rehydrate(
-            requested,
-            requested.Version,
-            requested.Metadata,
-            requested.Lifecycle,
-            requested.Dependencies,
-            new AssetUrn($"{requested.Urn}:other"));
+        var returned = requested with
+        {
+            Urn = new AssetUrn($"{requested.Urn}:other")
+        };
         var validator = CreateValidator(catalog: new StubCatalog(_ => returned));
 
         var result = await validator.ValidateAsync(CreateWorkflow([Run(requested)]));
@@ -179,13 +176,10 @@ public sealed class WorkflowGraphValidatorTests
     public async Task ValidateAsync_ShouldValidateDifferentAgentVersionsIndependently()
     {
         var first = CreateAgent();
-        var second = AgentDefinitionRehydrator.Rehydrate(
-            first,
-            new AssetVersion("2.0.0"),
-            first.Metadata,
-            first.Lifecycle,
-            first.Dependencies,
-            first.Urn);
+        var second = first with
+        {
+            Version = new AssetVersion("2.0.0")
+        };
         var catalog = new StubCatalog(key => key.Version == first.Version ? first : second);
         var agentValidator = new StubAgentValidator(_ => AgentGraphValidationResult.Success());
         var validator = CreateValidator(catalog, agentValidator);
