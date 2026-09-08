@@ -120,6 +120,25 @@ public sealed class ProjectAssetDocumentValidationTests
     }
 
     [Fact]
+    public async Task ValidateAsync_ShouldReportMalformedEnvelopeReferenceAndProjectionMismatchTogether()
+    {
+        var entry = Reference(AIAssetDocumentType.Workflow);
+        var malformed = Reference(AIAssetDocumentType.Agent, assetId: "not-a-guid");
+
+        var result = await validator.ValidateAsync(CreateProject(
+            entry: entry,
+            owned: [entry],
+            references: [entry, malformed]));
+
+        result.Errors.Should().ContainSingle(e =>
+            e.Code == AIAssetDocumentValidationCodes.InvalidReferenceAssetId
+            && e.Path == "$.references[1].assetId");
+        result.Errors.Should().ContainSingle(e =>
+            e.Code == AIAssetDocumentValidationCodes.ProjectReferenceProjectionMismatch
+            && e.Path == "$.references");
+    }
+
+    [Fact]
     public async Task ValidateAsync_ShouldHonorCancellationDuringOwnedTraversal()
     {
         using var source = new CancellationTokenSource();
