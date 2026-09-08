@@ -137,22 +137,23 @@ public sealed class WorkflowMappingConformanceTests
 
         Flatten(source.Options.Steps).Select(step => step.Id)
             .Should().Equal(Flatten(restored.Options.Steps).Select(step => step.Id));
-        Flatten(restored.Options.Steps).Select(step => step.GetType())
-            .Should().Contain([
-                typeof(RunStepDefinition),
-                typeof(ParallelStepDefinition),
-                typeof(ConditionalStepDefinition),
-                typeof(RetryStepDefinition),
-                typeof(LoopStepDefinition),
-                typeof(SwitchStepDefinition)
-            ]);
+        var reconstructedTypes = Flatten(restored.Options.Steps)
+            .Select(step => step.GetType())
+            .ToArray();
+        reconstructedTypes.Should().Contain(typeof(RunStepDefinition));
+        reconstructedTypes.Should().Contain(typeof(ParallelStepDefinition));
+        reconstructedTypes.Should().Contain(typeof(ConditionalStepDefinition));
+        reconstructedTypes.Should().Contain(typeof(RetryStepDefinition));
+        reconstructedTypes.Should().Contain(typeof(LoopStepDefinition));
+        reconstructedTypes.Should().Contain(typeof(SwitchStepDefinition));
 
         restored.References.Should().Equal(agentV2, agentV1);
-        restored.References[0].Type.Should().Be(AssetType.Agent);
-        restored.References[0].Id.Should().Be(agentV2.Id);
-        restored.References[0].Urn.Should().Be(agentV2.Urn);
-        restored.References[0].Version.Should().Be(agentV2.Version);
-        restored.References[1].Version.Should().Be(agentV1.Version);
+        var restoredReferences = restored.References.ToArray();
+        restoredReferences[0].Type.Should().Be(AssetType.Agent);
+        restoredReferences[0].Id.Should().Be(agentV2.Id);
+        restoredReferences[0].Urn.Should().Be(agentV2.Urn);
+        restoredReferences[0].Version.Should().Be(agentV2.Version);
+        restoredReferences[1].Version.Should().Be(agentV1.Version);
 
         var restoredRoot = restored.Options.Steps.Single()
             .Should().BeOfType<ParallelStepDefinition>().Subject;
