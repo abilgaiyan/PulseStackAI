@@ -13,6 +13,22 @@ public sealed record PackageAsset : Asset
         AssetUrn urn,
         PackageAssetOptions options,
         IReadOnlyList<AssetDependency>? dependencies = null)
+        : this(
+            id,
+            urn,
+            AssetVersion.Initial,
+            options,
+            dependencies)
+    {
+    }
+
+    [SetsRequiredMembers]
+    internal PackageAsset(
+        AssetId id,
+        AssetUrn urn,
+        AssetVersion version,
+        PackageAssetOptions options,
+        IReadOnlyList<AssetDependency>? dependencies = null)
         : base(AssetType.Package)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -22,7 +38,7 @@ public sealed record PackageAsset : Asset
         var packageKey = new AssetDefinitionKey(
             AssetType.Package,
             id,
-            AssetVersion.Initial);
+            version);
         var references = PackageReferenceProjection.Create(
             packageKey,
             members,
@@ -35,7 +51,7 @@ public sealed record PackageAsset : Asset
 
         Id = id;
         Urn = urn;
-        Version = AssetVersion.Initial;
+        Version = version;
         Metadata = new AssetMetadata
         {
             Name = normalized.Name,
