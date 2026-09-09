@@ -55,11 +55,13 @@ public sealed class AIAssetDocumentValidator : IAIAssetDocumentValidator
             AgentAssetDocument => AIAssetDocumentType.Agent,
             WorkflowAssetDocument => AIAssetDocumentType.Workflow,
             ProjectAssetDocument => AIAssetDocumentType.Project,
+            LibraryAssetDocument => AIAssetDocumentType.Library,
             _ => default
         };
 
         return document is PromptAssetDocument or ToolAssetDocument or KnowledgeAssetDocument or MemoryAssetDocument
-            or PolicyAssetDocument or ModelAssetDocument or AgentAssetDocument or WorkflowAssetDocument or ProjectAssetDocument;
+            or PolicyAssetDocument or ModelAssetDocument or AgentAssetDocument or WorkflowAssetDocument
+            or ProjectAssetDocument or LibraryAssetDocument;
     }
 
     private static void ValidateIdentity(AIAssetIdentityDocument? identity, ICollection<AIAssetDocumentValidationError> errors)
@@ -171,6 +173,9 @@ public sealed class AIAssetDocumentValidator : IAIAssetDocumentValidator
                 break;
             case ProjectAssetDocument project:
                 ValidateProject(project, errors, cancellationToken);
+                break;
+            case LibraryAssetDocument library:
+                ValidateLibrary(library, errors, cancellationToken);
                 break;
         }
     }
@@ -297,7 +302,79 @@ public sealed class AIAssetDocumentValidator : IAIAssetDocumentValidator
             AddError(errors, AIAssetDocumentValidationCodes.ProjectReferenceProjectionMismatch, "Project envelope references must exactly match the canonical ownership projection.", "$.references");
     }
 
+    private static void ValidateLibrary(LibraryAssetDocument library, ICollection<AIAssetDocumentValidationError> errors, CancellationToken cancellationToken)
+    {
+        var membersByKey = new Dictionary<ReferenceKey, AIAssetReferenceDocument>();
+        var validMembers = new List<AIAssetReferenceDocument>();
+        var membershipProjectionSourceValid = true;
+
+        for (var index = 0; index < library.Members.Count; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var member = library.Members[index];
+            var path = $"$.members[{index}]";
+
+            if (member is null)
+            {
+                AddError(errors, AIAssetDocumentValidationCodes.MissingLibraryMember, "The Library member reference is required.", path);
+                membershipProjectionSourceValid = false;
+                continue;
+            }
+
+            ValidateReference(member, path, errors);
+            if (!IsStructurallyUsableReference(member))
+            {
+                membershipProjectionSourceValid = false;
+                continue;
+            }
+
+            if (!IsAllowedLibraryMemberType(member.AssetType))
+            {
+                AddError(errors, AIAssetDocumentValidationCodes.InvalidLibraryMemberType, "The Library member reference targets an Asset type that cannot be owned by a Library.", $"{path}.assetType");
+                membershipProjectionSourceValid = false;
+                continue;
+            }
+
+            var key = CreateReferenceKey(member);
+            if (membersByKey.TryGetValue(key, out var first))
+            {
+                if (string.Equals(first.Urn, member.Urn, StringComparison.Ordinal))
+                    AddError(errors, AIAssetDocumentValidationCodes.DuplicateLibraryMember, "The Library contains a duplicate member Asset definition.", path);
+                else
+                    AddError(errors, AIAssetDocumentValidationCodes.ConflictingLibraryMemberUrn, "The Library contains member Asset references with the same definition identity but conflicting URNs.", $"{path}.urn");
+
+                membershipProjectionSourceValid = false;
+                continue;
+            }
+
+            membersByKey.Add(key, member);
+            validMembers.Add(member);
+        }
+
+        var memberKeys = validMembers.Select(CreateReferenceKey).ToHashSet();
+        for (var index = 0; index < library.Dependencies.Count; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var dependency = library.Dependencies[index];
+            if (dependency?.Reference is not { } reference || !IsStructurallyUsableReference(reference))
+                continue;
+
+            if (memberKeys.Contains(CreateReferenceKey(reference)))
+                AddError(errors, AIAssetDocumentValidationCodes.LibraryMemberDependencyOverlap, "A Library member Asset cannot also be declared as an external dependency.", $"$.dependencies[{index}].reference");
+        }
+
+        if (!membershipProjectionSourceValid)
+            return;
+
+        if (!library.References.SequenceEqual(validMembers))
+            AddError(errors, AIAssetDocumentValidationCodes.LibraryReferenceProjectionMismatch, "Library envelope references must exactly match the canonical authored Members sequence.", "$.references");
+    }
+
     private static bool IsAllowedProjectOwnedType(AIAssetDocumentType type) => type is
+        AIAssetDocumentType.Workflow or AIAssetDocumentType.Agent or AIAssetDocumentType.Prompt or AIAssetDocumentType.Tool
+        or AIAssetDocumentType.Knowledge or AIAssetDocumentType.Memory or AIAssetDocumentType.Policy or AIAssetDocumentType.Model;
+
+    private static bool IsAllowedLibraryMemberType(AIAssetDocumentType type) => type is
         AIAssetDocumentType.Workflow or AIAssetDocumentType.Agent or AIAssetDocumentType.Prompt or AIAssetDocumentType.Tool
         or AIAssetDocumentType.Knowledge or AIAssetDocumentType.Memory or AIAssetDocumentType.Policy or AIAssetDocumentType.Model;
 
