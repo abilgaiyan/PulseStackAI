@@ -20,7 +20,11 @@ public sealed class AIAssetDocumentValidator : IAIAssetDocumentValidator
         ValidateIdentity(document.Identity, errors);
         ValidateMetadata(document.Metadata, errors);
         ValidateReferences(document.References, errors, cancellationToken);
-        ValidateDependencies(document.Dependencies, errors, cancellationToken);
+        ValidateDependencies(
+            document.Dependencies,
+            errors,
+            cancellationToken,
+            classifyDuplicates: document is not PackageAssetDocument);
         ValidateAssetPayload(document, errors, cancellationToken);
 
         return ValueTask.FromResult(new AIAssetDocumentValidationResult(errors));
@@ -56,12 +60,13 @@ public sealed class AIAssetDocumentValidator : IAIAssetDocumentValidator
             WorkflowAssetDocument => AIAssetDocumentType.Workflow,
             ProjectAssetDocument => AIAssetDocumentType.Project,
             LibraryAssetDocument => AIAssetDocumentType.Library,
+            PackageAssetDocument => AIAssetDocumentType.Package,
             _ => default
         };
 
         return document is PromptAssetDocument or ToolAssetDocument or KnowledgeAssetDocument or MemoryAssetDocument
             or PolicyAssetDocument or ModelAssetDocument or AgentAssetDocument or WorkflowAssetDocument
-            or ProjectAssetDocument or LibraryAssetDocument;
+            or ProjectAssetDocument or LibraryAssetDocument or PackageAssetDocument;
     }
 
     private static void ValidateIdentity(AIAssetIdentityDocument? identity, ICollection<AIAssetDocumentValidationError> errors)
@@ -112,7 +117,11 @@ public sealed class AIAssetDocumentValidator : IAIAssetDocumentValidator
         }
     }
 
-    private static void ValidateDependencies(IReadOnlyList<AIAssetDependencyDocument> dependencies, ICollection<AIAssetDocumentValidationError> errors, CancellationToken cancellationToken)
+    private static void ValidateDependencies(
+        IReadOnlyList<AIAssetDependencyDocument> dependencies,
+        ICollection<AIAssetDocumentValidationError> errors,
+        CancellationToken cancellationToken,
+        bool classifyDuplicates)
     {
         var seen = new HashSet<ReferenceKey>();
         for (var index = 0; index < dependencies.Count; index++)
@@ -131,8 +140,12 @@ public sealed class AIAssetDocumentValidator : IAIAssetDocumentValidator
                 continue;
             }
             ValidateReference(dependency.Reference, $"{path}.reference", errors);
-            if (TryCreateReferenceKey(dependency.Reference, out var key) && !seen.Add(key))
+            if (classifyDuplicates
+                && TryCreateReferenceKey(dependency.Reference, out var key)
+                && !seen.Add(key))
+            {
                 AddError(errors, AIAssetDocumentValidationCodes.DuplicateDependency, "The AI Asset document contains a duplicate dependency.", path);
+            }
         }
     }
 
@@ -176,6 +189,9 @@ public sealed class AIAssetDocumentValidator : IAIAssetDocumentValidator
                 break;
             case LibraryAssetDocument library:
                 ValidateLibrary(library, errors, cancellationToken);
+                break;
+            case PackageAssetDocument package:
+                PackageDocumentStructuralValidator.Validate(package, errors, cancellationToken);
                 break;
         }
     }
