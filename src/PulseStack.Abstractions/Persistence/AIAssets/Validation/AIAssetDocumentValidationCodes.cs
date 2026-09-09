@@ -93,4 +93,16 @@ public static class AIAssetDocumentValidationCodes
     public const string ConflictingLibraryMemberUrn = "AD1220";
     public const string LibraryMemberDependencyOverlap = "AD1230";
     public const string LibraryReferenceProjectionMismatch = "AD1240";
+
+    public const string EmptyPackageMembers = "AD1250";
+    public const string MissingPackageMember = "AD1260";
+    public const string DuplicatePackageMember = "AD1270";
+    public const string ConflictingPackageMemberUrn = "AD1280";
+    public const string DirectSelfPackageMember = "AD1290";
+    public const string ConflictingPackageDependencyUrn = "AD1300";
+    public const string ConflictingPackageDependencyRequiredness = "AD1310";
+    public const string DirectSelfPackageDependency = "AD1320";
+    public const string PackageMemberDependencyBoundaryContradiction = "AD1330";
+    public const string PackageMemberDependencyUrnConflict = "AD1340";
+    public const string PackageReferenceProjectionMismatch = "AD1350";
 }
