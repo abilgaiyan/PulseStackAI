@@ -1,6 +1,8 @@
 using FluentAssertions;
 using PulseStack.Abstractions.Assets;
 using PulseStack.Core.Assets;
+using System.Reflection;
+using System.Runtime.ExceptionServices;
 using Xunit;
 
 namespace PulseStack.Tests.Assets;
@@ -171,7 +173,69 @@ public sealed class PackageAssetFactoryTests
         var action = () => Create([agent], [new AssetDependency(alias)]);
 
         action.Should().Throw<InvalidOperationException>()
-            .WithMessage("*members*external dependencies*");
+            .WithMessage("*member and dependency*conflicting URNs*");
+    }
+
+    [Fact]
+    public void Create_ShouldRejectDirectSelfMember()
+    {
+        var id = AssetId.New();
+        var self = PackageReference(id);
+
+        var action = () => CreateWithIdentity(id, [self]);
+
+        action.Should().Throw<InvalidOperationException>()
+            .WithMessage("*cannot include itself*");
+    }
+
+    [Fact]
+    public void Create_ShouldRejectDirectSelfDependency()
+    {
+        var id = AssetId.New();
+        var self = PackageReference(id);
+
+        var action = () => CreateWithIdentity(
+            id,
+            [Reference(AssetType.Agent, "member")],
+            [new AssetDependency(self)]);
+
+        action.Should().Throw<InvalidOperationException>()
+            .WithMessage("*cannot depend on itself*");
+    }
+
+    [Fact]
+    public void Create_ShouldAllowSamePackageIdentityAtDifferentVersion()
+    {
+        var id = AssetId.New();
+        var otherVersion = Reference(
+            AssetType.Package,
+            "other-version",
+            id,
+            new AssetVersion("2.0.0"));
+
+        var package = CreateWithIdentity(id, [otherVersion]);
+
+        package.Options.Members.Should().ContainSingle().Which.Should().Be(otherVersion);
+        package.References.Should().ContainSingle().Which.Should().Be(otherVersion);
+    }
+
+    [Fact]
+    public void Create_ShouldAllowDependencyWithSamePackageIdentityAtDifferentVersion()
+    {
+        var id = AssetId.New();
+        var otherVersion = Reference(
+            AssetType.Package,
+            "other-version",
+            id,
+            new AssetVersion("2.0.0"));
+
+        var package = CreateWithIdentity(
+            id,
+            [Reference(AssetType.Agent, "member")],
+            [new AssetDependency(otherVersion)]);
+
+        package.Dependencies.Should().ContainSingle()
+            .Which.Reference.Should().Be(otherVersion);
     }
 
     [Fact]
@@ -243,6 +307,38 @@ public sealed class PackageAssetFactoryTests
             dependencies);
     }
 
+    private static PackageAsset CreateWithIdentity(
+        AssetId id,
+        IReadOnlyList<AssetReference> members,
+        IReadOnlyList<AssetDependency>? dependencies = null)
+    {
+        var constructor = typeof(PackageAsset)
+            .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
+            .Single();
+
+        try
+        {
+            return (PackageAsset)constructor.Invoke(
+            [
+                id,
+                new AssetUrn($"urn:pulsestack:package:{id}"),
+                new PackageAssetOptions
+                {
+                    Name = "Portable Intelligence",
+                    Description = "Package identity conformance fixture.",
+                    Members = members
+                },
+                dependencies
+            ]);
+        }
+        catch (TargetInvocationException exception)
+            when (exception.InnerException is not null)
+        {
+            ExceptionDispatchInfo.Capture(exception.InnerException).Throw();
+            throw;
+        }
+    }
+
     private static AssetReference Reference(
         AssetType type,
         string name,
@@ -255,5 +351,14 @@ public sealed class PackageAssetFactoryTests
             assetId,
             new AssetUrn($"urn:pulsestack:{type.ToString().ToLowerInvariant()}:{name}:{assetId}"),
             version ?? AssetVersion.Initial);
+    }
+
+    private static AssetReference PackageReference(AssetId id)
+    {
+        return new AssetReference(
+            AssetType.Package,
+            id,
+            new AssetUrn($"urn:pulsestack:package:{id}"),
+            AssetVersion.Initial);
     }
 }
