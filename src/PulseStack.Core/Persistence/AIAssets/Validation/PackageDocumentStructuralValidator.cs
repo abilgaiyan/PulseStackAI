@@ -1,4 +1,5 @@
 using PulseStack.Abstractions.Persistence.AIAssets.Documents;
+using PulseStack.Abstractions.Persistence.AIAssets.Schema;
 using PulseStack.Abstractions.Persistence.AIAssets.Validation;
 
 namespace PulseStack.Core.Persistence.AIAssets.Validation;
