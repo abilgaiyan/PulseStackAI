@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using PulseStack.Abstractions.Assets;
 using PulseStack.Abstractions.Persistence.AIAssets.Documents;
 using PulseStack.Abstractions.Persistence.AIAssets.Mapping;
+using PulseStack.Abstractions.Persistence.AIAssets.Schema;
 using PulseStack.Abstractions.Persistence.AIAssets.Validation;
 using PulseStack.Core.Assets;
 using PulseStack.Core.DependencyInjection;
