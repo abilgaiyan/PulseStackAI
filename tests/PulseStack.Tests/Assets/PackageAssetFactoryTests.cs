@@ -313,8 +313,19 @@ public sealed class PackageAssetFactoryTests
         IReadOnlyList<AssetDependency>? dependencies = null)
     {
         var constructor = typeof(PackageAsset)
-            .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
-            .Single();
+            .GetConstructor(
+                BindingFlags.Instance | BindingFlags.NonPublic,
+                binder: null,
+                types:
+                [
+                    typeof(AssetId),
+                    typeof(AssetUrn),
+                    typeof(PackageAssetOptions),
+                    typeof(IReadOnlyList<AssetDependency>)
+                ],
+                modifiers: null)
+            ?? throw new InvalidOperationException(
+                "PackageAsset domain constructor was not found.");
 
         try
         {
