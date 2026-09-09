@@ -19,9 +19,14 @@ public sealed record PackageAsset : Asset
 
         var members = options.Members?.ToArray() ?? [];
         var dependencySnapshot = dependencies?.ToArray() ?? [];
-        var references = PackageReferenceProjection.Create(members);
-
-        ValidateDependencies(members, dependencySnapshot);
+        var packageKey = new AssetDefinitionKey(
+            AssetType.Package,
+            id,
+            AssetVersion.Initial);
+        var references = PackageReferenceProjection.Create(
+            packageKey,
+            members,
+            dependencySnapshot);
 
         var normalized = options with
         {
@@ -44,51 +49,4 @@ public sealed record PackageAsset : Asset
     }
 
     public PackageAssetOptions Options { get; }
-
-    private static void ValidateDependencies(
-        IReadOnlyList<AssetReference> members,
-        IReadOnlyList<AssetDependency> dependencies)
-    {
-        var memberKeys = members
-            .Select(AssetDefinitionKey.From)
-            .ToHashSet();
-        var dependenciesByKey = new Dictionary<AssetDefinitionKey, AssetDependency>();
-
-        foreach (var dependency in dependencies)
-        {
-            ArgumentNullException.ThrowIfNull(dependency);
-            ArgumentNullException.ThrowIfNull(dependency.Reference);
-
-            var key = AssetDefinitionKey.From(dependency.Reference);
-
-            if (memberKeys.Contains(key))
-            {
-                throw new InvalidOperationException(
-                    "Package members cannot also be declared as external dependencies.");
-            }
-
-            if (dependenciesByKey.TryGetValue(key, out var existing))
-            {
-                if (!string.Equals(
-                        existing.Reference.Urn.Value,
-                        dependency.Reference.Urn.Value,
-                        StringComparison.Ordinal))
-                {
-                    throw new InvalidOperationException(
-                        $"Package dependency reference '{key}' has conflicting URNs.");
-                }
-
-                if (existing.Required != dependency.Required)
-                {
-                    throw new InvalidOperationException(
-                        $"Package dependency reference '{key}' has conflicting Required values.");
-                }
-
-                throw new InvalidOperationException(
-                    $"Package dependency reference '{key}' is duplicated.");
-            }
-
-            dependenciesByKey.Add(key, dependency);
-        }
-    }
 }
