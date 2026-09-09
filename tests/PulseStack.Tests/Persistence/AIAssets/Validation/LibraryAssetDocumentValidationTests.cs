@@ -1,3 +1,4 @@
+using System.Reflection;
 using FluentAssertions;
 using PulseStack.Abstractions.Persistence.AIAssets.Documents;
 using PulseStack.Abstractions.Persistence.AIAssets.Schema;
@@ -254,30 +255,40 @@ public sealed class LibraryAssetDocumentValidationTests
     }
 
     [Fact]
-    public async Task ValidateAsync_ShouldHonorCancellationDuringMemberTraversal()
+    public void ValidateLibrary_ShouldHonorCancellationDuringMemberTraversal()
     {
+        var document = CreateLibrary(members: [Reference(AIAssetDocumentType.Agent)]);
         using var source = new CancellationTokenSource();
         source.Cancel();
 
-        var action = async () => await validator.ValidateAsync(CreateLibrary(
-            members: [Reference(AIAssetDocumentType.Agent)]), source.Token);
+        var exception = InvokeValidateLibrary(document, source.Token)
+            .Should().Throw<TargetInvocationException>().Which;
 
-        await action.Should().ThrowAsync<OperationCanceledException>();
+        exception.InnerException.Should().BeOfType<OperationCanceledException>();
     }
 
     [Fact]
-    public async Task ValidateAsync_ShouldHonorCancellationDuringLibraryDependencyTraversal()
+    public void ValidateLibrary_ShouldHonorCancellationDuringDependencyTraversal()
     {
-        var member = Reference(AIAssetDocumentType.Agent);
         var document = CreateLibrary(
-            members: [member],
-            references: [member],
             dependencies: [new AIAssetDependencyDocument { Reference = Reference(AIAssetDocumentType.Model) }]);
-        using var source = new CancelAfterFirstEnumerationTokenSource();
+        using var source = new CancellationTokenSource();
+        source.Cancel();
 
-        var action = async () => await validator.ValidateAsync(document, source.Token);
+        var exception = InvokeValidateLibrary(document, source.Token)
+            .Should().Throw<TargetInvocationException>().Which;
 
-        await action.Should().ThrowAsync<OperationCanceledException>();
+        exception.InnerException.Should().BeOfType<OperationCanceledException>();
+    }
+
+    private static Action InvokeValidateLibrary(LibraryAssetDocument document, CancellationToken cancellationToken)
+    {
+        var method = typeof(AIAssetDocumentValidator).GetMethod(
+            "ValidateLibrary",
+            BindingFlags.NonPublic | BindingFlags.Static)!;
+        var errors = new List<AIAssetDocumentValidationError>();
+
+        return () => method.Invoke(null, new object?[] { document, errors, cancellationToken });
     }
 
     private static LibraryAssetDocument CreateLibrary(
@@ -320,20 +331,4 @@ public sealed class LibraryAssetDocumentValidationTests
         Urn = urn ?? source.Urn,
         Version = source.Version
     };
-
-    private sealed class CancelAfterFirstEnumerationTokenSource : IDisposable
-    {
-        private readonly CancellationTokenSource source = new();
-
-        public CancellationToken Token
-        {
-            get
-            {
-                source.Cancel();
-                return source.Token;
-            }
-        }
-
-        public void Dispose() => source.Dispose();
-    }
 }
