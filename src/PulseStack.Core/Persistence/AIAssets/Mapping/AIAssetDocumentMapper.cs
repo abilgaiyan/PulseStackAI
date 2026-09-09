@@ -26,6 +26,10 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
         {
             canonicalReferences = EnsureCanonicalLibraryReferences(libraryAsset);
         }
+        else if (asset is PackageAsset packageAsset)
+        {
+            canonicalReferences = EnsureCanonicalPackageReferences(packageAsset);
+        }
 
         var identity = new AIAssetIdentityDocument
         {
@@ -126,6 +130,15 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
                 metadata,
                 lifecycle,
                 library.Options.Members.Select(ToDocument),
+                references,
+                dependencies),
+
+            PackageAsset package => new PackageAssetDocument(
+                AIAssetSchemaVersion.V1,
+                identity,
+                metadata,
+                lifecycle,
+                package.Options.Members.Select(ToDocument),
                 references,
                 dependencies),
 
@@ -302,6 +315,20 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
                     Members = library.Members.Select(FromDocument).ToArray()
                 }),
 
+            PackageAssetDocument package => PackageAssetRehydrator.Rehydrate(
+                id,
+                urn,
+                version,
+                metadata,
+                lifecycle,
+                dependencies,
+                new PackageAssetOptions
+                {
+                    Name = Require(metadata.Name, "Package name"),
+                    Description = metadata.Description!,
+                    Members = package.Members.Select(FromDocument).ToArray()
+                }),
+
             _ => throw new NotSupportedException(
                 $"Document type '{document.AssetType}' is not supported by the foundation Asset document mapper.")
         };
@@ -388,6 +415,11 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
                 EnsureEqual(library.Type, "Name", library.Options.Name, asset.Metadata.Name);
                 EnsureEqual(library.Type, "Description", library.Options.Description, asset.Metadata.Description);
                 break;
+
+            case PackageAsset package:
+                EnsureEqual(package.Type, "Name", package.Options.Name, asset.Metadata.Name);
+                EnsureEqual(package.Type, "Description", package.Options.Description, asset.Metadata.Description);
+                break;
         }
     }
 
@@ -430,6 +462,27 @@ public sealed class AIAssetDocumentMapper : IAIAssetDocumentMapper
         {
             throw new InvalidOperationException(
                 "Library Asset References do not match the canonical membership projection.");
+        }
+
+        return projected;
+    }
+
+    private static IReadOnlyList<AssetReference> EnsureCanonicalPackageReferences(
+        PackageAsset package)
+    {
+        var packageKey = new AssetDefinitionKey(
+            AssetType.Package,
+            package.Id,
+            package.Version);
+        var projected = PackageReferenceProjection.Create(
+            packageKey,
+            package.Options.Members,
+            package.Dependencies.ToArray());
+
+        if (!projected.SequenceEqual(package.References))
+        {
+            throw new InvalidOperationException(
+                "Package Asset References do not match the canonical membership projection.");
         }
 
         return projected;
