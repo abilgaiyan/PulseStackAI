@@ -44,4 +44,19 @@ public sealed class AIAssetPersistenceCompositionTests
         factory.Should().NotBeNull();
         provider.GetRequiredService<ProjectAssetFactory>().Should().BeSameAs(factory);
     }
+
+    [Fact]
+    public void AddPulseStack_ShouldRegisterLibraryAssetFactory()
+    {
+        var services = new ServiceCollection();
+
+        services.AddPulseStack();
+
+        using var provider = services.BuildServiceProvider();
+
+        var factory = provider.GetRequiredService<LibraryAssetFactory>();
+
+        factory.Should().NotBeNull();
+        provider.GetRequiredService<LibraryAssetFactory>().Should().BeSameAs(factory);
+    }
 }
