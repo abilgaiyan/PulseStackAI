@@ -5,6 +5,7 @@ using PulseStack.Abstractions.Persistence.AIAssets.Documents;
 using PulseStack.Abstractions.Persistence.AIAssets.Mapping;
 using PulseStack.Abstractions.Persistence.AIAssets.Schema;
 using PulseStack.Abstractions.Persistence.AIAssets.Validation;
+using PulseStack.Abstractions.Runtime.Realization.Resolution;
 using PulseStack.Core.Assets;
 using PulseStack.Core.DependencyInjection;
 using Xunit;
@@ -25,6 +26,7 @@ public sealed class PackagePersistenceCompositionConformanceTests
         var factory = scope.ServiceProvider.GetRequiredService<PackageAssetFactory>();
         var mapper = scope.ServiceProvider.GetRequiredService<IAIAssetDocumentMapper>();
         var validator = scope.ServiceProvider.GetRequiredService<IAIAssetDocumentValidator>();
+        var catalog = scope.ServiceProvider.GetRequiredService<IAssetDefinitionCatalog>();
 
         var project = Reference(AssetType.Project, "project");
         var library = Reference(AssetType.Library, "library");
@@ -42,6 +44,10 @@ public sealed class PackagePersistenceCompositionConformanceTests
             agent,
             providerReference
         };
+
+        foreach (var member in members)
+            (await catalog.FindAsync(AssetDefinitionKey.From(member))).Should().BeNull();
+        (await catalog.FindAsync(AssetDefinitionKey.From(externalModel))).Should().BeNull();
 
         var created = factory.Create(
             new PackageAssetOptions
@@ -101,6 +107,10 @@ public sealed class PackagePersistenceCompositionConformanceTests
         reconstructed.References.Should().Equal(members);
         reconstructed.Dependencies.Should().Equal(package.Dependencies);
         reconstructed.Dependencies.Single().Reference.Should().Be(externalModel);
+
+        foreach (var member in members)
+            (await catalog.FindAsync(AssetDefinitionKey.From(member))).Should().BeNull();
+        (await catalog.FindAsync(AssetDefinitionKey.From(externalModel))).Should().BeNull();
 
         var roundTrippedDocument = mapper.ToDocument(reconstructed)
             .Should().BeOfType<PackageAssetDocument>().Subject;
