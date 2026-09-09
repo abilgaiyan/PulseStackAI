@@ -86,4 +86,11 @@ public static class AIAssetDocumentValidationCodes
     public const string EntryWorkflowNotOwned = "AD1160";
     public const string OwnedAssetDependencyOverlap = "AD1170";
     public const string ProjectReferenceProjectionMismatch = "AD1180";
+
+    public const string MissingLibraryMember = "AD1190";
+    public const string InvalidLibraryMemberType = "AD1200";
+    public const string DuplicateLibraryMember = "AD1210";
+    public const string ConflictingLibraryMemberUrn = "AD1220";
+    public const string LibraryMemberDependencyOverlap = "AD1230";
+    public const string LibraryReferenceProjectionMismatch = "AD1240";
 }
