@@ -110,7 +110,7 @@ internal static class WorkflowDocumentCanonicalJsonWriter
             case CurrentOutputValueDocument when value.Kind == WorkflowValueDocumentKind.CurrentOutput:
                 writer.WriteString("kind", "currentOutput"); break;
             case ContextItemValueDocument context when value.Kind == WorkflowValueDocumentKind.ContextItem:
-                writer.WriteString("kind", "contextItem"); WriteString(writer, "key", context.Key); break;
+                WriteString(writer, "key", context.Key); writer.WriteString("kind", "contextItem"); break;
             case LiteralValueDocument literal when value.Kind == WorkflowValueDocumentKind.Literal:
                 writer.WriteString("kind", "literal"); writer.WritePropertyName("literal"); WriteLiteral(writer, literal.Literal); break;
             default: throw Unrepresentable("kind", value.Kind.ToString());
@@ -134,9 +134,9 @@ internal static class WorkflowDocumentCanonicalJsonWriter
             case DecimalWorkflowLiteralDocument number when literal.Kind == WorkflowLiteralDocumentKind.Decimal:
                 writer.WriteString("kind", "decimal"); writer.WritePropertyName("value"); WriteDecimal(writer, number.Value); break;
             case ArrayWorkflowLiteralDocument array when literal.Kind == WorkflowLiteralDocumentKind.Array:
-                writer.WriteString("kind", "array"); writer.WritePropertyName("items"); writer.WriteStartArray();
+                writer.WritePropertyName("items"); writer.WriteStartArray();
                 foreach (var item in array.Items) WriteLiteral(writer, item);
-                writer.WriteEndArray(); break;
+                writer.WriteEndArray(); writer.WriteString("kind", "array"); break;
             case ObjectWorkflowLiteralDocument obj when literal.Kind == WorkflowLiteralDocumentKind.Object:
                 writer.WriteString("kind", "object"); writer.WritePropertyName("properties"); writer.WriteStartArray();
                 foreach (var property in obj.Properties)
