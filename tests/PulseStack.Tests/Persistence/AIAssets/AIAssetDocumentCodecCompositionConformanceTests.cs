@@ -60,6 +60,23 @@ public sealed class AIAssetDocumentCodecCompositionConformanceTests
     }
 
     [Fact]
+    public void PublicCodec_ShouldEmitParallelMembersInExactOrdinalOrder()
+    {
+        IAIAssetDocumentCodec codec = new AIAssetDocumentCodec();
+        var workflow = new WorkflowAssetDocument(
+            AIAssetSchemaVersion.V1,
+            new AIAssetIdentityDocument { Id = "wf", Urn = "urn:wf", Version = "1" },
+            new AIAssetMetadataDocument("Workflow"),
+            AIAssetLifecycleDocument.Published,
+            [new ParallelStepDocument("parallel", "P", [Run("run")])]);
+
+        var json = codec.SerializeToString(workflow);
+
+        json.Should().Contain("{\"kind\":\"parallel\",\"name\":\"P\",\"stepId\":\"parallel\",\"steps\":[");
+        json.Should().NotContain("{\"kind\":\"parallel\",\"name\":\"P\",\"steps\":[");
+    }
+
+    [Fact]
     public void PublicCodec_ShouldCanonicalizeLosslessNonCanonicalInput()
     {
         IAIAssetDocumentCodec codec = new AIAssetDocumentCodec();
