@@ -63,6 +63,8 @@ internal static class AIAssetDocumentStrictJsonDeserializer
             utf8Json = utf8Json[3..];
         }
 
+        EnsureDecodedStringUnicode(utf8Json);
+
         JsonDocument document;
         try
         {
@@ -97,6 +99,37 @@ internal static class AIAssetDocumentStrictJsonDeserializer
             ValidateRootMembers(root, descriptor.Token);
 
             return new ParsedRoot(root.Clone(), descriptor, schemaVersion);
+        }
+    }
+
+    private static void EnsureDecodedStringUnicode(ReadOnlySpan<byte> utf8Json)
+    {
+        try
+        {
+            var reader = new Utf8JsonReader(utf8Json, new JsonReaderOptions
+            {
+                AllowTrailingCommas = false,
+                CommentHandling = JsonCommentHandling.Disallow,
+                MaxDepth = AIAssetDocumentJsonProfile.MaxDepth
+            });
+
+            while (reader.Read())
+            {
+                if (reader.TokenType is JsonTokenType.String or JsonTokenType.PropertyName)
+                {
+                    _ = reader.GetString();
+                }
+            }
+        }
+        catch (InvalidOperationException exception)
+        {
+            throw Codec(AIAssetDocumentCodecFailureReason.InvalidUnicode,
+                "Input contains invalid Unicode scalar representation.", inner: exception);
+        }
+        catch (JsonException exception)
+        {
+            throw Codec(AIAssetDocumentCodecFailureReason.InvalidJson,
+                "Input is not one complete JSON artifact.", inner: exception);
         }
     }
 
