@@ -64,7 +64,8 @@ internal static class AIAssetDocumentStrictJsonDeserializer
             document = JsonDocument.Parse(utf8Json.ToArray(), new JsonDocumentOptions
             {
                 AllowTrailingCommas = false,
-                CommentHandling = JsonCommentHandling.Disallow
+                CommentHandling = JsonCommentHandling.Disallow,
+                MaxDepth = AIAssetDocumentJsonProfile.MaxDepth
             });
         }
         catch (JsonException exception)
