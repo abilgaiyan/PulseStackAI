@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using FluentAssertions;
 using PulseStack.Abstractions.Persistence.AIAssets.Documents;
 using PulseStack.Abstractions.Persistence.AIAssets.Documents.Workflows;
@@ -65,9 +66,17 @@ public sealed class WorkflowDocumentCanonicalJsonWriterTests
         ]);
         var loop = new LoopStepDocument("00000000-0000-0000-0000-000000000020", "d", new LiteralValueDocument(values), Run("00000000-0000-0000-0000-000000000021"));
         var json = Serialize(Workflow([loop]));
-        json.Should().Contain("\"value\":0");
-        json.Should().NotContain("-0");
-        json.Should().NotContain("E+").And.NotContain("e+");
+
+        using var parsed = JsonDocument.Parse(json);
+        var items = parsed.RootElement
+            .GetProperty("steps")[0]
+            .GetProperty("items")
+            .GetProperty("literal")
+            .GetProperty("items");
+
+        items[0].GetProperty("value").GetRawText().Should().Be("0");
+        items[1].GetProperty("value").GetRawText().Should().Be("0");
+        items[2].GetProperty("value").GetRawText().Should().Be("10000000000000000000000000000");
     }
 
     [Fact]
