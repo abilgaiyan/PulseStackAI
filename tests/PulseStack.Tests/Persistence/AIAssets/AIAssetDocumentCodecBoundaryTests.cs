@@ -20,7 +20,7 @@ public sealed class AIAssetDocumentCodecBoundaryTests
         var text = codec.SerializeToString(document);
 
         new UTF8Encoding(false, true).GetBytes(text).Should().Equal(bytes);
-        bytes.Should().NotStartWith([0xEF, 0xBB, 0xBF]);
+        bytes.AsSpan().StartsWith(new byte[] { 0xEF, 0xBB, 0xBF }).Should().BeFalse();
     }
 
     [Fact]
@@ -57,7 +57,7 @@ public sealed class AIAssetDocumentCodecBoundaryTests
     public async Task DeserializeAsync_ShouldReadFromCurrentCursorThroughEofAndLeaveStreamOpen()
     {
         var canonical = codec.Serialize(Tool());
-        var payload = Encoding.UTF8.GetBytes("skip!").Concat([0xEF, 0xBB, 0xBF]).Concat(canonical).ToArray();
+        var payload = Encoding.UTF8.GetBytes("skip!").Concat(new byte[] { 0xEF, 0xBB, 0xBF }).Concat(canonical).ToArray();
         var stream = new TrackingMemoryStream(payload) { Position = 5 };
 
         var document = await codec.DeserializeAsync(stream);
@@ -71,7 +71,7 @@ public sealed class AIAssetDocumentCodecBoundaryTests
     public async Task DeserializeAsync_ShouldRequireEofAfterSingleArtifact()
     {
         var canonical = codec.Serialize(Tool());
-        var payload = canonical.Concat(Encoding.UTF8.GetBytes("{}" )).ToArray();
+        var payload = canonical.Concat(Encoding.UTF8.GetBytes("{}")).ToArray();
         using var stream = new MemoryStream(payload);
 
         var action = async () => await codec.DeserializeAsync(stream);
