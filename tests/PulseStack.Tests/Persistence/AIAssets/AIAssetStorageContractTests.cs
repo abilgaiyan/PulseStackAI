@@ -2,6 +2,7 @@ using FluentAssertions;
 using PulseStack.Abstractions.Assets;
 using PulseStack.Abstractions.Persistence.AIAssets.Documents;
 using PulseStack.Abstractions.Persistence.AIAssets.Storage;
+using PulseStack.Abstractions.Persistence.AIAssets.Validation;
 using Xunit;
 
 namespace PulseStack.Tests.Persistence.AIAssets;
@@ -15,6 +16,19 @@ public sealed class AIAssetStorageContractTests
             nameof(AIAssetWriteResult.Created),
             nameof(AIAssetWriteResult.AlreadyPresent),
             nameof(AIAssetWriteResult.Conflict));
+    }
+
+    [Fact]
+    public void FailureCategory_ShouldKeepPipelineFailuresProgrammaticallyDistinct()
+    {
+        Enum.GetNames<AIAssetStorageFailureCategory>().Should().Equal(
+            nameof(AIAssetStorageFailureCategory.RepresentationTooLarge),
+            nameof(AIAssetStorageFailureCategory.DocumentValidation),
+            nameof(AIAssetStorageFailureCategory.KeyDocumentMismatch),
+            nameof(AIAssetStorageFailureCategory.NonCanonicalRepresentation),
+            nameof(AIAssetStorageFailureCategory.CompositionConfiguration),
+            nameof(AIAssetStorageFailureCategory.Mapping),
+            nameof(AIAssetStorageFailureCategory.ProviderStorage));
     }
 
     [Fact]
@@ -108,6 +122,19 @@ public sealed class AIAssetStorageContractTests
 
         act.Should().Throw<AIAssetStorageException>()
             .Which.Category.Should().Be(AIAssetStorageFailureCategory.CompositionConfiguration);
+    }
+
+    [Fact]
+    public void ValidationFailure_ShouldPreserveCompleteValidationResult()
+    {
+        var validation = AIAssetDocumentValidationResult.Success();
+        var failure = new AIAssetStorageException(
+            AIAssetStorageFailureCategory.DocumentValidation,
+            "Document validation failed.",
+            validationResult: validation);
+
+        failure.ValidationResult.Should().BeSameAs(validation);
+        failure.Category.Should().Be(AIAssetStorageFailureCategory.DocumentValidation);
     }
 
     [Fact]
