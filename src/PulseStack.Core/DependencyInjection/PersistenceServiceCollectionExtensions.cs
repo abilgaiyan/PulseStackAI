@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using PulseStack.Abstractions.Persistence.AIAssets.Serialization;
 using PulseStack.Abstractions.Persistence.Storage;
 using PulseStack.Core.Persistence.Storage.Workflows;
 using PulseStack.Core.Persistence.Storage.WorkflowPackages;
@@ -8,6 +9,16 @@ namespace PulseStack.Core.DependencyInjection;
 
 public static class PersistenceServiceCollectionExtensions
 {
+    public static IServiceCollection AddAIAssetDocumentCodec(
+        this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.TryAddSingleton<IAIAssetDocumentCodec, AIAssetDocumentCodec>();
+
+        return services;
+    }
+
     public static IServiceCollection AddInMemoryWorkflowStorage(
         this IServiceCollection services)
     {
