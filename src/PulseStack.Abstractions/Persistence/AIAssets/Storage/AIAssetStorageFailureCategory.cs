@@ -12,5 +12,5 @@ public enum AIAssetStorageFailureCategory
     NonCanonicalRepresentation,
     CompositionConfiguration,
     Mapping,
-    ProviderStorage
+    ProviderFailure
 }
