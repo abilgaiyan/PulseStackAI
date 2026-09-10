@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using PulseStack.Abstractions.Persistence.AIAssets.Documents;
 
 namespace PulseStack.Abstractions.Persistence.AIAssets.Serialization;
 
@@ -27,6 +28,10 @@ internal static class AIAssetDocumentStrictJsonDeserializer
             ["policy"] = [],
             ["model"] = ["model", "provider"]
         };
+
+    internal static AIAssetDocument Deserialize(string json) => AIAssetDocumentJsonReader.Read(Parse(json));
+
+    internal static AIAssetDocument Deserialize(ReadOnlyMemory<byte> utf8Json) => AIAssetDocumentJsonReader.Read(Parse(utf8Json));
 
     internal static ParsedRoot Parse(string json)
     {
