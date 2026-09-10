@@ -140,7 +140,9 @@ public sealed class AIAssetWriter : IAIAssetWriter
         {
             return await store.WriteAsync(key, representation, cancellationToken).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException exception)
+            when (cancellationToken.IsCancellationRequested
+                && exception.CancellationToken == cancellationToken)
         {
             throw;
         }
