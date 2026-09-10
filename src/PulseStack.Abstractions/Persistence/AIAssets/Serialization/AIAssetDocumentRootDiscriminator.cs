@@ -12,14 +12,23 @@ internal static class AIAssetDocumentRootDiscriminator
     {
         ArgumentNullException.ThrowIfNull(document);
 
-        var descriptor = ResolveDocumentType(document.GetType());
+        return ResolveForSerialization(document.GetType(), document.AssetType);
+    }
 
-        if (document.AssetType != descriptor.AssetType)
+    internal static RootDescriptor ResolveForSerialization(
+        Type documentType,
+        AIAssetDocumentType assetType)
+    {
+        ArgumentNullException.ThrowIfNull(documentType);
+
+        var descriptor = ResolveDocumentType(documentType);
+
+        if (assetType != descriptor.AssetType)
         {
             throw new AIAssetDocumentCodecException(
                 AIAssetDocumentCodecOperation.Serialization,
                 AIAssetDocumentCodecFailureReason.DiscriminatorMismatch,
-                $"Document type '{document.GetType().Name}' does not match its asset type discriminator.",
+                $"Document type '{documentType.Name}' does not match its asset type discriminator.",
                 MemberName,
                 descriptor.Token);
         }
