@@ -100,14 +100,14 @@ public sealed class AIAssetStorageContractTests
     }
 
     [Fact]
-    public void InvalidStaticSizePolicy_ShouldBeConfigurationFailure()
+    public void InvalidStaticSizePolicy_ShouldBeCompositionConfigurationFailure()
     {
         var options = new AIAssetStorageOptions { MaximumRepresentationSizeBytes = 0 };
 
         var act = () => AIAssetStorageContract.EnsureValidOptions(options);
 
         act.Should().Throw<AIAssetStorageException>()
-            .Which.Category.Should().Be(AIAssetStorageFailureCategory.Configuration);
+            .Which.Category.Should().Be(AIAssetStorageFailureCategory.CompositionConfiguration);
     }
 
     [Fact]
@@ -121,9 +121,13 @@ public sealed class AIAssetStorageContractTests
         };
 
         var methods = contractTypes.SelectMany(static type => type.GetMethods()).ToArray();
+        var methodNames = methods.Select(static method => method.Name).ToArray();
 
-        methods.Select(static method => method.Name).Should().NotContain(
-            new[] { "DeleteAsync", "ExistsAsync", "UpdateAsync", "ReplaceAsync", "UpsertAsync" });
+        methodNames.Should().NotContain("DeleteAsync");
+        methodNames.Should().NotContain("ExistsAsync");
+        methodNames.Should().NotContain("UpdateAsync");
+        methodNames.Should().NotContain("ReplaceAsync");
+        methodNames.Should().NotContain("UpsertAsync");
 
         methods.SelectMany(static method => method.GetParameters())
             .Select(static parameter => parameter.ParameterType)
