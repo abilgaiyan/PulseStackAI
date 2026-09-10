@@ -31,9 +31,14 @@ public static class AIAssetStorageContract
         }
     }
 
-    public static void EnsureValidOptions(AIAssetStorageOptions options)
+    public static void EnsureValidOptions(AIAssetStorageOptions? options)
     {
-        ArgumentNullException.ThrowIfNull(options);
+        if (options is null)
+        {
+            throw new AIAssetStorageException(
+                AIAssetStorageFailureCategory.CompositionConfiguration,
+                "AI Asset storage options are required.");
+        }
 
         if (options.MaximumRepresentationSizeBytes <= 0)
         {
