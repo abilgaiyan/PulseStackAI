@@ -10,7 +10,7 @@ public enum AIAssetStorageFailureCategory
     DocumentValidation,
     KeyDocumentMismatch,
     NonCanonicalRepresentation,
-    Configuration,
+    CompositionConfiguration,
     Mapping,
     ProviderStorage
 }
