@@ -160,9 +160,32 @@ internal static class WorkflowDocumentJsonReader
     {
         if (e.ValueKind != JsonValueKind.Object)
             throw AIAssetDocumentJsonReader.Codec(AIAssetDocumentCodecFailureReason.InvalidTokenKind, $"Workflow {context} must be an object.", context);
-        var count = e.EnumerateObject().Count(p => StringComparer.Ordinal.Equals(p.Name, "kind"));
-        if (count == 0) throw AIAssetDocumentJsonReader.Codec(AIAssetDocumentCodecFailureReason.MissingRequiredMember, "Required member 'kind' is missing.", "kind");
-        if (count > 1) throw AIAssetDocumentJsonReader.Codec(AIAssetDocumentCodecFailureReason.DuplicateMember, "Duplicate member 'kind'.", "kind");
+
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var hasKind = false;
+
+        foreach (var property in e.EnumerateObject())
+        {
+            if (!seen.Add(property.Name))
+            {
+                throw AIAssetDocumentJsonReader.Codec(
+                    AIAssetDocumentCodecFailureReason.DuplicateMember,
+                    $"Duplicate member '{property.Name}'.",
+                    property.Name);
+            }
+
+            if (StringComparer.Ordinal.Equals(property.Name, "kind"))
+            {
+                hasKind = true;
+            }
+        }
+
+        if (!hasKind)
+            throw AIAssetDocumentJsonReader.Codec(AIAssetDocumentCodecFailureReason.MissingRequiredMember, "Required member 'kind' is missing.", "kind");
+
+        var kind = AIAssetDocumentJsonReader.Required(e, "kind");
+        if (kind.ValueKind != JsonValueKind.String)
+            throw AIAssetDocumentJsonReader.Codec(AIAssetDocumentCodecFailureReason.InvalidTokenKind, "Member 'kind' must be a string.", "kind");
     }
 
     private static void Validate(JsonElement e, string[] members) => AIAssetDocumentJsonReader.EnsureObject(e, "workflow", members, members);
