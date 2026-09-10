@@ -41,10 +41,10 @@ internal static class WorkflowDocumentCanonicalJsonWriter
             case ParallelStepDocument parallel:
                 writer.WriteString("kind", "parallel");
                 WriteString(writer, "name", parallel.Name);
+                WriteString(writer, "stepId", parallel.StepId);
                 writer.WritePropertyName("steps"); writer.WriteStartArray();
                 foreach (var child in parallel.Steps) WriteStep(writer, child);
                 writer.WriteEndArray();
-                WriteString(writer, "stepId", parallel.StepId);
                 break;
             case ConditionalStepDocument conditional:
                 writer.WritePropertyName("condition"); WriteCondition(writer, conditional.Condition);
