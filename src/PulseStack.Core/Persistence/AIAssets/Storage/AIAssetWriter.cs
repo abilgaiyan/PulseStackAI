@@ -126,6 +126,8 @@ public sealed class AIAssetWriter : IAIAssetWriter
                 context,
                 result);
         }
+
+        cancellationToken.ThrowIfCancellationRequested();
     }
 
     private async ValueTask<AIAssetWriteResult> WriteToStoreAsync(
@@ -139,10 +141,6 @@ public sealed class AIAssetWriter : IAIAssetWriter
             return await store.WriteAsync(key, representation, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (AIAssetStorageException)
         {
             throw;
         }
