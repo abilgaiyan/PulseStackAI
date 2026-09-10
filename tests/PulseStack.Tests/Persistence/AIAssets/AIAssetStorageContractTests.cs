@@ -125,15 +125,26 @@ public sealed class AIAssetStorageContractTests
     }
 
     [Fact]
+    public void MissingStaticOptions_ShouldBeCompositionConfigurationFailure()
+    {
+        var act = () => AIAssetStorageContract.EnsureValidOptions(null);
+
+        act.Should().Throw<AIAssetStorageException>()
+            .Which.Category.Should().Be(AIAssetStorageFailureCategory.CompositionConfiguration);
+    }
+
+    [Fact]
     public void ValidationFailure_ShouldPreserveCompleteValidationResult()
     {
-        var validation = AIAssetDocumentValidationResult.Success();
+        var validation = AIAssetDocumentValidationResult.Failure(
+            new AIAssetDocumentValidationError("AD000", "Invalid document.", "$"));
         var failure = new AIAssetStorageException(
             AIAssetStorageFailureCategory.DocumentValidation,
             "Document validation failed.",
             validationResult: validation);
 
         failure.ValidationResult.Should().BeSameAs(validation);
+        failure.ValidationResult!.Errors.Should().ContainSingle();
         failure.Category.Should().Be(AIAssetStorageFailureCategory.DocumentValidation);
     }
 
