@@ -254,6 +254,72 @@ public sealed class AIAssetStorageContractTests
     }
 
     [Fact]
+    public void OperationException_ShouldRejectMissingOperationContext()
+    {
+        var context = new AIAssetStorageDiagnosticContext
+        {
+            Key = new AssetDefinitionKey(AssetType.Agent, AssetId.New(), AssetVersion.Initial)
+        };
+
+        var act = () => new AIAssetStorageOperationException(
+            "Operation failed.",
+            context,
+            new InvalidOperationException());
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void OperationException_ShouldRejectUndefinedOperationContext()
+    {
+        var context = new AIAssetStorageDiagnosticContext
+        {
+            Operation = (AIAssetStorageOperation)999,
+            Key = new AssetDefinitionKey(AssetType.Agent, AssetId.New(), AssetVersion.Initial)
+        };
+
+        var act = () => new AIAssetStorageOperationException(
+            "Operation failed.",
+            context,
+            new InvalidOperationException());
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void OperationException_ShouldRejectMissingKeyContext()
+    {
+        var context = new AIAssetStorageDiagnosticContext
+        {
+            Operation = AIAssetStorageOperation.Load
+        };
+
+        var act = () => new AIAssetStorageOperationException(
+            "Operation failed.",
+            context,
+            new InvalidOperationException());
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void OperationException_ShouldRejectInvalidKeyContext()
+    {
+        var context = new AIAssetStorageDiagnosticContext
+        {
+            Operation = AIAssetStorageOperation.Load,
+            Key = new AssetDefinitionKey(AssetType.Agent, AssetId.Empty, AssetVersion.Initial)
+        };
+
+        var act = () => new AIAssetStorageOperationException(
+            "Operation failed.",
+            context,
+            new InvalidOperationException());
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
     public void PortableContracts_ShouldNotExposeForbiddenStorageOperationsOrStreams()
     {
         var contractTypes = new[]
