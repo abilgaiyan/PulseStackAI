@@ -1,6 +1,7 @@
 using FluentAssertions;
 using PulseStack.Abstractions.Assets;
 using PulseStack.Abstractions.Persistence.AIAssets.Documents;
+using PulseStack.Abstractions.Persistence.AIAssets.Serialization;
 using PulseStack.Abstractions.Persistence.AIAssets.Storage;
 using PulseStack.Abstractions.Persistence.AIAssets.Validation;
 using Xunit;
@@ -28,7 +29,16 @@ public sealed class AIAssetStorageContractTests
             nameof(AIAssetStorageFailureCategory.NonCanonicalRepresentation),
             nameof(AIAssetStorageFailureCategory.CompositionConfiguration),
             nameof(AIAssetStorageFailureCategory.Mapping),
-            nameof(AIAssetStorageFailureCategory.ProviderStorage));
+            nameof(AIAssetStorageFailureCategory.ProviderFailure));
+    }
+
+    [Fact]
+    public void StorageOperation_ShouldFreezeOuterOperationVocabulary()
+    {
+        Enum.GetNames<AIAssetStorageOperation>().Should().Equal(
+            nameof(AIAssetStorageOperation.WriteDocument),
+            nameof(AIAssetStorageOperation.WriteRepresentation),
+            nameof(AIAssetStorageOperation.Load));
     }
 
     [Fact]
@@ -55,6 +65,73 @@ public sealed class AIAssetStorageContractTests
         AIAssetLoadResult result = new AIAssetLoadResult.NotFound();
 
         result.Should().BeOfType<AIAssetLoadResult.NotFound>();
+    }
+
+    [Fact]
+    public void LoadResult_Loaded_ShouldRejectNullAndPreserveExactAsset()
+    {
+        var nullAct = () => new AIAssetLoadResult.Loaded(null!);
+        var asset = new TestAsset();
+
+        nullAct.Should().Throw<ArgumentNullException>();
+        new AIAssetLoadResult.Loaded(asset).Asset.Should().BeSameAs(asset);
+    }
+
+    [Fact]
+    public void WriterContract_ShouldFreezeBothOverloadsAndCancellationBoundary()
+    {
+        var methods = typeof(IAIAssetWriter)
+            .GetMethods()
+            .Where(static method => method.Name == nameof(IAIAssetWriter.WriteAsync))
+            .ToArray();
+
+        methods.Should().HaveCount(2);
+        methods.Should().ContainSingle(static method => method.GetParameters()[1].ParameterType == typeof(AIAssetDocument));
+        methods.Should().ContainSingle(static method => method.GetParameters()[1].ParameterType == typeof(ReadOnlyMemory<byte>));
+
+        foreach (var method in methods)
+        {
+            method.ReturnType.Should().Be(typeof(ValueTask<AIAssetWriteResult>));
+            var parameters = method.GetParameters();
+            parameters.Should().HaveCount(3);
+            parameters[0].ParameterType.Should().Be<AssetDefinitionKey>();
+            parameters[2].ParameterType.Should().Be<CancellationToken>();
+            parameters[2].IsOptional.Should().BeTrue();
+        }
+    }
+
+    [Fact]
+    public void LoaderContract_ShouldFreezeSignatureAndCancellationBoundary()
+    {
+        var method = typeof(IAIAssetLoader).GetMethod(nameof(IAIAssetLoader.LoadAsync));
+
+        method.Should().NotBeNull();
+        method!.ReturnType.Should().Be(typeof(ValueTask<AIAssetLoadResult>));
+        var parameters = method.GetParameters();
+        parameters.Should().HaveCount(2);
+        parameters[0].ParameterType.Should().Be<AssetDefinitionKey>();
+        parameters[1].ParameterType.Should().Be<CancellationToken>();
+        parameters[1].IsOptional.Should().BeTrue();
+    }
+
+    [Fact]
+    public void AssetDefinitionKey_ShouldUseTypeIdAndVersionForExactIdentity()
+    {
+        var id = AssetId.New();
+        var key = new AssetDefinitionKey(AssetType.Agent, id, AssetVersion.Initial);
+        var equal = new AssetDefinitionKey(AssetType.Agent, id, AssetVersion.Initial);
+        var differentType = new AssetDefinitionKey(AssetType.Workflow, id, AssetVersion.Initial);
+        var differentId = new AssetDefinitionKey(AssetType.Agent, AssetId.New(), AssetVersion.Initial);
+        var differentVersion = new AssetDefinitionKey(AssetType.Agent, id, new AssetVersion("2.0.0"));
+
+        key.Should().Be(equal);
+        key.GetHashCode().Should().Be(equal.GetHashCode());
+        key.Should().NotBe(differentType);
+        key.Should().NotBe(differentId);
+        key.Should().NotBe(differentVersion);
+
+        new HashSet<AssetDefinitionKey> { key, equal, differentType, differentId, differentVersion }
+            .Should().HaveCount(4);
     }
 
     [Fact]
@@ -149,6 +226,34 @@ public sealed class AIAssetStorageContractTests
     }
 
     [Fact]
+    public void OperationException_ShouldPreserveCodecClassificationAndOuterContext()
+    {
+        var key = new AssetDefinitionKey(AssetType.Agent, AssetId.New(), AssetVersion.Initial);
+        var context = new AIAssetStorageDiagnosticContext
+        {
+            Operation = AIAssetStorageOperation.Load,
+            Key = key
+        };
+        var codecFailure = new AIAssetDocumentCodecException(
+            AIAssetDocumentCodecOperation.Deserialization,
+            AIAssetDocumentCodecFailureReason.InvalidJson,
+            "Invalid JSON.");
+
+        var failure = new AIAssetStorageOperationException(
+            "AI Asset load failed while decoding the stored representation.",
+            context,
+            codecFailure);
+
+        failure.Context.Should().BeSameAs(context);
+        failure.Context.Operation.Should().Be(AIAssetStorageOperation.Load);
+        failure.Context.Key.Should().Be(key);
+        failure.InnerException.Should().BeSameAs(codecFailure);
+        codecFailure.Operation.Should().Be(AIAssetDocumentCodecOperation.Deserialization);
+        codecFailure.FailureReason.Should().Be(AIAssetDocumentCodecFailureReason.InvalidJson);
+        typeof(AIAssetStorageOperationException).GetProperty("Category").Should().BeNull();
+    }
+
+    [Fact]
     public void PortableContracts_ShouldNotExposeForbiddenStorageOperationsOrStreams()
     {
         var contractTypes = new[]
@@ -186,8 +291,19 @@ public sealed class AIAssetStorageContractTests
     }
 
     [Fact]
-    public void DiagnosticContext_ShouldNotExposeSerializedRepresentationOrDocumentContent()
+    public void DiagnosticContext_ShouldExposeOnlySafeStructuredOperationContext()
     {
+        var context = new AIAssetStorageDiagnosticContext
+        {
+            Operation = AIAssetStorageOperation.WriteRepresentation,
+            Key = new AssetDefinitionKey(AssetType.Agent, AssetId.New(), AssetVersion.Initial),
+            RepresentationSizeBytes = 128,
+            MaximumRepresentationSizeBytes = 1024
+        };
+
+        context.Operation.Should().Be(AIAssetStorageOperation.WriteRepresentation);
+        context.Key.Should().NotBeNull();
+
         var propertyTypes = typeof(AIAssetStorageDiagnosticContext)
             .GetProperties()
             .Select(static property => property.PropertyType)
@@ -197,5 +313,24 @@ public sealed class AIAssetStorageContractTests
         propertyTypes.Should().NotContain(typeof(ReadOnlyMemory<byte>));
         propertyTypes.Should().NotContain(typeof(AIAssetDocument));
         propertyTypes.Should().NotContain(typeof(IAsset));
+    }
+
+    private sealed class TestAsset : IAsset
+    {
+        public AssetId Id => throw new NotSupportedException();
+
+        public AssetUrn Urn => throw new NotSupportedException();
+
+        public AssetVersion Version => throw new NotSupportedException();
+
+        public AssetMetadata Metadata => throw new NotSupportedException();
+
+        public AssetType Type => throw new NotSupportedException();
+
+        public AssetLifecycle Lifecycle => throw new NotSupportedException();
+
+        public IReadOnlyCollection<AssetReference> References => throw new NotSupportedException();
+
+        public IReadOnlyCollection<AssetDependency> Dependencies => throw new NotSupportedException();
     }
 }
