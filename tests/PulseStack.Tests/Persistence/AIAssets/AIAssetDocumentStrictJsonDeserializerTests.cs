@@ -1,6 +1,9 @@
 using System.Reflection;
 using System.Text;
 using FluentAssertions;
+using PulseStack.Abstractions.Persistence.AIAssets.Documents;
+using PulseStack.Abstractions.Persistence.AIAssets.Documents.Workflows;
+using PulseStack.Abstractions.Persistence.AIAssets.Schema;
 using PulseStack.Abstractions.Persistence.AIAssets.Serialization;
 using Xunit;
 
@@ -10,6 +13,9 @@ public sealed class AIAssetDocumentStrictJsonDeserializerTests
 {
     private const string AuthorityType =
         "PulseStack.Abstractions.Persistence.AIAssets.Serialization.AIAssetDocumentStrictJsonDeserializer";
+
+    private const string SerializerType =
+        "PulseStack.Abstractions.Persistence.AIAssets.Serialization.AIAssetDocumentCanonicalJsonSerializer";
 
     private const string ValidTool =
         "{\"assetType\":\"tool\",\"dependencies\":[],\"identity\":{},\"lifecycle\":\"draft\",\"metadata\":{},\"references\":[],\"schemaVersion\":\"1.0\"}";
@@ -92,6 +98,75 @@ public sealed class AIAssetDocumentStrictJsonDeserializerTests
     {
         var invalid = ValidTool.Replace("tool", new string(['\uD800']), StringComparison.Ordinal);
         FailureString(invalid).FailureReason.Should().Be(AIAssetDocumentCodecFailureReason.InvalidUnicode);
+    }
+
+    [Fact]
+    public void CanonicalWorkflowAboveFrameworkDefaultDepth_ShouldSerializeAndParse()
+    {
+        var document = DeepWorkflow(80);
+        var bytes = Serialize(document);
+
+        InvokeBytes(bytes).Should().NotBeNull();
+    }
+
+    [Fact]
+    public void CanonicalWriterOverCodecDepthLimit_ShouldFailAsUnrepresentableDocument()
+    {
+        var document = DeepWorkflow(300);
+
+        var exception = SerializationFailure(document);
+        exception.Operation.Should().Be(AIAssetDocumentCodecOperation.Serialization);
+        exception.FailureReason.Should().Be(AIAssetDocumentCodecFailureReason.UnrepresentableDocument);
+    }
+
+    private static WorkflowAssetDocument DeepWorkflow(int nestedRetryCount)
+    {
+        WorkflowStepDocument step = new RunStepDocument(
+            "00000000-0000-0000-0000-000000000001",
+            new AIAssetReferenceDocument
+            {
+                AssetType = AIAssetDocumentType.Agent,
+                AssetId = "agent-1",
+                Urn = "urn:pulsestack:agent:agent-1",
+                Version = "1.0.0"
+            });
+
+        for (var index = 0; index < nestedRetryCount; index++)
+        {
+            step = new RetryStepDocument(
+                $"00000000-0000-0000-0000-{index + 2:D12}",
+                $"retry-{index}",
+                step,
+                1);
+        }
+
+        return new WorkflowAssetDocument(
+            AIAssetSchemaVersion.V1,
+            new AIAssetIdentityDocument
+            {
+                Id = "workflow-depth",
+                Urn = "urn:pulsestack:workflow:workflow-depth",
+                Version = "1.0.0"
+            },
+            new AIAssetMetadataDocument("Depth workflow"),
+            AIAssetLifecycleDocument.Draft,
+            [step]);
+    }
+
+    private static byte[] Serialize(AIAssetDocument document)
+    {
+        var type = typeof(IAIAssetDocumentCodec).Assembly.GetType(SerializerType, true)!;
+        var method = type.GetMethod("Serialize", BindingFlags.Static | BindingFlags.NonPublic,
+            binder: null, types: [typeof(AIAssetDocument)], modifiers: null)!;
+
+        return (byte[])method.Invoke(null, [document])!;
+    }
+
+    private static AIAssetDocumentCodecException SerializationFailure(AIAssetDocument document)
+    {
+        Action action = () => Serialize(document);
+        return action.Should().Throw<TargetInvocationException>().Which.InnerException.Should()
+            .BeOfType<AIAssetDocumentCodecException>().Which;
     }
 
     private static object InvokeString(string json) => Invoke(GetMethod(typeof(string)), json);
