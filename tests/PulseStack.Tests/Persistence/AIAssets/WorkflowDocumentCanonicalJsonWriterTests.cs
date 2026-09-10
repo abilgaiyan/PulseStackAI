@@ -31,7 +31,7 @@ public sealed class WorkflowDocumentCanonicalJsonWriterTests
         var json = Serialize(Workflow(steps));
 
         json.Should().Contain("{\"agent\":{\"assetId\":\"agent-1\",\"assetType\":\"agent\",\"urn\":\"urn:pulsestack:agent:agent-1\",\"version\":\"1.0.0\"},\"kind\":\"run\",\"stepId\":\"00000000-0000-0000-0000-000000000001\"}");
-        json.Should().Contain("\"kind\":\"parallel\",\"name\":\"p\",\"steps\":[");
+        json.Should().Contain("\"kind\":\"parallel\",\"name\":\"p\",\"stepId\":\"00000000-0000-0000-0000-000000000002\",\"steps\":[");
         json.Should().Contain("\"condition\":{\"kind\":\"named\",\"name\":\"ready\"},\"elseStep\":null,\"kind\":\"conditional\"");
         json.Should().Contain("\"kind\":\"retry\",\"maxAttempts\":3,\"name\":\"r\"");
         json.Should().Contain("\"items\":{\"kind\":\"input\"},\"kind\":\"loop\"");
