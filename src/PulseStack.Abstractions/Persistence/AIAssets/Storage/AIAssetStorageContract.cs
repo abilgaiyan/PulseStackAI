@@ -38,7 +38,7 @@ public static class AIAssetStorageContract
         if (options.MaximumRepresentationSizeBytes <= 0)
         {
             throw new AIAssetStorageException(
-                AIAssetStorageFailureCategory.Configuration,
+                AIAssetStorageFailureCategory.CompositionConfiguration,
                 "MaximumRepresentationSizeBytes must be greater than zero.");
         }
     }
