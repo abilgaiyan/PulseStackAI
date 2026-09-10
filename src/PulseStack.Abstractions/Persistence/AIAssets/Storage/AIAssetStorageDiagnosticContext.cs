@@ -8,6 +8,8 @@ namespace PulseStack.Abstractions.Persistence.AIAssets.Storage;
 /// </summary>
 public sealed record AIAssetStorageDiagnosticContext
 {
+    public AIAssetStorageOperation? Operation { get; init; }
+
     public AssetDefinitionKey? Key { get; init; }
 
     public long? RepresentationSizeBytes { get; init; }
