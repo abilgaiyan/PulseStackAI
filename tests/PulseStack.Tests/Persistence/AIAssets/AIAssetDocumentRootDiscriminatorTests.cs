@@ -148,7 +148,7 @@ public sealed class AIAssetDocumentRootDiscriminatorTests
         MethodInfo method,
         params object?[] arguments)
     {
-        var action = () => method.Invoke(null, arguments);
+        Action action = () => method.Invoke(null, arguments);
 
         var invocationException = action.Should().Throw<TargetInvocationException>().Which;
         return invocationException.InnerException.Should()
