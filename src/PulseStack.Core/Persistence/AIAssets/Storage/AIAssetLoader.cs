@@ -118,10 +118,6 @@ public sealed class AIAssetLoader : IAIAssetLoader
             var asset = mapper.FromDocument(document);
             return new AIAssetLoadResult.Loaded(asset);
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
         catch (Exception exception)
         {
             throw new AIAssetStorageException(
@@ -141,7 +137,9 @@ public sealed class AIAssetLoader : IAIAssetLoader
         {
             return await store.ReadAsync(key, cancellationToken).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException exception)
+            when (cancellationToken.IsCancellationRequested
+                && exception.CancellationToken == cancellationToken)
         {
             throw;
         }
