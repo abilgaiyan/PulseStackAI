@@ -45,6 +45,8 @@ public sealed class AIAssetLoader : IAIAssetLoader
         };
 
         var read = await ReadFromStoreAsync(key, context, cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (read is SerializedAIAssetReadResult.NotFound)
         {
             return new AIAssetLoadResult.NotFound();
@@ -85,6 +87,7 @@ public sealed class AIAssetLoader : IAIAssetLoader
                 validation);
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         AIAssetWriter.EnsureKeyAgreement(key, document, context);
 
         byte[] canonical;
@@ -139,10 +142,6 @@ public sealed class AIAssetLoader : IAIAssetLoader
             return await store.ReadAsync(key, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (AIAssetStorageException)
         {
             throw;
         }
