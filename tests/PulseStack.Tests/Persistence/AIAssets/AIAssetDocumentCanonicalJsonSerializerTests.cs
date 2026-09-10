@@ -32,7 +32,8 @@ public sealed class AIAssetDocumentCanonicalJsonSerializerTests
 
         bytes.Should().NotBeEmpty();
         bytes[0].Should().Be((byte)'{');
-        bytes.Take(3).Should().NotEqual((byte)0xEF, (byte)0xBB, (byte)0xBF);
+        (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+            .Should().BeFalse();
         json.Should().NotEndWith("\n");
         json.Should().NotContain("\r");
     }
