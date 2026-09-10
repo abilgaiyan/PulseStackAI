@@ -15,14 +15,33 @@ internal static class AIAssetDocumentCanonicalJsonSerializer
     {
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         Indented = false,
-        SkipValidation = false
+        SkipValidation = false,
+        MaxDepth = AIAssetDocumentJsonProfile.MaxDepth
     };
 
     internal static byte[] Serialize(AIAssetDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
         var output = new ArrayBufferWriter<byte>();
-        using (var writer = new Utf8JsonWriter(output, WriterOptions)) WriteDocument(writer, document);
+
+        try
+        {
+            using var writer = new Utf8JsonWriter(output, WriterOptions);
+            WriteDocument(writer, document);
+        }
+        catch (AIAssetDocumentCodecException)
+        {
+            throw;
+        }
+        catch (InvalidOperationException exception)
+        {
+            throw new AIAssetDocumentCodecException(
+                AIAssetDocumentCodecOperation.Serialization,
+                AIAssetDocumentCodecFailureReason.UnrepresentableDocument,
+                "The document exceeds the canonical JSON representation limits.",
+                innerException: exception);
+        }
+
         return output.WrittenSpan.ToArray();
     }
 
