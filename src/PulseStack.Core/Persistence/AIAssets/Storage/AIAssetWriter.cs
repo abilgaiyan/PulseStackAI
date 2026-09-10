@@ -1,5 +1,6 @@
 using PulseStack.Abstractions.Assets;
 using PulseStack.Abstractions.Persistence.AIAssets.Documents;
+using PulseStack.Abstractions.Persistence.AIAssets.Schema;
 using PulseStack.Abstractions.Persistence.AIAssets.Serialization;
 using PulseStack.Abstractions.Persistence.AIAssets.Storage;
 using PulseStack.Abstractions.Persistence.AIAssets.Validation;
@@ -188,19 +189,19 @@ public sealed class AIAssetWriter : IAIAssetWriter
         }
     }
 
-    private static AssetType ToAssetType(Schema.AIAssetDocumentType type) => type switch
+    private static AssetType ToAssetType(AIAssetDocumentType type) => type switch
     {
-        Schema.AIAssetDocumentType.Project => AssetType.Project,
-        Schema.AIAssetDocumentType.Library => AssetType.Library,
-        Schema.AIAssetDocumentType.Package => AssetType.Package,
-        Schema.AIAssetDocumentType.Workflow => AssetType.Workflow,
-        Schema.AIAssetDocumentType.Agent => AssetType.Agent,
-        Schema.AIAssetDocumentType.Prompt => AssetType.Prompt,
-        Schema.AIAssetDocumentType.Tool => AssetType.Tool,
-        Schema.AIAssetDocumentType.Knowledge => AssetType.Knowledge,
-        Schema.AIAssetDocumentType.Memory => AssetType.Memory,
-        Schema.AIAssetDocumentType.Policy => AssetType.Policy,
-        Schema.AIAssetDocumentType.Model => AssetType.Model,
+        AIAssetDocumentType.Project => AssetType.Project,
+        AIAssetDocumentType.Library => AssetType.Library,
+        AIAssetDocumentType.Package => AssetType.Package,
+        AIAssetDocumentType.Workflow => AssetType.Workflow,
+        AIAssetDocumentType.Agent => AssetType.Agent,
+        AIAssetDocumentType.Prompt => AssetType.Prompt,
+        AIAssetDocumentType.Tool => AssetType.Tool,
+        AIAssetDocumentType.Knowledge => AssetType.Knowledge,
+        AIAssetDocumentType.Memory => AssetType.Memory,
+        AIAssetDocumentType.Policy => AssetType.Policy,
+        AIAssetDocumentType.Model => AssetType.Model,
         _ => throw new InvalidOperationException("The validated AI Asset document type is unsupported.")
     };
 
