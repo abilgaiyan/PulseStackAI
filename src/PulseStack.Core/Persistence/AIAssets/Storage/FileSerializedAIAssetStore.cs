@@ -12,6 +12,7 @@ public sealed class FileSerializedAIAssetStore : ISerializedAIAssetStore
 {
     private const string AssetFileExtension = ".asset";
     private const string TemporaryFileExtension = ".tmp";
+    private const int PublishedReadRetryCount = 8;
 
     private readonly string rootPath;
     private readonly IFileSerializedAIAssetStoreFaultInjector faultInjector;
@@ -59,7 +60,7 @@ public sealed class FileSerializedAIAssetStore : ISerializedAIAssetStore
 
         try
         {
-            var representation = await File.ReadAllBytesAsync(assetPath, cancellationToken).ConfigureAwait(false);
+            var representation = await ReadPublishedBytesAsync(assetPath, cancellationToken).ConfigureAwait(false);
             return new SerializedAIAssetReadResult.Found(representation);
         }
         catch (FileNotFoundException)
@@ -116,7 +117,7 @@ public sealed class FileSerializedAIAssetStore : ISerializedAIAssetStore
             }
             catch (IOException) when (File.Exists(assetPath))
             {
-                var stored = await File.ReadAllBytesAsync(assetPath, CancellationToken.None).ConfigureAwait(false);
+                var stored = await ReadPublishedBytesAsync(assetPath, CancellationToken.None).ConfigureAwait(false);
                 return stored.AsSpan().SequenceEqual(representation.Span)
                     ? AIAssetWriteResult.AlreadyPresent
                     : AIAssetWriteResult.Conflict;
@@ -158,6 +159,36 @@ public sealed class FileSerializedAIAssetStore : ISerializedAIAssetStore
 
         await stream.WriteAsync(representation, cancellationToken).ConfigureAwait(false);
         await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async ValueTask<byte[]> ReadPublishedBytesAsync(
+        string path,
+        CancellationToken cancellationToken)
+    {
+        for (var attempt = 0; ; attempt++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                await using var stream = new FileStream(
+                    path,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read | FileShare.Delete,
+                    bufferSize: 81920,
+                    options: FileOptions.Asynchronous | FileOptions.SequentialScan);
+
+                var length = checked((int)stream.Length);
+                var representation = new byte[length];
+                await stream.ReadExactlyAsync(representation, cancellationToken).ConfigureAwait(false);
+                return representation;
+            }
+            catch (IOException) when (attempt < PublishedReadRetryCount - 1 && File.Exists(path))
+            {
+                await Task.Yield();
+            }
+        }
     }
 
     private static string EncodeUtf16CodeUnits(string value)
