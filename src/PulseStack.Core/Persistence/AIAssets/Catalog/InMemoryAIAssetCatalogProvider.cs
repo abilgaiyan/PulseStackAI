@@ -243,6 +243,25 @@ public sealed class InMemoryAIAssetCatalogProvider : IAIAssetCatalogProvider
                 new AIAssetCatalogDiagnosticContext(operation, Urn: lineage.Urn));
         }
 
+        var relatedExactRecords = catalogNamespace.ExactRecords
+            .Where(pair =>
+                (pair.Key.Type == lineage.Type && pair.Key.Id == lineage.Id)
+                || pair.Value.Urn == lineage.Urn)
+            .ToArray();
+
+        foreach (var (key, record) in relatedExactRecords)
+        {
+            if (record.DefinitionKey != key
+                || key.Type != lineage.Type
+                || key.Id != lineage.Id
+                || record.Urn != lineage.Urn)
+            {
+                throw Inconsistent(
+                    "The in-memory catalog exact authority conflicts with lineage identity.",
+                    new AIAssetCatalogDiagnosticContext(operation, key, lineage.Urn));
+            }
+        }
+
         foreach (var version in lineage.Versions)
         {
             var key = new AssetDefinitionKey(lineage.Type, lineage.Id, version);
@@ -256,11 +275,7 @@ public sealed class InMemoryAIAssetCatalogProvider : IAIAssetCatalogProvider
             }
         }
 
-        var exactVersions = catalogNamespace.ExactRecords
-            .Where(pair =>
-                pair.Key.Type == lineage.Type
-                && pair.Key.Id == lineage.Id
-                && pair.Value.Urn == lineage.Urn)
+        var exactVersions = relatedExactRecords
             .Select(pair => pair.Key.Version)
             .ToHashSet();
 
