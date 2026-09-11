@@ -15,12 +15,13 @@ public sealed class FileSerializedAIAssetStoreRecoveryTests : IDisposable
         Guid.NewGuid().ToString("N"));
 
     [Theory]
-    [InlineData(FileSerializedAIAssetStoreWriteCheckpoint.BeforeTemporaryCreate)]
-    [InlineData(FileSerializedAIAssetStoreWriteCheckpoint.AfterTemporaryFlush)]
-    [InlineData(FileSerializedAIAssetStoreWriteCheckpoint.BeforePublication)]
+    [InlineData((int)FileSerializedAIAssetStoreWriteCheckpoint.BeforeTemporaryCreate)]
+    [InlineData((int)FileSerializedAIAssetStoreWriteCheckpoint.AfterTemporaryFlush)]
+    [InlineData((int)FileSerializedAIAssetStoreWriteCheckpoint.BeforePublication)]
     public async Task FailureBeforePublication_ShouldPublishNothingAndCleanTemporaryArtifacts(
-        FileSerializedAIAssetStoreWriteCheckpoint checkpoint)
+        int checkpointValue)
     {
+        var checkpoint = (FileSerializedAIAssetStoreWriteCheckpoint)checkpointValue;
         var key = CreateKey();
         var injector = new ThrowingFaultInjector(checkpoint);
         var store = new FileSerializedAIAssetStore(rootPath, injector);
