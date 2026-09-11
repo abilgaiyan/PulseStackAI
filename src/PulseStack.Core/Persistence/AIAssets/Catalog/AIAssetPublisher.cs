@@ -28,7 +28,7 @@ public sealed class AIAssetPublisher : IAIAssetPublisher
         if (lookup is ExactCatalogLookupResult.Found found)
         {
             PersistentAIAssetResolver.EnsureExactRecordMatches(key, found.Record, "Publish");
-            var existing = await LoadAsync(key, cancellationToken).ConfigureAwait(false);
+            var existing = await loader.LoadAsync(key, cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
 
             if (existing is AIAssetLoadResult.NotFound)
@@ -44,7 +44,7 @@ public sealed class AIAssetPublisher : IAIAssetPublisher
             return AIAssetPublicationResult.AlreadyPublished;
         }
 
-        var load = await LoadAsync(key, cancellationToken).ConfigureAwait(false);
+        var load = await loader.LoadAsync(key, cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
         if (load is AIAssetLoadResult.NotFound)
         {
@@ -83,6 +83,10 @@ public sealed class AIAssetPublisher : IAIAssetPublisher
         {
             throw PersistentAIAssetResolver.ProviderFailure("FindExact", key: key);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (AIAssetCatalogException)
         {
             throw;
@@ -108,6 +112,10 @@ public sealed class AIAssetPublisher : IAIAssetPublisher
                 record.DefinitionKey,
                 record.Urn);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (AIAssetCatalogException)
         {
             throw;
@@ -121,11 +129,6 @@ public sealed class AIAssetPublisher : IAIAssetPublisher
                 exception);
         }
     }
-
-    private ValueTask<AIAssetLoadResult> LoadAsync(
-        AssetDefinitionKey key,
-        CancellationToken cancellationToken) =>
-        loader.LoadAsync(key, cancellationToken);
 
     private static void EnsureLoadedUrnMatches(IAsset asset, AssetUrn catalogUrn, AssetDefinitionKey key)
     {
