@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using PulseStack.Abstractions.Assets;
 using PulseStack.Abstractions.Persistence.AIAssets.Storage;
 
@@ -9,7 +8,17 @@ namespace PulseStack.Core.Persistence.AIAssets.Storage;
 /// </summary>
 public sealed class InMemorySerializedAIAssetStore : ISerializedAIAssetStore
 {
-    private readonly ConcurrentDictionary<AssetDefinitionKey, byte[]> storage = new();
+    private readonly InMemorySerializedAIAssetStoreNamespace storeNamespace;
+
+    public InMemorySerializedAIAssetStore()
+        : this(new InMemorySerializedAIAssetStoreNamespace())
+    {
+    }
+
+    public InMemorySerializedAIAssetStore(InMemorySerializedAIAssetStoreNamespace storeNamespace)
+    {
+        this.storeNamespace = storeNamespace ?? throw new ArgumentNullException(nameof(storeNamespace));
+    }
 
     public ValueTask<SerializedAIAssetReadResult> ReadAsync(
         AssetDefinitionKey key,
@@ -18,7 +27,7 @@ public sealed class InMemorySerializedAIAssetStore : ISerializedAIAssetStore
         AIAssetStorageContract.EnsureValidKey(key);
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!storage.TryGetValue(key, out var stored))
+        if (!storeNamespace.Storage.TryGetValue(key, out var stored))
         {
             return ValueTask.FromResult<SerializedAIAssetReadResult>(
                 new SerializedAIAssetReadResult.NotFound());
@@ -39,12 +48,12 @@ public sealed class InMemorySerializedAIAssetStore : ISerializedAIAssetStore
         var owned = representation.ToArray();
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (storage.TryAdd(key, owned))
+        if (storeNamespace.Storage.TryAdd(key, owned))
         {
             return ValueTask.FromResult(AIAssetWriteResult.Created);
         }
 
-        var stored = storage[key];
+        var stored = storeNamespace.Storage[key];
         return ValueTask.FromResult(
             stored.AsSpan().SequenceEqual(owned)
                 ? AIAssetWriteResult.AlreadyPresent
