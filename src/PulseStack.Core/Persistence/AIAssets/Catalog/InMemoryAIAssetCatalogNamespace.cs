@@ -16,7 +16,7 @@ public sealed class InMemoryAIAssetCatalogNamespace
 
     internal Dictionary<AssetUrn, InMemoryCatalogLineageState> LineagesByUrn { get; } = new();
 
-    internal InMemoryAIAssetCatalogTestState TestState { get; } = new();
+    internal InMemoryAIAssetCatalogTestHooks TestHooks { get; } = new();
 }
 
 internal sealed class InMemoryCatalogLineageState
@@ -38,7 +38,12 @@ internal sealed class InMemoryCatalogLineageState
     public HashSet<AssetVersion> Versions { get; }
 }
 
-internal sealed class InMemoryAIAssetCatalogTestState
+/// <summary>
+/// Internal observability/fault hooks used only by the provider conformance binding.
+/// These hooks do not manufacture inconsistent-state outcomes; inconsistency proof mutates
+/// the namespace authority itself and exercises ordinary provider paths.
+/// </summary>
+internal sealed class InMemoryAIAssetCatalogTestHooks
 {
     public CancellationToken? LastExactLookupToken { get; set; }
 
@@ -47,6 +52,4 @@ internal sealed class InMemoryAIAssetCatalogTestState
     public CancellationToken? LastPublicationToken { get; set; }
 
     public Exception? NextProviderFailure { get; set; }
-
-    public bool CorruptNextExactLookup { get; set; }
 }
