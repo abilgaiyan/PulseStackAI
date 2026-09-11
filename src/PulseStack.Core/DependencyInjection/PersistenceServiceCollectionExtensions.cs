@@ -33,7 +33,7 @@ public static class PersistenceServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(store);
         AIAssetStorageContract.EnsureValidOptions(options);
-        EnsureNoRawStoreRegistered(services);
+        EnsureStorageCompositionAvailable(services);
 
         services.AddSingleton(store);
         AddAIAssetStorageComposition(services, options);
@@ -47,7 +47,7 @@ public static class PersistenceServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
         AIAssetStorageContract.EnsureValidOptions(options);
-        EnsureNoRawStoreRegistered(services);
+        EnsureStorageCompositionAvailable(services);
 
         services.AddSingleton<ISerializedAIAssetStore>(
             new InMemorySerializedAIAssetStore(
@@ -63,7 +63,7 @@ public static class PersistenceServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
         AIAssetStorageContract.EnsureValidOptions(options);
-        EnsureNoRawStoreRegistered(services);
+        EnsureStorageCompositionAvailable(services);
 
         services.AddSingleton<ISerializedAIAssetStore>(
             new FileSerializedAIAssetStore(rootPath));
@@ -124,16 +124,16 @@ public static class PersistenceServiceCollectionExtensions
         services.AddAIAssetDocumentCodec();
         services.TryAddSingleton<IAIAssetDocumentValidator, AIAssetDocumentValidator>();
         services.TryAddSingleton<IAIAssetDocumentMapper, AIAssetDocumentMapper>();
-        services.TryAddSingleton(options);
+        services.AddSingleton(options);
 
-        services.TryAddSingleton<IAIAssetWriter>(provider =>
+        services.AddSingleton<IAIAssetWriter>(provider =>
             new AIAssetWriter(
                 GetExactlyOne<ISerializedAIAssetStore>(provider),
                 GetExactlyOne<IAIAssetDocumentCodec>(provider),
                 GetExactlyOne<IAIAssetDocumentValidator>(provider),
                 GetExactlyOne<AIAssetStorageOptions>(provider)));
 
-        services.TryAddSingleton<IAIAssetLoader>(provider =>
+        services.AddSingleton<IAIAssetLoader>(provider =>
             new AIAssetLoader(
                 GetExactlyOne<ISerializedAIAssetStore>(provider),
                 GetExactlyOne<IAIAssetDocumentCodec>(provider),
@@ -142,13 +142,17 @@ public static class PersistenceServiceCollectionExtensions
                 GetExactlyOne<AIAssetStorageOptions>(provider)));
     }
 
-    private static void EnsureNoRawStoreRegistered(IServiceCollection services)
+    private static void EnsureStorageCompositionAvailable(IServiceCollection services)
     {
-        if (services.Any(descriptor => descriptor.ServiceType == typeof(ISerializedAIAssetStore)))
+        if (services.Any(descriptor =>
+                descriptor.ServiceType == typeof(ISerializedAIAssetStore)
+                || descriptor.ServiceType == typeof(AIAssetStorageOptions)
+                || descriptor.ServiceType == typeof(IAIAssetWriter)
+                || descriptor.ServiceType == typeof(IAIAssetLoader)))
         {
             throw new AIAssetStorageException(
                 AIAssetStorageFailureCategory.CompositionConfiguration,
-                "Exactly one serialized AI Asset store must be selected explicitly.");
+                "AI Asset storage composition has already been configured or partially configured.");
         }
     }
 
