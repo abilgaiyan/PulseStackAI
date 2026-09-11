@@ -291,28 +291,24 @@ public abstract class AIAssetCatalogProviderConformanceTests
     }
 
     [Fact]
-    public async Task ConcurrentReaders_ShouldNeverObserveHalfPublicationAcrossExactAndLineageAuthority()
+    public async Task ActiveReaders_ShouldNeverObserveHalfPublicationAcrossExactAndLineageAuthority()
     {
         await using var fixture = await CreateFixtureAsync();
         var record = CreateRecord();
         var publisher = fixture.CreateProvider();
         var exactReader = fixture.CreateProvider();
         var lineageReader = fixture.CreateProvider();
-        using var release = new ManualResetEventSlim(false);
-        using var ready = new CountdownEvent(3);
-
-        var publishTask = Task.Run(async () =>
-        {
-            ready.Signal();
-            release.Wait();
-            return await publisher.PublishAsync(record);
-        });
+        using var startPublication = new ManualResetEventSlim(false);
+        using var readersActive = new CountdownEvent(2);
 
         var exactObservation = Task.Run(async () =>
         {
-            ready.Signal();
-            release.Wait();
-            while (!publishTask.IsCompleted)
+            (await exactReader.FindExactAsync(record.DefinitionKey))
+                .Should().BeOfType<ExactCatalogLookupResult.NotFound>();
+            readersActive.Signal();
+            startPublication.Wait();
+
+            while (true)
             {
                 var exact = await exactReader.FindExactAsync(record.DefinitionKey);
                 if (exact is ExactCatalogLookupResult.Found)
@@ -322,18 +318,16 @@ public abstract class AIAssetCatalogProviderConformanceTests
 
                 await Task.Yield();
             }
-
-            var finalExact = await exactReader.FindExactAsync(record.DefinitionKey);
-            return finalExact is ExactCatalogLookupResult.Found
-                ? await exactReader.FindLineageAsync(record.Urn)
-                : new CatalogLineageLookupResult.NotFound();
         });
 
         var lineageObservation = Task.Run(async () =>
         {
-            ready.Signal();
-            release.Wait();
-            while (!publishTask.IsCompleted)
+            (await lineageReader.FindLineageAsync(record.Urn))
+                .Should().BeOfType<CatalogLineageLookupResult.NotFound>();
+            readersActive.Signal();
+            startPublication.Wait();
+
+            while (true)
             {
                 var lineage = await lineageReader.FindLineageAsync(record.Urn);
                 if (LineageContains(lineage, record.DefinitionKey.Version))
@@ -343,15 +337,14 @@ public abstract class AIAssetCatalogProviderConformanceTests
 
                 await Task.Yield();
             }
-
-            var finalLineage = await lineageReader.FindLineageAsync(record.Urn);
-            return LineageContains(finalLineage, record.DefinitionKey.Version)
-                ? await lineageReader.FindExactAsync(record.DefinitionKey)
-                : new ExactCatalogLookupResult.NotFound();
         });
 
-        ready.Wait();
-        release.Set();
+        readersActive.Wait();
+        var publishTask = Task.Run(async () =>
+        {
+            startPublication.Set();
+            return await publisher.PublishAsync(record);
+        });
 
         (await publishTask).Should().Be(CatalogPublicationResult.Created);
         var lineageAfterExact = await exactObservation;
@@ -418,6 +411,23 @@ public abstract class AIAssetCatalogProviderConformanceTests
     }
 
     [Fact]
+    public async Task ProviderSpecificTokenProof_ShouldPropagateExactCallerTokenWhenFixtureExposesInstrumentation()
+    {
+        await using var fixture = await CreateFixtureAsync();
+        if (fixture.TokenProof is null)
+        {
+            return;
+        }
+
+        using var cancellation = new CancellationTokenSource();
+        var participant = fixture.CreateProvider();
+
+        await fixture.TokenProof.AssertExactLookupTokenAsync(participant, cancellation.Token);
+        await fixture.TokenProof.AssertLineageLookupTokenAsync(participant, cancellation.Token);
+        await fixture.TokenProof.AssertPublicationTokenAsync(participant, cancellation.Token);
+    }
+
+    [Fact]
     public async Task ProviderSpecificFailureProof_ShouldUsePortableFailureCategoriesWhenFixtureExposesHook()
     {
         await using var fixture = await CreateFixtureAsync();
@@ -450,8 +460,12 @@ public abstract class AIAssetCatalogProviderConformanceTests
         var loserIndex = 1 - winnerIndex;
         var reader = fixture.CreateProvider();
         AssertExact(await reader.FindExactAsync(candidates[winnerIndex].DefinitionKey), candidates[winnerIndex]);
-        (await reader.FindExactAsync(candidates[loserIndex].DefinitionKey))
-            .Should().BeOfType<ExactCatalogLookupResult.NotFound>();
+
+        if (candidates[winnerIndex].DefinitionKey != candidates[loserIndex].DefinitionKey)
+        {
+            (await reader.FindExactAsync(candidates[loserIndex].DefinitionKey))
+                .Should().BeOfType<ExactCatalogLookupResult.NotFound>();
+        }
 
         if (!Equals(candidates[winnerIndex].Urn, candidates[loserIndex].Urn))
         {
