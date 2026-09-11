@@ -52,10 +52,10 @@ public abstract class AIAssetCatalogProviderConformanceTests
 
         (await fixture.CreateProvider().PublishAsync(record)).Should().Be(CatalogPublicationResult.Created);
 
-        var recreatedParticipant = fixture.CreateProvider();
-        AssertExact(await recreatedParticipant.FindExactAsync(record.DefinitionKey), record);
+        var reader = fixture.CreateProvider();
+        AssertExact(await reader.FindExactAsync(record.DefinitionKey), record);
         AssertLineage(
-            await recreatedParticipant.FindLineageAsync(record.Urn),
+            await reader.FindLineageAsync(record.Urn),
             record.DefinitionKey.Type,
             record.DefinitionKey.Id,
             record.Urn,
@@ -76,7 +76,6 @@ public abstract class AIAssetCatalogProviderConformanceTests
 
         var record = CreateRecord();
         (await fixture.CreateProvider().PublishAsync(record)).Should().Be(CatalogPublicationResult.Created);
-
         await fixture.RecreateAuthorityAsync();
 
         var reader = fixture.CreateProvider();
@@ -314,19 +313,25 @@ public abstract class AIAssetCatalogProviderConformanceTests
         startPublication.Set();
         (await publisher.PublishAsync(record)).Should().Be(CatalogPublicationResult.Created);
 
-        var observations = Task.WhenAll(exactObservation, lineageObservation);
-        var completed = await Task.WhenAny(observations, Task.Delay(VisibilityTimeout));
-        completed.Should().BeSameAs(observations,
-            "shared-authority participants must converge within the bounded conformance visibility deadline");
+        var exactCompleted = await Task.WhenAny(exactObservation, Task.Delay(VisibilityTimeout));
+        exactCompleted.Should().BeSameAs(
+            exactObservation,
+            "the exact participant must observe publication within the bounded conformance deadline");
+        var lineageAfterExact = await exactObservation;
 
-        var results = await observations;
+        var lineageCompleted = await Task.WhenAny(lineageObservation, Task.Delay(VisibilityTimeout));
+        lineageCompleted.Should().BeSameAs(
+            lineageObservation,
+            "the lineage participant must observe publication within the bounded conformance deadline");
+        var exactAfterLineage = await lineageObservation;
+
         AssertLineage(
-            (CatalogLineageLookupResult)results[0],
+            lineageAfterExact,
             record.DefinitionKey.Type,
             record.DefinitionKey.Id,
             record.Urn,
             record.DefinitionKey.Version);
-        AssertExact((ExactCatalogLookupResult)results[1], record);
+        AssertExact(exactAfterLineage, record);
     }
 
     [Fact]
@@ -371,22 +376,23 @@ public abstract class AIAssetCatalogProviderConformanceTests
     }
 
     [Fact]
-    public async Task CallerTokenIdentity_ShouldBeProvedByMandatoryFixtureObservations()
+    public async Task CallerTokenIdentity_ShouldBeAssertedByPortableSuite()
     {
         await using var fixture = await CreateFixtureAsync();
-        using var cancellation = new CancellationTokenSource();
         var participant = fixture.CreateProvider();
+        var record = CreateRecord();
+        using var cancellation = new CancellationTokenSource();
 
-        var exactToken = await fixture.TokenObservation
-            .ObserveExactLookupTokenAsync(participant, cancellation.Token);
-        var lineageToken = await fixture.TokenObservation
-            .ObserveLineageLookupTokenAsync(participant, cancellation.Token);
-        var publicationToken = await fixture.TokenObservation
-            .ObservePublicationTokenAsync(participant, cancellation.Token);
+        await participant.FindExactAsync(record.DefinitionKey, cancellation.Token);
+        await participant.FindLineageAsync(record.Urn, cancellation.Token);
+        await participant.PublishAsync(record, cancellation.Token);
 
-        exactToken.Should().Be(cancellation.Token);
-        lineageToken.Should().Be(cancellation.Token);
-        publicationToken.Should().Be(cancellation.Token);
+        fixture.TokenObservation.ReadExactLookupToken()
+            .Should().Be(cancellation.Token);
+        fixture.TokenObservation.ReadLineageLookupToken()
+            .Should().Be(cancellation.Token);
+        fixture.TokenObservation.ReadPublicationToken()
+            .Should().Be(cancellation.Token);
     }
 
     [Fact]
