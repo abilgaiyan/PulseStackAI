@@ -63,7 +63,7 @@ public sealed class AIAssetCatalogContractTests
 
         input.Clear();
 
-        lineage.PublishedVersions.Should().BeEquivalentTo(first, second);
+        lineage.PublishedVersions.Should().BeEquivalentTo(new[] { first, second });
         lineage.PublishedVersions.Should().HaveCount(2);
     }
 
@@ -128,25 +128,33 @@ public sealed class AIAssetCatalogContractTests
     [Fact]
     public void PortableResultAlgebra_ShouldRemainClosedAndDistinguishable()
     {
-        Enum.GetValues<CatalogPublicationResult>().Should().BeEquivalentTo(
+        Enum.GetValues<CatalogPublicationResult>().Should().BeEquivalentTo(new[]
+        {
             CatalogPublicationResult.Created,
             CatalogPublicationResult.AlreadyPresent,
-            CatalogPublicationResult.Conflict);
+            CatalogPublicationResult.Conflict
+        });
 
-        Enum.GetValues<AIAssetPublicationResult>().Should().BeEquivalentTo(
+        Enum.GetValues<AIAssetPublicationResult>().Should().BeEquivalentTo(new[]
+        {
             AIAssetPublicationResult.Published,
             AIAssetPublicationResult.AlreadyPublished,
             AIAssetPublicationResult.DefinitionNotStored,
-            AIAssetPublicationResult.IdentityConflict);
+            AIAssetPublicationResult.IdentityConflict
+        });
 
-        Enum.GetValues<AIAssetCatalogFailureCategory>().Should().BeEquivalentTo(
+        Enum.GetValues<AIAssetCatalogFailureCategory>().Should().BeEquivalentTo(new[]
+        {
             AIAssetCatalogFailureCategory.CompositionConfiguration,
             AIAssetCatalogFailureCategory.ProviderFailure,
-            AIAssetCatalogFailureCategory.InconsistentState);
+            AIAssetCatalogFailureCategory.InconsistentState
+        });
 
-        Enum.GetValues<AIAssetCatalogBoundaryFailureCategory>().Should().BeEquivalentTo(
+        Enum.GetValues<AIAssetCatalogBoundaryFailureCategory>().Should().BeEquivalentTo(new[]
+        {
             AIAssetCatalogBoundaryFailureCategory.PublishedDefinitionUnavailable,
-            AIAssetCatalogBoundaryFailureCategory.CatalogAssetIdentityMismatch);
+            AIAssetCatalogBoundaryFailureCategory.CatalogAssetIdentityMismatch
+        });
     }
 
     [Fact]
