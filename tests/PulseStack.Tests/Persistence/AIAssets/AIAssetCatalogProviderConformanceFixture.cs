@@ -38,8 +38,8 @@ public sealed class AIAssetCatalogProviderConformanceFixture : IAsyncDisposable
     public AIAssetCatalogProviderFailureScenario FailureScenario { get; }
 
     /// <summary>
-    /// Required provider-specific instrumentation returning the token observed by each operation.
-    /// The shared suite owns caller-token identity assertions.
+    /// Required provider-specific instrumentation exposing only the token actually observed
+    /// by each provider operation. The expected token is never supplied to these callbacks.
     /// </summary>
     public AIAssetCatalogProviderTokenObservation TokenObservation { get; }
 
@@ -76,10 +76,10 @@ public sealed record AIAssetCatalogProviderFailureScenario(
     Func<IAIAssetCatalogProvider, ValueTask<Exception>> ObserveInconsistentStateAsync);
 
 /// <summary>
-/// Provider-specific instrumentation for observing the cancellation token received by
-/// each provider operation. Portable token-equality assertions remain in the shared suite.
+/// Provider-specific read-only instrumentation for observing cancellation tokens received
+/// by provider operations. Portable token-equality assertions remain in the shared suite.
 /// </summary>
 public sealed record AIAssetCatalogProviderTokenObservation(
-    Func<IAIAssetCatalogProvider, CancellationToken, ValueTask<CancellationToken>> ObserveExactLookupTokenAsync,
-    Func<IAIAssetCatalogProvider, CancellationToken, ValueTask<CancellationToken>> ObserveLineageLookupTokenAsync,
-    Func<IAIAssetCatalogProvider, CancellationToken, ValueTask<CancellationToken>> ObservePublicationTokenAsync);
+    Func<CancellationToken?> ReadExactLookupToken,
+    Func<CancellationToken?> ReadLineageLookupToken,
+    Func<CancellationToken?> ReadPublicationToken);
