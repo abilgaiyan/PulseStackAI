@@ -63,7 +63,7 @@ public abstract class AIAssetCatalogProviderConformanceTests
     }
 
     [Fact]
-    public async Task DurableCapability_ShouldExposeAuthorityRecreationAndRetainCommittedRecords()
+    public async Task DurableCapability_ShouldRequireProcessRestartProofAndRetainCommittedRecords()
     {
         await using var fixture = await CreateFixtureAsync();
         if (fixture.CapabilityProfile.Durability != AIAssetAuthorityDurability.Durable)
@@ -71,12 +71,12 @@ public abstract class AIAssetCatalogProviderConformanceTests
             return;
         }
 
-        fixture.SupportsAuthorityRecreation.Should().BeTrue(
-            "a durable catalog capability must provide an authority-recreation proof hook");
+        fixture.SupportsProcessRestartProof.Should().BeTrue(
+            "a durable catalog capability must prove retention across a process-restart boundary");
 
         var record = CreateRecord();
         (await fixture.CreateProvider().PublishAsync(record)).Should().Be(CatalogPublicationResult.Created);
-        await fixture.RecreateAuthorityAsync();
+        await fixture.RestartAuthorityAsync();
 
         var reader = fixture.CreateProvider();
         AssertExact(await reader.FindExactAsync(record.DefinitionKey), record);
@@ -404,11 +404,10 @@ public abstract class AIAssetCatalogProviderConformanceTests
         var providerFailure = await fixture.FailureScenario.ObserveProviderFailureAsync(participant);
         var inconsistentState = await fixture.FailureScenario.ObserveInconsistentStateAsync(participant);
 
-        var providerException = providerFailure.Should().BeOfType<AIAssetCatalogException>().Subject;
-        providerException.Category.Should().Be(AIAssetCatalogFailureCategory.ProviderFailure);
-
-        var inconsistentException = inconsistentState.Should().BeOfType<AIAssetCatalogException>().Subject;
-        inconsistentException.Category.Should().Be(AIAssetCatalogFailureCategory.InconsistentState);
+        providerFailure.Should().BeOfType<AIAssetCatalogException>()
+            .Which.Category.Should().Be(AIAssetCatalogFailureCategory.ProviderFailure);
+        inconsistentState.Should().BeOfType<AIAssetCatalogException>()
+            .Which.Category.Should().Be(AIAssetCatalogFailureCategory.InconsistentState);
     }
 
     private static async Task AssertConcurrentConflictAsync(
@@ -417,6 +416,7 @@ public abstract class AIAssetCatalogProviderConformanceTests
     {
         candidates.Should().HaveCount(2);
         var participants = new[] { fixture.CreateProvider(), fixture.CreateProvider() };
+
         var results = await RunCoordinatedAsync(
             participants.Select((provider, index) =>
                 (Func<Task<CatalogPublicationResult>>)(() => provider.PublishAsync(candidates[index]).AsTask())));
