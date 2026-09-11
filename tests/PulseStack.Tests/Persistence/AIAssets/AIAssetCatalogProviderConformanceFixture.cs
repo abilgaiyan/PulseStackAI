@@ -16,33 +16,32 @@ public sealed class AIAssetCatalogProviderConformanceFixture : IAsyncDisposable
     public AIAssetCatalogProviderConformanceFixture(
         Func<IAIAssetCatalogProvider> createProvider,
         AIAssetCatalogCapabilityProfile capabilityProfile,
+        AIAssetCatalogProviderFailureScenario failureScenario,
+        AIAssetCatalogProviderTokenObservation tokenObservation,
         Func<ValueTask>? recreateAuthorityAsync = null,
-        AIAssetCatalogProviderFailureProof? failureProof = null,
-        AIAssetCatalogProviderTokenProof? tokenProof = null,
         Func<ValueTask>? disposeAsync = null)
     {
         this.createProvider = createProvider ?? throw new ArgumentNullException(nameof(createProvider));
         CapabilityProfile = capabilityProfile ?? throw new ArgumentNullException(nameof(capabilityProfile));
+        FailureScenario = failureScenario ?? throw new ArgumentNullException(nameof(failureScenario));
+        TokenObservation = tokenObservation ?? throw new ArgumentNullException(nameof(tokenObservation));
         this.recreateAuthorityAsync = recreateAuthorityAsync;
-        FailureProof = failureProof;
-        TokenProof = tokenProof;
         this.disposeAsync = disposeAsync;
     }
 
     public AIAssetCatalogCapabilityProfile CapabilityProfile { get; }
 
     /// <summary>
-    /// Optional provider-specific extension point used to prove ProviderFailure and
-    /// InconsistentState classification without teaching the portable suite how a
-    /// provider stores data or injects faults.
+    /// Required provider-specific fault/corruption arrangement that returns the exception
+    /// observed from the portable provider boundary. The shared suite owns classification assertions.
     /// </summary>
-    public AIAssetCatalogProviderFailureProof? FailureProof { get; }
+    public AIAssetCatalogProviderFailureScenario FailureScenario { get; }
 
     /// <summary>
-    /// Optional provider-specific instrumentation proving that the exact caller token
-    /// reaches each provider operation. Pre-cancellation remains mandatory independently.
+    /// Required provider-specific instrumentation returning the token observed by each operation.
+    /// The shared suite owns caller-token identity assertions.
     /// </summary>
-    public AIAssetCatalogProviderTokenProof? TokenProof { get; }
+    public AIAssetCatalogProviderTokenObservation TokenObservation { get; }
 
     public IAIAssetCatalogProvider CreateProvider() =>
         createProvider() ?? throw new InvalidOperationException("The conformance fixture returned a null provider participant.");
@@ -68,17 +67,19 @@ public sealed class AIAssetCatalogProviderConformanceFixture : IAsyncDisposable
 }
 
 /// <summary>
-/// Provider-specific hooks for producing portable failure classifications.
-/// The callbacks must operate against the same fixture namespace authority.
+/// Provider-specific arrangements for producing portable failure observations.
+/// The callbacks must operate against the same fixture namespace authority and return
+/// the exception observed at the provider boundary without asserting its classification.
 /// </summary>
-public sealed record AIAssetCatalogProviderFailureProof(
-    Func<IAIAssetCatalogProvider, ValueTask> AssertProviderFailureAsync,
-    Func<IAIAssetCatalogProvider, ValueTask> AssertInconsistentStateAsync);
+public sealed record AIAssetCatalogProviderFailureScenario(
+    Func<IAIAssetCatalogProvider, ValueTask<Exception>> ObserveProviderFailureAsync,
+    Func<IAIAssetCatalogProvider, ValueTask<Exception>> ObserveInconsistentStateAsync);
 
 /// <summary>
-/// Provider-specific instrumentation for proving caller-token identity propagation.
+/// Provider-specific instrumentation for observing the cancellation token received by
+/// each provider operation. Portable token-equality assertions remain in the shared suite.
 /// </summary>
-public sealed record AIAssetCatalogProviderTokenProof(
-    Func<IAIAssetCatalogProvider, CancellationToken, ValueTask> AssertExactLookupTokenAsync,
-    Func<IAIAssetCatalogProvider, CancellationToken, ValueTask> AssertLineageLookupTokenAsync,
-    Func<IAIAssetCatalogProvider, CancellationToken, ValueTask> AssertPublicationTokenAsync);
+public sealed record AIAssetCatalogProviderTokenObservation(
+    Func<IAIAssetCatalogProvider, CancellationToken, ValueTask<CancellationToken>> ObserveExactLookupTokenAsync,
+    Func<IAIAssetCatalogProvider, CancellationToken, ValueTask<CancellationToken>> ObserveLineageLookupTokenAsync,
+    Func<IAIAssetCatalogProvider, CancellationToken, ValueTask<CancellationToken>> ObservePublicationTokenAsync);
