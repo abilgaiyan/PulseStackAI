@@ -14,8 +14,16 @@ public sealed class FileSerializedAIAssetStore : ISerializedAIAssetStore
     private const string TemporaryFileExtension = ".tmp";
 
     private readonly string rootPath;
+    private readonly IFileSerializedAIAssetStoreFaultInjector faultInjector;
 
     public FileSerializedAIAssetStore(string rootPath)
+        : this(rootPath, NoOpFileSerializedAIAssetStoreFaultInjector.Instance)
+    {
+    }
+
+    internal FileSerializedAIAssetStore(
+        string rootPath,
+        IFileSerializedAIAssetStoreFaultInjector faultInjector)
     {
         if (string.IsNullOrWhiteSpace(rootPath))
         {
@@ -23,6 +31,8 @@ public sealed class FileSerializedAIAssetStore : ISerializedAIAssetStore
                 AIAssetStorageFailureCategory.CompositionConfiguration,
                 "A non-empty file-store root path is required.");
         }
+
+        this.faultInjector = faultInjector ?? throw new ArgumentNullException(nameof(faultInjector));
 
         try
         {
@@ -80,8 +90,24 @@ public sealed class FileSerializedAIAssetStore : ISerializedAIAssetStore
 
         try
         {
+            faultInjector.OnCheckpoint(
+                FileSerializedAIAssetStoreWriteCheckpoint.BeforeTemporaryCreate,
+                temporaryPath,
+                assetPath);
+
             await WriteTemporaryAsync(temporaryPath, representation, cancellationToken).ConfigureAwait(false);
+
+            faultInjector.OnCheckpoint(
+                FileSerializedAIAssetStoreWriteCheckpoint.AfterTemporaryFlush,
+                temporaryPath,
+                assetPath);
+
             cancellationToken.ThrowIfCancellationRequested();
+
+            faultInjector.OnCheckpoint(
+                FileSerializedAIAssetStoreWriteCheckpoint.BeforePublication,
+                temporaryPath,
+                assetPath);
 
             try
             {
@@ -102,6 +128,21 @@ public sealed class FileSerializedAIAssetStore : ISerializedAIAssetStore
         }
     }
 
+    internal string ResolveAssetPath(AssetDefinitionKey key)
+    {
+        AIAssetStorageContract.EnsureValidKey(key);
+
+        var typeSegment = ((int)key.Type).ToString(CultureInfo.InvariantCulture);
+        var idSegment = key.Id.Value.ToString("N");
+        var versionSegment = EncodeUtf16CodeUnits(key.Version.Value);
+
+        return Path.Combine(
+            rootPath,
+            typeSegment,
+            idSegment,
+            versionSegment + AssetFileExtension);
+    }
+
     private static async ValueTask WriteTemporaryAsync(
         string temporaryPath,
         ReadOnlyMemory<byte> representation,
@@ -117,19 +158,6 @@ public sealed class FileSerializedAIAssetStore : ISerializedAIAssetStore
 
         await stream.WriteAsync(representation, cancellationToken).ConfigureAwait(false);
         await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private string ResolveAssetPath(AssetDefinitionKey key)
-    {
-        var typeSegment = ((int)key.Type).ToString(CultureInfo.InvariantCulture);
-        var idSegment = key.Id.Value.ToString("N");
-        var versionSegment = EncodeUtf16CodeUnits(key.Version.Value);
-
-        return Path.Combine(
-            rootPath,
-            typeSegment,
-            idSegment,
-            versionSegment + AssetFileExtension);
     }
 
     private static string EncodeUtf16CodeUnits(string value)
@@ -157,5 +185,36 @@ public sealed class FileSerializedAIAssetStore : ISerializedAIAssetStore
         {
             // Temporary cleanup is best-effort. Publication state is determined only by the final asset path.
         }
+    }
+}
+
+internal enum FileSerializedAIAssetStoreWriteCheckpoint
+{
+    BeforeTemporaryCreate,
+    AfterTemporaryFlush,
+    BeforePublication
+}
+
+internal interface IFileSerializedAIAssetStoreFaultInjector
+{
+    void OnCheckpoint(
+        FileSerializedAIAssetStoreWriteCheckpoint checkpoint,
+        string temporaryPath,
+        string assetPath);
+}
+
+internal sealed class NoOpFileSerializedAIAssetStoreFaultInjector : IFileSerializedAIAssetStoreFaultInjector
+{
+    public static NoOpFileSerializedAIAssetStoreFaultInjector Instance { get; } = new();
+
+    private NoOpFileSerializedAIAssetStoreFaultInjector()
+    {
+    }
+
+    public void OnCheckpoint(
+        FileSerializedAIAssetStoreWriteCheckpoint checkpoint,
+        string temporaryPath,
+        string assetPath)
+    {
     }
 }
