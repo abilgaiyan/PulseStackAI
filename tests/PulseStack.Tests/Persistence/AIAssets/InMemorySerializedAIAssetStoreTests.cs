@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using FluentAssertions;
 using PulseStack.Abstractions.Assets;
 using PulseStack.Abstractions.Persistence.AIAssets.Storage;
@@ -48,15 +49,16 @@ public sealed class InMemorySerializedAIAssetStoreTests
     }
 
     [Fact]
-    public async Task ReadAsync_ShouldReturnProviderOwnedCopy()
+    public async Task ReadAsync_ShouldReturnDetachedProviderOwnedMemory()
     {
         var store = new InMemorySerializedAIAssetStore();
         var key = CreateKey();
         await store.WriteAsync(key, new byte[] { 1, 2, 3 });
 
         var first = (SerializedAIAssetReadResult.Found)await store.ReadAsync(key);
-        var exposed = first.Representation.ToArray();
-        exposed[0] = 9;
+        MemoryMarshal.TryGetArray(first.Representation, out ArraySegment<byte> exposed).Should().BeTrue();
+        exposed.Array.Should().NotBeNull();
+        exposed.Array![exposed.Offset] = 9;
 
         var second = (SerializedAIAssetReadResult.Found)await store.ReadAsync(key);
         second.Representation.ToArray().Should().Equal(1, 2, 3);
