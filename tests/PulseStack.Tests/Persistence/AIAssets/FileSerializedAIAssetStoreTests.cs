@@ -116,6 +116,16 @@ public sealed class FileSerializedAIAssetStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task ExactKeyPathMapping_ShouldPreserveExactUtf16VersionIdentity()
+    {
+        await AssertVersionsRemainDistinctAsync("\uD800", "\uD801");
+        await AssertVersionsRemainDistinctAsync("\uD800", "\uDC00");
+        await AssertVersionsRemainDistinctAsync("\uD83D\uDE00", "\uD83D");
+        await AssertVersionsRemainDistinctAsync("\uD83D\uDE00", "\uDE00");
+        await AssertVersionsRemainDistinctAsync("é", "e\u0301");
+    }
+
+    [Fact]
     public async Task InvalidKey_ShouldWinOverAlreadyCancelledToken()
     {
         var store = CreateStore();
@@ -203,6 +213,22 @@ public sealed class FileSerializedAIAssetStoreTests : IDisposable
         {
             Directory.Delete(rootPath, recursive: true);
         }
+    }
+
+    private async Task AssertVersionsRemainDistinctAsync(string firstVersion, string secondVersion)
+    {
+        var store = CreateStore();
+        var id = AssetId.New();
+        var firstKey = new AssetDefinitionKey(AssetType.Prompt, id, new AssetVersion(firstVersion));
+        var secondKey = new AssetDefinitionKey(AssetType.Prompt, id, new AssetVersion(secondVersion));
+
+        (await store.WriteAsync(firstKey, new byte[] { 1 })).Should().Be(AIAssetWriteResult.Created);
+        (await store.WriteAsync(secondKey, new byte[] { 2 })).Should().Be(AIAssetWriteResult.Created);
+
+        ((SerializedAIAssetReadResult.Found)await store.ReadAsync(firstKey))
+            .Representation.ToArray().Should().Equal(1);
+        ((SerializedAIAssetReadResult.Found)await store.ReadAsync(secondKey))
+            .Representation.ToArray().Should().Equal(2);
     }
 
     private FileSerializedAIAssetStore CreateStore() => new(rootPath);
