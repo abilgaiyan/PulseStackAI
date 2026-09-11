@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using PulseStack.Abstractions.Assets;
 using PulseStack.Abstractions.Persistence.AIAssets.Storage;
 
@@ -31,7 +32,7 @@ public sealed record CatalogRecord
 /// </summary>
 public sealed record CatalogLineage
 {
-    private readonly IReadOnlySet<AssetVersion> publishedVersions;
+    private readonly FrozenSet<AssetVersion> publishedVersions;
 
     public CatalogLineage(
         AssetType type,
@@ -63,7 +64,7 @@ public sealed record CatalogLineage
         Type = type;
         Id = id;
         Urn = urn;
-        this.publishedVersions = versions;
+        this.publishedVersions = versions.ToFrozenSet();
     }
 
     public AssetType Type { get; }
