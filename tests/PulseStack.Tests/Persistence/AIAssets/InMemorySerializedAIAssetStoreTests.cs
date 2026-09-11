@@ -156,7 +156,7 @@ public sealed class InMemorySerializedAIAssetStoreTests
 
         results.Count(result => result == AIAssetWriteResult.Created).Should().Be(1);
         results.Count(result => result == AIAssetWriteResult.Conflict).Should().Be(63);
-        candidates.Should().ContainEquivalentOf(published);
+        candidates.Any(candidate => candidate.AsSpan().SequenceEqual(published)).Should().BeTrue();
     }
 
     [Fact]
