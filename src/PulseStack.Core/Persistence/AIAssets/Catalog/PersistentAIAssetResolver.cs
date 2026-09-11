@@ -170,6 +170,10 @@ public sealed class PersistentAIAssetResolver : IPersistentAIAssetResolver
         {
             throw ProviderFailure("FindExact", key: key);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (AIAssetCatalogException)
         {
             throw;
@@ -191,6 +195,10 @@ public sealed class PersistentAIAssetResolver : IPersistentAIAssetResolver
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             throw ProviderFailure("FindLineage", urn: urn);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (AIAssetCatalogException)
         {
