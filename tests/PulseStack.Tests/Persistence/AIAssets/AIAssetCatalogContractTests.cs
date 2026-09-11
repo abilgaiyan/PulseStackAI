@@ -68,6 +68,21 @@ public sealed class AIAssetCatalogContractTests
     }
 
     [Fact]
+    public void CatalogLineage_ShouldNotPublishValueEqualitySemantics()
+    {
+        var id = AssetId.New();
+        var urn = new AssetUrn("urn:pulsestack:agent:example");
+        var version = new AssetVersion("1.0");
+
+        var left = new CatalogLineage(AssetType.Agent, id, urn, new[] { version });
+        var right = new CatalogLineage(AssetType.Agent, id, urn, new[] { version });
+
+        left.Should().NotBeSameAs(right);
+        left.Equals(right).Should().BeFalse();
+        ReferenceEquals(left, right).Should().BeFalse();
+    }
+
+    [Fact]
     public void CatalogLineage_ShouldRejectUnsupportedOrIncompleteIdentity()
     {
         var urn = new AssetUrn("urn:pulsestack:agent:example");
