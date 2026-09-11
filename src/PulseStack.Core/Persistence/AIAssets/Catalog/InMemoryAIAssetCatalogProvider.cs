@@ -86,6 +86,13 @@ public sealed class InMemoryAIAssetCatalogProvider : IAIAssetCatalogProvider
                     return ValueTask.FromResult<CatalogLineageLookupResult>(new CatalogLineageLookupResult.NotFound());
                 }
 
+                if (lineage.Urn != urn)
+                {
+                    throw Inconsistent(
+                        "The in-memory catalog lineage record does not match its authority URN.",
+                        new AIAssetCatalogDiagnosticContext("FindLineage", Urn: urn));
+                }
+
                 EnsureLineageStateCoherent(lineage);
                 return ValueTask.FromResult<CatalogLineageLookupResult>(
                     new CatalogLineageLookupResult.Found(
