@@ -40,34 +40,40 @@ public sealed class AIAssetCatalogOrchestrationConformanceTests
     }
 
     [Fact]
-    public async Task UrnVersionResolution_WhenPublished_ShouldDeriveExactKeyForLookupAndLoader()
+    public async Task UrnVersionResolution_WhenPublished_ShouldDeriveExactKeyAndPropagateCallerTokenAcrossCompleteChain()
     {
         var fixture = new Fixture();
         fixture.Catalog.LineageResult = new CatalogLineageLookupResult.Found(fixture.Lineage);
         fixture.Catalog.ExactResult = new ExactCatalogLookupResult.Found(fixture.Record);
         fixture.Loader.Result = new AIAssetLoadResult.Loaded(fixture.Asset);
+        using var cancellation = new CancellationTokenSource();
 
-        var result = await fixture.Resolver.ResolveAsync(fixture.Urn, fixture.Key.Version);
+        var result = await fixture.Resolver.ResolveAsync(fixture.Urn, fixture.Key.Version, cancellation.Token);
 
         result.Should().BeOfType<AIAssetResolutionResult.Resolved>()
             .Which.Asset.Should().BeSameAs(fixture.Asset);
         fixture.Catalog.LineageUrns.Should().Equal(fixture.Urn);
         fixture.Catalog.ExactKeys.Should().Equal(fixture.Key);
         fixture.Loader.Keys.Should().Equal(fixture.Key);
+        fixture.Catalog.LineageTokens.Should().ContainSingle().Which.Should().Be(cancellation.Token);
+        fixture.Catalog.ExactTokens.Should().ContainSingle().Which.Should().Be(cancellation.Token);
+        fixture.Loader.Tokens.Should().ContainSingle().Which.Should().Be(cancellation.Token);
         fixture.Events.Should().Equal("catalog:lineage", "catalog:exact", "loader");
     }
 
     [Fact]
-    public async Task DiscoverLineage_ShouldOnlyLookupLineageAndReturnProviderSnapshot()
+    public async Task DiscoverLineage_ShouldOnlyLookupLineageReturnProviderSnapshotAndPropagateCallerToken()
     {
         var fixture = new Fixture();
         fixture.Catalog.LineageResult = new CatalogLineageLookupResult.Found(fixture.Lineage);
+        using var cancellation = new CancellationTokenSource();
 
-        var result = await fixture.Resolver.DiscoverLineageAsync(fixture.Urn);
+        var result = await fixture.Resolver.DiscoverLineageAsync(fixture.Urn, cancellation.Token);
 
         var found = result.Should().BeOfType<CatalogLineageLookupResult.Found>().Subject;
         found.Lineage.Should().BeSameAs(fixture.Lineage);
         fixture.Catalog.LineageUrns.Should().Equal(fixture.Urn);
+        fixture.Catalog.LineageTokens.Should().ContainSingle().Which.Should().Be(cancellation.Token);
         fixture.Catalog.ExactKeys.Should().BeEmpty();
         fixture.Loader.Keys.Should().BeEmpty();
         fixture.Events.Should().Equal("catalog:lineage");
