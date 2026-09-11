@@ -29,8 +29,10 @@ public sealed record CatalogRecord
 /// <summary>
 /// Describes one published Asset lineage and the exact versions currently published for it.
 /// PublishedVersions is an unordered exact-membership set; it defines no version ordering policy.
+/// Equality is intentionally not part of the portable contract; callers compare the exposed
+/// identity and version membership explicitly when semantic equivalence is required.
 /// </summary>
-public sealed record CatalogLineage
+public sealed class CatalogLineage
 {
     private readonly FrozenSet<AssetVersion> publishedVersions;
 
