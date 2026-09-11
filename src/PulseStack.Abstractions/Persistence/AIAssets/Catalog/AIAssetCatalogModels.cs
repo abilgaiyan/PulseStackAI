@@ -55,9 +55,9 @@ public sealed record CatalogLineage
             throw new ArgumentException("A catalog lineage must contain at least one published version.", nameof(publishedVersions));
         }
 
-        if (versions.Any(version => string.IsNullOrWhiteSpace(version.Value)))
+        if (versions.Any(version => version is null || string.IsNullOrWhiteSpace(version.Value)))
         {
-            throw new ArgumentException("Published versions must not be empty or whitespace.", nameof(publishedVersions));
+            throw new ArgumentException("Published versions must not be null, empty, or whitespace.", nameof(publishedVersions));
         }
 
         Type = type;
