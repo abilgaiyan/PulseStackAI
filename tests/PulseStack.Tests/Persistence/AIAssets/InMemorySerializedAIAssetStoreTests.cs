@@ -91,6 +91,62 @@ public sealed class InMemorySerializedAIAssetStoreTests
     }
 
     [Fact]
+    public async Task SharedNamespace_WriteThroughOneInstance_ShouldBeReadableThroughAnother()
+    {
+        var storeNamespace = new InMemorySerializedAIAssetStoreNamespace();
+        var first = new InMemorySerializedAIAssetStore(storeNamespace);
+        var second = new InMemorySerializedAIAssetStore(storeNamespace);
+        var key = CreateKey();
+
+        (await first.WriteAsync(key, new byte[] { 1, 2, 3 })).Should().Be(AIAssetWriteResult.Created);
+        var found = (SerializedAIAssetReadResult.Found)await second.ReadAsync(key);
+
+        found.Representation.ToArray().Should().Equal(1, 2, 3);
+    }
+
+    [Fact]
+    public async Task SharedNamespace_IdenticalSecondWrite_ShouldReturnAlreadyPresent()
+    {
+        var storeNamespace = new InMemorySerializedAIAssetStoreNamespace();
+        var first = new InMemorySerializedAIAssetStore(storeNamespace);
+        var second = new InMemorySerializedAIAssetStore(storeNamespace);
+        var key = CreateKey();
+
+        (await first.WriteAsync(key, new byte[] { 1, 2, 3 })).Should().Be(AIAssetWriteResult.Created);
+        var result = await second.WriteAsync(key, new byte[] { 1, 2, 3 });
+
+        result.Should().Be(AIAssetWriteResult.AlreadyPresent);
+    }
+
+    [Fact]
+    public async Task SharedNamespace_DifferentSecondWrite_ShouldReturnConflict()
+    {
+        var storeNamespace = new InMemorySerializedAIAssetStoreNamespace();
+        var first = new InMemorySerializedAIAssetStore(storeNamespace);
+        var second = new InMemorySerializedAIAssetStore(storeNamespace);
+        var key = CreateKey();
+
+        (await first.WriteAsync(key, new byte[] { 1, 2, 3 })).Should().Be(AIAssetWriteResult.Created);
+        var result = await second.WriteAsync(key, new byte[] { 4, 5, 6 });
+        var found = (SerializedAIAssetReadResult.Found)await first.ReadAsync(key);
+
+        result.Should().Be(AIAssetWriteResult.Conflict);
+        found.Representation.ToArray().Should().Equal(1, 2, 3);
+    }
+
+    [Fact]
+    public async Task DefaultConstructedStores_ShouldUseIsolatedNamespaces()
+    {
+        var first = new InMemorySerializedAIAssetStore();
+        var second = new InMemorySerializedAIAssetStore();
+        var key = CreateKey();
+
+        (await first.WriteAsync(key, new byte[] { 1 })).Should().Be(AIAssetWriteResult.Created);
+
+        (await second.ReadAsync(key)).Should().BeOfType<SerializedAIAssetReadResult.NotFound>();
+    }
+
+    [Fact]
     public async Task InvalidKey_ShouldWinOverAlreadyCancelledToken()
     {
         var store = new InMemorySerializedAIAssetStore();
@@ -125,12 +181,11 @@ public sealed class InMemorySerializedAIAssetStoreTests
         var store = new InMemorySerializedAIAssetStore();
         var key = CreateKey();
         byte[] bytes = [1, 2, 3, 4];
-
-        var tasks = Enumerable.Range(0, 64)
-            .Select(_ => store.WriteAsync(key, bytes).AsTask())
+        var operations = Enumerable.Range(0, 64)
+            .Select(_ => (store, (ReadOnlyMemory<byte>)bytes))
             .ToArray();
 
-        var results = await Task.WhenAll(tasks);
+        var results = await RunGatedWritesAsync(key, operations);
 
         results.Count(result => result == AIAssetWriteResult.Created).Should().Be(1);
         results.Count(result => result == AIAssetWriteResult.AlreadyPresent).Should().Be(63);
@@ -145,12 +200,11 @@ public sealed class InMemorySerializedAIAssetStoreTests
         var candidates = Enumerable.Range(0, 64)
             .Select(index => new byte[] { (byte)index, 42, 99 })
             .ToArray();
-
-        var tasks = candidates
-            .Select(bytes => store.WriteAsync(key, bytes).AsTask())
+        var operations = candidates
+            .Select(bytes => (store, (ReadOnlyMemory<byte>)bytes))
             .ToArray();
 
-        var results = await Task.WhenAll(tasks);
+        var results = await RunGatedWritesAsync(key, operations);
         var found = (SerializedAIAssetReadResult.Found)await store.ReadAsync(key);
         var published = found.Representation.ToArray();
 
@@ -160,20 +214,73 @@ public sealed class InMemorySerializedAIAssetStoreTests
     }
 
     [Fact]
+    public async Task SharedNamespace_ConcurrentCreationAcrossInstances_ShouldProduceExactlyOneCreated()
+    {
+        var storeNamespace = new InMemorySerializedAIAssetStoreNamespace();
+        var stores = Enumerable.Range(0, 64)
+            .Select(_ => new InMemorySerializedAIAssetStore(storeNamespace))
+            .ToArray();
+        var key = CreateKey();
+        byte[] bytes = [1, 2, 3, 4];
+        var operations = stores
+            .Select(store => (store, (ReadOnlyMemory<byte>)bytes))
+            .ToArray();
+
+        var results = await RunGatedWritesAsync(key, operations);
+
+        results.Count(result => result == AIAssetWriteResult.Created).Should().Be(1);
+        results.Count(result => result == AIAssetWriteResult.AlreadyPresent).Should().Be(63);
+    }
+
+    [Fact]
     public async Task DifferentKeys_ShouldRemainIndependent()
     {
         var store = new InMemorySerializedAIAssetStore();
         var firstKey = CreateKey();
         var secondKey = CreateKey();
+        var start = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        var firstWrite = store.WriteAsync(firstKey, new byte[] { 1 }).AsTask();
-        var secondWrite = store.WriteAsync(secondKey, new byte[] { 2 }).AsTask();
-        await Task.WhenAll(firstWrite, secondWrite);
+        var firstWrite = Task.Run(async () =>
+        {
+            await start.Task;
+            return await store.WriteAsync(firstKey, new byte[] { 1 });
+        });
+        var secondWrite = Task.Run(async () =>
+        {
+            await start.Task;
+            return await store.WriteAsync(secondKey, new byte[] { 2 });
+        });
 
-        firstWrite.Result.Should().Be(AIAssetWriteResult.Created);
-        secondWrite.Result.Should().Be(AIAssetWriteResult.Created);
+        start.SetResult(true);
+        var results = await Task.WhenAll(firstWrite, secondWrite);
+
+        results.Should().Equal(AIAssetWriteResult.Created, AIAssetWriteResult.Created);
         ((SerializedAIAssetReadResult.Found)await store.ReadAsync(firstKey)).Representation.ToArray().Should().Equal(1);
         ((SerializedAIAssetReadResult.Found)await store.ReadAsync(secondKey)).Representation.ToArray().Should().Equal(2);
+    }
+
+    private static async Task<AIAssetWriteResult[]> RunGatedWritesAsync(
+        AssetDefinitionKey key,
+        IReadOnlyList<(InMemorySerializedAIAssetStore Store, ReadOnlyMemory<byte> Representation)> operations)
+    {
+        var ready = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var start = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var readyCount = 0;
+
+        var workers = operations.Select(operation => Task.Run(async () =>
+        {
+            if (Interlocked.Increment(ref readyCount) == operations.Count)
+            {
+                ready.TrySetResult(true);
+            }
+
+            await start.Task;
+            return await operation.Store.WriteAsync(key, operation.Representation);
+        })).ToArray();
+
+        await ready.Task;
+        start.SetResult(true);
+        return await Task.WhenAll(workers);
     }
 
     private static AssetDefinitionKey CreateKey() =>
