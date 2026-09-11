@@ -10,7 +10,7 @@ namespace PulseStack.Tests.Persistence.AIAssets;
 public sealed class AIAssetCatalogProviderConformanceFixture : IAsyncDisposable
 {
     private readonly Func<IAIAssetCatalogProvider> createProvider;
-    private readonly Func<ValueTask>? recreateAuthorityAsync;
+    private readonly Func<ValueTask>? restartAuthorityAsync;
     private readonly Func<ValueTask>? disposeAsync;
 
     public AIAssetCatalogProviderConformanceFixture(
@@ -18,14 +18,22 @@ public sealed class AIAssetCatalogProviderConformanceFixture : IAsyncDisposable
         AIAssetCatalogCapabilityProfile capabilityProfile,
         AIAssetCatalogProviderFailureScenario failureScenario,
         AIAssetCatalogProviderTokenObservation tokenObservation,
-        Func<ValueTask>? recreateAuthorityAsync = null,
+        Func<ValueTask>? restartAuthorityAsync = null,
         Func<ValueTask>? disposeAsync = null)
     {
         this.createProvider = createProvider ?? throw new ArgumentNullException(nameof(createProvider));
         CapabilityProfile = capabilityProfile ?? throw new ArgumentNullException(nameof(capabilityProfile));
+
+        if (!Enum.IsDefined(CapabilityProfile.Durability))
+        {
+            throw new ArgumentException(
+                $"Unsupported catalog durability value '{CapabilityProfile.Durability}'.",
+                nameof(capabilityProfile));
+        }
+
         FailureScenario = failureScenario ?? throw new ArgumentNullException(nameof(failureScenario));
         TokenObservation = tokenObservation ?? throw new ArgumentNullException(nameof(tokenObservation));
-        this.recreateAuthorityAsync = recreateAuthorityAsync;
+        this.restartAuthorityAsync = restartAuthorityAsync;
         this.disposeAsync = disposeAsync;
     }
 
@@ -43,24 +51,29 @@ public sealed class AIAssetCatalogProviderConformanceFixture : IAsyncDisposable
     /// </summary>
     public AIAssetCatalogProviderTokenObservation TokenObservation { get; }
 
+    /// <summary>
+    /// Creates another provider participant attached to the currently live logical namespace.
+    /// This proves provider-instance recreation only; it is not a process-restart boundary.
+    /// </summary>
     public IAIAssetCatalogProvider CreateProvider() =>
         createProvider() ?? throw new InvalidOperationException("The conformance fixture returned a null provider participant.");
 
     /// <summary>
-    /// Recreates the authority using the same logical namespace. Durable fixtures must
-    /// supply this hook so restart retention can be proven. Transient fixtures may omit it.
+    /// Simulates a process restart for the same logical namespace by discarding all
+    /// process-lifetime provider state, caches, and coordinators before reopening from
+    /// durable authority. Durable fixtures must supply this hook. Transient fixtures may omit it.
     /// </summary>
-    public ValueTask RecreateAuthorityAsync()
+    public ValueTask RestartAuthorityAsync()
     {
-        if (recreateAuthorityAsync is null)
+        if (restartAuthorityAsync is null)
         {
-            throw new InvalidOperationException("This fixture does not expose authority recreation.");
+            throw new InvalidOperationException("This fixture does not expose a process-restart proof boundary.");
         }
 
-        return recreateAuthorityAsync();
+        return restartAuthorityAsync();
     }
 
-    public bool SupportsAuthorityRecreation => recreateAuthorityAsync is not null;
+    public bool SupportsProcessRestartProof => restartAuthorityAsync is not null;
 
     public ValueTask DisposeAsync() =>
         disposeAsync is null ? ValueTask.CompletedTask : disposeAsync();
