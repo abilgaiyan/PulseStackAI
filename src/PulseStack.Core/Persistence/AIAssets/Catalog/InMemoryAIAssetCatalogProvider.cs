@@ -128,16 +128,24 @@ public sealed class InMemoryAIAssetCatalogProvider : IAIAssetCatalogProvider
                             : CatalogPublicationResult.Conflict);
                 }
 
-                if (catalogNamespace.UrnByLineage.TryGetValue(lineageIdentity, out var existingUrn)
-                    && existingUrn != record.Urn)
+                var hasLineageUrn = catalogNamespace.UrnByLineage.TryGetValue(lineageIdentity, out var existingUrn);
+                var hasLineageState = catalogNamespace.LineagesByUrn.TryGetValue(record.Urn, out var existingLineage);
+
+                if (hasLineageUrn && existingUrn != record.Urn)
                 {
                     return ValueTask.FromResult(CatalogPublicationResult.Conflict);
                 }
 
-                if (catalogNamespace.LineagesByUrn.TryGetValue(record.Urn, out var existingLineage)
-                    && (existingLineage.Type != key.Type || existingLineage.Id != key.Id))
+                if (hasLineageState && (existingLineage!.Type != key.Type || existingLineage.Id != key.Id))
                 {
                     return ValueTask.FromResult(CatalogPublicationResult.Conflict);
+                }
+
+                if (hasLineageUrn != hasLineageState)
+                {
+                    throw Inconsistent(
+                        "The in-memory catalog lineage indexes disagree.",
+                        new AIAssetCatalogDiagnosticContext("Publish", key, record.Urn));
                 }
 
                 if (existingLineage is not null)
