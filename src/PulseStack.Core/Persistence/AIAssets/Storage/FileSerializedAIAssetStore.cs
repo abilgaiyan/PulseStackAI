@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using PulseStack.Abstractions.Assets;
 using PulseStack.Abstractions.Persistence.AIAssets.Storage;
@@ -120,15 +121,27 @@ public sealed class FileSerializedAIAssetStore : ISerializedAIAssetStore
 
     private string ResolveAssetPath(AssetDefinitionKey key)
     {
-        var typeSegment = ((int)key.Type).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var typeSegment = ((int)key.Type).ToString(CultureInfo.InvariantCulture);
         var idSegment = key.Id.Value.ToString("N");
-        var versionSegment = Convert.ToHexString(Encoding.UTF8.GetBytes(key.Version.Value));
+        var versionSegment = EncodeUtf16CodeUnits(key.Version.Value);
 
         return Path.Combine(
             rootPath,
             typeSegment,
             idSegment,
             versionSegment + AssetFileExtension);
+    }
+
+    private static string EncodeUtf16CodeUnits(string value)
+    {
+        var builder = new StringBuilder(value.Length * 4);
+
+        foreach (var codeUnit in value)
+        {
+            builder.Append(((int)codeUnit).ToString("X4", CultureInfo.InvariantCulture));
+        }
+
+        return builder.ToString();
     }
 
     private static void TryDeleteTemporary(string path)
