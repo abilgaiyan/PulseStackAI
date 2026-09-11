@@ -39,20 +39,12 @@ public sealed class InMemoryAIAssetCatalogProvider : IAIAssetCatalogProvider
 
             lock (catalogNamespace.SyncRoot)
             {
-                if (catalogNamespace.TestState.CorruptNextExactLookup)
-                {
-                    catalogNamespace.TestState.CorruptNextExactLookup = false;
-                    throw Inconsistent(
-                        "The in-memory catalog exact authority is inconsistent.",
-                        new AIAssetCatalogDiagnosticContext("FindExact", key));
-                }
-
                 if (!catalogNamespace.ExactRecords.TryGetValue(key, out var record))
                 {
                     return ValueTask.FromResult<ExactCatalogLookupResult>(new ExactCatalogLookupResult.NotFound());
                 }
 
-                EnsureExactStateCoherent(key, record);
+                EnsureExactStateCoherent(key, record, "FindExact");
                 return ValueTask.FromResult<ExactCatalogLookupResult>(
                     new ExactCatalogLookupResult.Found(new CatalogRecord(record.DefinitionKey, record.Urn)));
             }
@@ -93,7 +85,7 @@ public sealed class InMemoryAIAssetCatalogProvider : IAIAssetCatalogProvider
                         new AIAssetCatalogDiagnosticContext("FindLineage", Urn: urn));
                 }
 
-                EnsureLineageStateCoherent(lineage);
+                EnsureLineageStateCoherent(lineage, "FindLineage");
                 return ValueTask.FromResult<CatalogLineageLookupResult>(
                     new CatalogLineageLookupResult.Found(
                         new CatalogLineage(lineage.Type, lineage.Id, lineage.Urn, lineage.Versions.ToArray())));
@@ -123,41 +115,31 @@ public sealed class InMemoryAIAssetCatalogProvider : IAIAssetCatalogProvider
 
             lock (catalogNamespace.SyncRoot)
             {
+                // Existing authority must be internally coherent before it is allowed to
+                // classify the candidate as AlreadyPresent or Conflict.
+                EnsureNamespaceStateCoherent("Publish");
+
                 var key = record.DefinitionKey;
                 var lineageIdentity = (key.Type, key.Id);
 
                 if (catalogNamespace.ExactRecords.TryGetValue(key, out var existingExact))
                 {
-                    EnsureExactStateCoherent(key, existingExact);
                     return ValueTask.FromResult(
                         existingExact.Urn == record.Urn
                             ? CatalogPublicationResult.AlreadyPresent
                             : CatalogPublicationResult.Conflict);
                 }
 
-                var hasLineageUrn = catalogNamespace.UrnByLineage.TryGetValue(lineageIdentity, out var existingUrn);
-                var hasLineageState = catalogNamespace.LineagesByUrn.TryGetValue(record.Urn, out var existingLineage);
-
-                if (hasLineageUrn && existingUrn != record.Urn)
+                if (catalogNamespace.UrnByLineage.TryGetValue(lineageIdentity, out var existingUrn)
+                    && existingUrn != record.Urn)
                 {
                     return ValueTask.FromResult(CatalogPublicationResult.Conflict);
                 }
 
-                if (hasLineageState && (existingLineage!.Type != key.Type || existingLineage.Id != key.Id))
+                if (catalogNamespace.LineagesByUrn.TryGetValue(record.Urn, out var existingLineage)
+                    && (existingLineage.Type != key.Type || existingLineage.Id != key.Id))
                 {
                     return ValueTask.FromResult(CatalogPublicationResult.Conflict);
-                }
-
-                if (hasLineageUrn != hasLineageState)
-                {
-                    throw Inconsistent(
-                        "The in-memory catalog lineage indexes disagree.",
-                        new AIAssetCatalogDiagnosticContext("Publish", key, record.Urn));
-                }
-
-                if (existingLineage is not null)
-                {
-                    EnsureLineageStateCoherent(existingLineage);
                 }
 
                 var ownedRecord = new CatalogRecord(key, record.Urn);
@@ -188,13 +170,49 @@ public sealed class InMemoryAIAssetCatalogProvider : IAIAssetCatalogProvider
         }
     }
 
-    private void EnsureExactStateCoherent(AssetDefinitionKey requestedKey, CatalogRecord record)
+    private void EnsureNamespaceStateCoherent(string operation)
+    {
+        foreach (var (identity, urn) in catalogNamespace.UrnByLineage)
+        {
+            if (!catalogNamespace.LineagesByUrn.TryGetValue(urn, out var lineage)
+                || lineage.Type != identity.Type
+                || lineage.Id != identity.Id
+                || lineage.Urn != urn)
+            {
+                throw Inconsistent(
+                    "The in-memory catalog lineage indexes disagree.",
+                    new AIAssetCatalogDiagnosticContext(operation, Urn: urn));
+            }
+        }
+
+        foreach (var (urn, lineage) in catalogNamespace.LineagesByUrn)
+        {
+            if (lineage.Urn != urn)
+            {
+                throw Inconsistent(
+                    "The in-memory catalog lineage record does not match its authority URN.",
+                    new AIAssetCatalogDiagnosticContext(operation, Urn: urn));
+            }
+
+            EnsureLineageStateCoherent(lineage, operation);
+        }
+
+        foreach (var (key, record) in catalogNamespace.ExactRecords)
+        {
+            EnsureExactStateCoherent(key, record, operation);
+        }
+    }
+
+    private void EnsureExactStateCoherent(
+        AssetDefinitionKey requestedKey,
+        CatalogRecord record,
+        string operation)
     {
         if (record.DefinitionKey != requestedKey)
         {
             throw Inconsistent(
                 "The in-memory catalog exact record does not match its authority key.",
-                new AIAssetCatalogDiagnosticContext("FindExact", requestedKey));
+                new AIAssetCatalogDiagnosticContext(operation, requestedKey));
         }
 
         var lineageIdentity = (record.DefinitionKey.Type, record.DefinitionKey.Id);
@@ -203,15 +221,18 @@ public sealed class InMemoryAIAssetCatalogProvider : IAIAssetCatalogProvider
             || !catalogNamespace.LineagesByUrn.TryGetValue(record.Urn, out var lineage)
             || lineage.Type != record.DefinitionKey.Type
             || lineage.Id != record.DefinitionKey.Id
+            || lineage.Urn != record.Urn
             || !lineage.Versions.Contains(record.DefinitionKey.Version))
         {
             throw Inconsistent(
                 "The in-memory catalog exact and lineage authorities disagree.",
-                new AIAssetCatalogDiagnosticContext("FindExact", requestedKey, record.Urn));
+                new AIAssetCatalogDiagnosticContext(operation, requestedKey, record.Urn));
         }
     }
 
-    private void EnsureLineageStateCoherent(InMemoryCatalogLineageState lineage)
+    private void EnsureLineageStateCoherent(
+        InMemoryCatalogLineageState lineage,
+        string operation)
     {
         if (!catalogNamespace.UrnByLineage.TryGetValue((lineage.Type, lineage.Id), out var urn)
             || urn != lineage.Urn
@@ -219,18 +240,35 @@ public sealed class InMemoryAIAssetCatalogProvider : IAIAssetCatalogProvider
         {
             throw Inconsistent(
                 "The in-memory catalog lineage authority is inconsistent.",
-                new AIAssetCatalogDiagnosticContext("FindLineage", Urn: lineage.Urn));
+                new AIAssetCatalogDiagnosticContext(operation, Urn: lineage.Urn));
         }
 
         foreach (var version in lineage.Versions)
         {
             var key = new AssetDefinitionKey(lineage.Type, lineage.Id, version);
-            if (!catalogNamespace.ExactRecords.TryGetValue(key, out var record) || record.Urn != lineage.Urn)
+            if (!catalogNamespace.ExactRecords.TryGetValue(key, out var record)
+                || record.DefinitionKey != key
+                || record.Urn != lineage.Urn)
             {
                 throw Inconsistent(
                     "The in-memory catalog lineage membership has no coherent exact authority.",
-                    new AIAssetCatalogDiagnosticContext("FindLineage", key, lineage.Urn));
+                    new AIAssetCatalogDiagnosticContext(operation, key, lineage.Urn));
             }
+        }
+
+        var exactVersions = catalogNamespace.ExactRecords
+            .Where(pair =>
+                pair.Key.Type == lineage.Type
+                && pair.Key.Id == lineage.Id
+                && pair.Value.Urn == lineage.Urn)
+            .Select(pair => pair.Key.Version)
+            .ToHashSet();
+
+        if (!exactVersions.SetEquals(lineage.Versions))
+        {
+            throw Inconsistent(
+                "The in-memory catalog lineage membership is incomplete relative to exact authority.",
+                new AIAssetCatalogDiagnosticContext(operation, Urn: lineage.Urn));
         }
     }
 
