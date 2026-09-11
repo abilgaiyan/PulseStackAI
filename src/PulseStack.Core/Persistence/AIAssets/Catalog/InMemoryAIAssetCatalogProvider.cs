@@ -276,12 +276,12 @@ public sealed class InMemoryAIAssetCatalogProvider : IAIAssetCatalogProvider
     {
         lock (catalogNamespace.SyncRoot)
         {
-            if (catalogNamespace.TestState.NextProviderFailure is not { } failure)
+            if (catalogNamespace.TestHooks.NextProviderFailure is not { } failure)
             {
                 return;
             }
 
-            catalogNamespace.TestState.NextProviderFailure = null;
+            catalogNamespace.TestHooks.NextProviderFailure = null;
             throw failure;
         }
     }
@@ -290,7 +290,7 @@ public sealed class InMemoryAIAssetCatalogProvider : IAIAssetCatalogProvider
     {
         lock (catalogNamespace.SyncRoot)
         {
-            catalogNamespace.TestState.LastExactLookupToken = token;
+            catalogNamespace.TestHooks.LastExactLookupToken = token;
         }
     }
 
@@ -298,7 +298,7 @@ public sealed class InMemoryAIAssetCatalogProvider : IAIAssetCatalogProvider
     {
         lock (catalogNamespace.SyncRoot)
         {
-            catalogNamespace.TestState.LastLineageLookupToken = token;
+            catalogNamespace.TestHooks.LastLineageLookupToken = token;
         }
     }
 
@@ -306,7 +306,7 @@ public sealed class InMemoryAIAssetCatalogProvider : IAIAssetCatalogProvider
     {
         lock (catalogNamespace.SyncRoot)
         {
-            catalogNamespace.TestState.LastPublicationToken = token;
+            catalogNamespace.TestHooks.LastPublicationToken = token;
         }
     }
 
