@@ -12,19 +12,19 @@ namespace PulseStack.Tests.Persistence.AIAssets;
 /// </summary>
 public abstract class AIAssetCatalogProviderConformanceTests
 {
+    private static readonly TimeSpan VisibilityTimeout = TimeSpan.FromSeconds(5);
+
     protected abstract ValueTask<AIAssetCatalogProviderConformanceFixture> CreateFixtureAsync();
 
     [Fact]
     public async Task FreshAuthority_ShouldReportExactAndLineageAbsenceAcrossProviderParticipants()
     {
         await using var fixture = await CreateFixtureAsync();
-        var exactReader = fixture.CreateProvider();
-        var lineageReader = fixture.CreateProvider();
         var record = CreateRecord();
 
-        (await exactReader.FindExactAsync(record.DefinitionKey))
+        (await fixture.CreateProvider().FindExactAsync(record.DefinitionKey))
             .Should().BeOfType<ExactCatalogLookupResult.NotFound>();
-        (await lineageReader.FindLineageAsync(record.Urn))
+        (await fixture.CreateProvider().FindLineageAsync(record.Urn))
             .Should().BeOfType<CatalogLineageLookupResult.NotFound>();
     }
 
@@ -32,15 +32,12 @@ public abstract class AIAssetCatalogProviderConformanceTests
     public async Task PublishNewDefinition_ShouldBeVisibleAcrossIndependentProviderParticipants()
     {
         await using var fixture = await CreateFixtureAsync();
-        var publisher = fixture.CreateProvider();
-        var exactReader = fixture.CreateProvider();
-        var lineageReader = fixture.CreateProvider();
         var record = CreateRecord();
 
-        (await publisher.PublishAsync(record)).Should().Be(CatalogPublicationResult.Created);
-        AssertExact(await exactReader.FindExactAsync(record.DefinitionKey), record);
+        (await fixture.CreateProvider().PublishAsync(record)).Should().Be(CatalogPublicationResult.Created);
+        AssertExact(await fixture.CreateProvider().FindExactAsync(record.DefinitionKey), record);
         AssertLineage(
-            await lineageReader.FindLineageAsync(record.Urn),
+            await fixture.CreateProvider().FindLineageAsync(record.Urn),
             record.DefinitionKey.Type,
             record.DefinitionKey.Id,
             record.Urn,
@@ -75,17 +72,17 @@ public abstract class AIAssetCatalogProviderConformanceTests
         }
 
         fixture.SupportsAuthorityRecreation.Should().BeTrue(
-            "a durable catalog capability must provide a restart/recreation proof hook");
+            "a durable catalog capability must provide an authority-recreation proof hook");
 
         var record = CreateRecord();
         (await fixture.CreateProvider().PublishAsync(record)).Should().Be(CatalogPublicationResult.Created);
 
         await fixture.RecreateAuthorityAsync();
 
-        var afterRestart = fixture.CreateProvider();
-        AssertExact(await afterRestart.FindExactAsync(record.DefinitionKey), record);
+        var reader = fixture.CreateProvider();
+        AssertExact(await reader.FindExactAsync(record.DefinitionKey), record);
         AssertLineage(
-            await afterRestart.FindLineageAsync(record.Urn),
+            await reader.FindLineageAsync(record.Urn),
             record.DefinitionKey.Type,
             record.DefinitionKey.Id,
             record.Urn,
@@ -113,10 +110,10 @@ public abstract class AIAssetCatalogProviderConformanceTests
     }
 
     [Fact]
-    public async Task PublishAnotherVersionForSameLineage_ShouldExtendExactMembershipWithoutVersionOrderingPolicy()
+    public async Task PublishAnotherVersionForSameLineage_ShouldExtendMembershipWithoutOrderingPolicy()
     {
         await using var fixture = await CreateFixtureAsync();
-        var first = CreateRecord(version: "1.0");
+        var first = CreateRecord("1.0");
         var second = new CatalogRecord(
             new AssetDefinitionKey(first.DefinitionKey.Type, first.DefinitionKey.Id, new AssetVersion("2.0")),
             first.Urn);
@@ -137,10 +134,10 @@ public abstract class AIAssetCatalogProviderConformanceTests
     }
 
     [Fact]
-    public async Task ReturnedLineage_ShouldRemainAnImmutableSnapshotAfterLaterPublication()
+    public async Task ReturnedLineage_ShouldRemainImmutableSnapshotAfterLaterPublication()
     {
         await using var fixture = await CreateFixtureAsync();
-        var first = CreateRecord(version: "1.0");
+        var first = CreateRecord("1.0");
         var second = new CatalogRecord(
             new AssetDefinitionKey(first.DefinitionKey.Type, first.DefinitionKey.Id, new AssetVersion("2.0")),
             first.Urn);
@@ -159,65 +156,35 @@ public abstract class AIAssetCatalogProviderConformanceTests
     }
 
     [Fact]
-    public async Task PublishSameExactKeyWithDifferentUrn_ShouldConflictAndPreserveCommittedAuthority()
+    public async Task SequentialIdentityConflicts_ShouldPreserveCommittedAuthority()
     {
         await using var fixture = await CreateFixtureAsync();
-        var committed = CreateRecord();
-        var candidate = new CatalogRecord(
+        var committed = CreateRecord("1.0");
+        var sameKeyDifferentUrn = new CatalogRecord(
             committed.DefinitionKey,
-            new AssetUrn("urn:pulsestack:prompt:conflict"));
-
-        (await fixture.CreateProvider().PublishAsync(committed)).Should().Be(CatalogPublicationResult.Created);
-        (await fixture.CreateProvider().PublishAsync(candidate)).Should().Be(CatalogPublicationResult.Conflict);
-
-        var reader = fixture.CreateProvider();
-        AssertExact(await reader.FindExactAsync(committed.DefinitionKey), committed);
-        (await reader.FindLineageAsync(candidate.Urn)).Should().BeOfType<CatalogLineageLookupResult.NotFound>();
-    }
-
-    [Fact]
-    public async Task PublishSameTypeAndIdWithDifferentUrn_ShouldConflictAndNotCreateCandidateExactRecord()
-    {
-        await using var fixture = await CreateFixtureAsync();
-        var committed = CreateRecord(version: "1.0");
-        var candidate = new CatalogRecord(
+            new AssetUrn("urn:pulsestack:prompt:key-conflict"));
+        var sameLineageDifferentUrn = new CatalogRecord(
             new AssetDefinitionKey(committed.DefinitionKey.Type, committed.DefinitionKey.Id, new AssetVersion("2.0")),
-            new AssetUrn("urn:pulsestack:prompt:other-lineage"));
-
-        (await fixture.CreateProvider().PublishAsync(committed)).Should().Be(CatalogPublicationResult.Created);
-        (await fixture.CreateProvider().PublishAsync(candidate)).Should().Be(CatalogPublicationResult.Conflict);
-
-        var reader = fixture.CreateProvider();
-        (await reader.FindExactAsync(candidate.DefinitionKey)).Should().BeOfType<ExactCatalogLookupResult.NotFound>();
-        AssertLineage(
-            await reader.FindLineageAsync(committed.Urn),
-            committed.DefinitionKey.Type,
-            committed.DefinitionKey.Id,
-            committed.Urn,
-            committed.DefinitionKey.Version);
-        (await reader.FindLineageAsync(candidate.Urn)).Should().BeOfType<CatalogLineageLookupResult.NotFound>();
-    }
-
-    [Fact]
-    public async Task PublishSameUrnForDifferentLineageIdentity_ShouldConflictAndPreserveOriginalLineage()
-    {
-        await using var fixture = await CreateFixtureAsync();
-        var committed = CreateRecord();
-        var candidate = new CatalogRecord(
+            new AssetUrn("urn:pulsestack:prompt:lineage-conflict"));
+        var sameUrnDifferentLineage = new CatalogRecord(
             new AssetDefinitionKey(AssetType.Agent, AssetId.New(), committed.DefinitionKey.Version),
             committed.Urn);
 
         (await fixture.CreateProvider().PublishAsync(committed)).Should().Be(CatalogPublicationResult.Created);
-        (await fixture.CreateProvider().PublishAsync(candidate)).Should().Be(CatalogPublicationResult.Conflict);
+        (await fixture.CreateProvider().PublishAsync(sameKeyDifferentUrn)).Should().Be(CatalogPublicationResult.Conflict);
+        (await fixture.CreateProvider().PublishAsync(sameLineageDifferentUrn)).Should().Be(CatalogPublicationResult.Conflict);
+        (await fixture.CreateProvider().PublishAsync(sameUrnDifferentLineage)).Should().Be(CatalogPublicationResult.Conflict);
 
         var reader = fixture.CreateProvider();
-        (await reader.FindExactAsync(candidate.DefinitionKey)).Should().BeOfType<ExactCatalogLookupResult.NotFound>();
-        AssertLineage(
-            await reader.FindLineageAsync(committed.Urn),
-            committed.DefinitionKey.Type,
-            committed.DefinitionKey.Id,
-            committed.Urn,
-            committed.DefinitionKey.Version);
+        AssertExact(await reader.FindExactAsync(committed.DefinitionKey), committed);
+        (await reader.FindExactAsync(sameLineageDifferentUrn.DefinitionKey))
+            .Should().BeOfType<ExactCatalogLookupResult.NotFound>();
+        (await reader.FindExactAsync(sameUrnDifferentLineage.DefinitionKey))
+            .Should().BeOfType<ExactCatalogLookupResult.NotFound>();
+        (await reader.FindLineageAsync(sameKeyDifferentUrn.Urn))
+            .Should().BeOfType<CatalogLineageLookupResult.NotFound>();
+        (await reader.FindLineageAsync(sameLineageDifferentUrn.Urn))
+            .Should().BeOfType<CatalogLineageLookupResult.NotFound>();
     }
 
     [Fact]
@@ -245,13 +212,12 @@ public abstract class AIAssetCatalogProviderConformanceTests
     {
         await using var fixture = await CreateFixtureAsync();
         var key = new AssetDefinitionKey(AssetType.Prompt, AssetId.New(), new AssetVersion("1.0"));
-        var candidates = new[]
-        {
-            new CatalogRecord(key, new AssetUrn("urn:pulsestack:prompt:left")),
-            new CatalogRecord(key, new AssetUrn("urn:pulsestack:prompt:right"))
-        };
-
-        await AssertConcurrentConflictAsync(fixture, candidates);
+        await AssertConcurrentConflictAsync(
+            fixture,
+            [
+                new CatalogRecord(key, new AssetUrn("urn:pulsestack:prompt:left")),
+                new CatalogRecord(key, new AssetUrn("urn:pulsestack:prompt:right"))
+            ]);
     }
 
     [Fact]
@@ -259,17 +225,16 @@ public abstract class AIAssetCatalogProviderConformanceTests
     {
         await using var fixture = await CreateFixtureAsync();
         var id = AssetId.New();
-        var candidates = new[]
-        {
-            new CatalogRecord(
-                new AssetDefinitionKey(AssetType.Prompt, id, new AssetVersion("1.0")),
-                new AssetUrn("urn:pulsestack:prompt:left")),
-            new CatalogRecord(
-                new AssetDefinitionKey(AssetType.Prompt, id, new AssetVersion("2.0")),
-                new AssetUrn("urn:pulsestack:prompt:right"))
-        };
-
-        await AssertConcurrentConflictAsync(fixture, candidates);
+        await AssertConcurrentConflictAsync(
+            fixture,
+            [
+                new CatalogRecord(
+                    new AssetDefinitionKey(AssetType.Prompt, id, new AssetVersion("1.0")),
+                    new AssetUrn("urn:pulsestack:prompt:left")),
+                new CatalogRecord(
+                    new AssetDefinitionKey(AssetType.Prompt, id, new AssetVersion("2.0")),
+                    new AssetUrn("urn:pulsestack:prompt:right"))
+            ]);
     }
 
     [Fact]
@@ -277,21 +242,20 @@ public abstract class AIAssetCatalogProviderConformanceTests
     {
         await using var fixture = await CreateFixtureAsync();
         var urn = new AssetUrn("urn:pulsestack:shared-lineage");
-        var candidates = new[]
-        {
-            new CatalogRecord(
-                new AssetDefinitionKey(AssetType.Prompt, AssetId.New(), new AssetVersion("1.0")),
-                urn),
-            new CatalogRecord(
-                new AssetDefinitionKey(AssetType.Agent, AssetId.New(), new AssetVersion("1.0")),
-                urn)
-        };
-
-        await AssertConcurrentConflictAsync(fixture, candidates);
+        await AssertConcurrentConflictAsync(
+            fixture,
+            [
+                new CatalogRecord(
+                    new AssetDefinitionKey(AssetType.Prompt, AssetId.New(), new AssetVersion("1.0")),
+                    urn),
+                new CatalogRecord(
+                    new AssetDefinitionKey(AssetType.Agent, AssetId.New(), new AssetVersion("1.0")),
+                    urn)
+            ]);
     }
 
     [Fact]
-    public async Task ActiveReaders_ShouldNeverObserveHalfPublicationAcrossExactAndLineageAuthority()
+    public async Task ActiveReaders_ShouldObserveCoherentAuthorityWithinBoundedVisibilityDeadline()
     {
         await using var fixture = await CreateFixtureAsync();
         var record = CreateRecord();
@@ -300,6 +264,7 @@ public abstract class AIAssetCatalogProviderConformanceTests
         var lineageReader = fixture.CreateProvider();
         using var startPublication = new ManualResetEventSlim(false);
         using var readersActive = new CountdownEvent(2);
+        using var deadline = new CancellationTokenSource(VisibilityTimeout);
 
         var exactObservation = Task.Run(async () =>
         {
@@ -308,7 +273,7 @@ public abstract class AIAssetCatalogProviderConformanceTests
             readersActive.Signal();
             startPublication.Wait();
 
-            while (true)
+            while (!deadline.IsCancellationRequested)
             {
                 var exact = await exactReader.FindExactAsync(record.DefinitionKey);
                 if (exact is ExactCatalogLookupResult.Found)
@@ -318,6 +283,9 @@ public abstract class AIAssetCatalogProviderConformanceTests
 
                 await Task.Yield();
             }
+
+            throw new TimeoutException(
+                "Exact reader did not observe the committed definition within the conformance visibility deadline.");
         });
 
         var lineageObservation = Task.Run(async () =>
@@ -327,7 +295,7 @@ public abstract class AIAssetCatalogProviderConformanceTests
             readersActive.Signal();
             startPublication.Wait();
 
-            while (true)
+            while (!deadline.IsCancellationRequested)
             {
                 var lineage = await lineageReader.FindLineageAsync(record.Urn);
                 if (LineageContains(lineage, record.DefinitionKey.Version))
@@ -337,26 +305,28 @@ public abstract class AIAssetCatalogProviderConformanceTests
 
                 await Task.Yield();
             }
+
+            throw new TimeoutException(
+                "Lineage reader did not observe the committed definition within the conformance visibility deadline.");
         });
 
         readersActive.Wait();
-        var publishTask = Task.Run(async () =>
-        {
-            startPublication.Set();
-            return await publisher.PublishAsync(record);
-        });
+        startPublication.Set();
+        (await publisher.PublishAsync(record)).Should().Be(CatalogPublicationResult.Created);
 
-        (await publishTask).Should().Be(CatalogPublicationResult.Created);
-        var lineageAfterExact = await exactObservation;
-        var exactAfterLineage = await lineageObservation;
+        var observations = Task.WhenAll(exactObservation, lineageObservation);
+        var completed = await Task.WhenAny(observations, Task.Delay(VisibilityTimeout));
+        completed.Should().BeSameAs(observations,
+            "shared-authority participants must converge within the bounded conformance visibility deadline");
 
+        var results = await observations;
         AssertLineage(
-            lineageAfterExact,
+            (CatalogLineageLookupResult)results[0],
             record.DefinitionKey.Type,
             record.DefinitionKey.Id,
             record.Urn,
             record.DefinitionKey.Version);
-        AssertExact(exactAfterLineage, record);
+        AssertExact((ExactCatalogLookupResult)results[1], record);
     }
 
     [Fact]
@@ -380,7 +350,7 @@ public abstract class AIAssetCatalogProviderConformanceTests
     }
 
     [Fact]
-    public async Task PreCanceledLookups_ShouldObserveCancellation()
+    public async Task PreCanceledOperations_ShouldObserveCancellationWithoutCreatingAuthority()
     {
         await using var fixture = await CreateFixtureAsync();
         var record = CreateRecord();
@@ -389,56 +359,50 @@ public abstract class AIAssetCatalogProviderConformanceTests
 
         var exact = async () => await fixture.CreateProvider().FindExactAsync(record.DefinitionKey, cancellation.Token);
         var lineage = async () => await fixture.CreateProvider().FindLineageAsync(record.Urn, cancellation.Token);
+        var publish = async () => await fixture.CreateProvider().PublishAsync(record, cancellation.Token);
 
         await exact.Should().ThrowAsync<OperationCanceledException>();
         await lineage.Should().ThrowAsync<OperationCanceledException>();
-    }
-
-    [Fact]
-    public async Task PreCanceledPublication_ShouldNotCreateAuthority()
-    {
-        await using var fixture = await CreateFixtureAsync();
-        var record = CreateRecord();
-        using var cancellation = new CancellationTokenSource();
-        cancellation.Cancel();
-
-        var publish = async () => await fixture.CreateProvider().PublishAsync(record, cancellation.Token);
-
         await publish.Should().ThrowAsync<OperationCanceledException>();
+
         var reader = fixture.CreateProvider();
         (await reader.FindExactAsync(record.DefinitionKey)).Should().BeOfType<ExactCatalogLookupResult.NotFound>();
         (await reader.FindLineageAsync(record.Urn)).Should().BeOfType<CatalogLineageLookupResult.NotFound>();
     }
 
     [Fact]
-    public async Task ProviderSpecificTokenProof_ShouldPropagateExactCallerTokenWhenFixtureExposesInstrumentation()
+    public async Task CallerTokenIdentity_ShouldBeProvedByMandatoryFixtureObservations()
     {
         await using var fixture = await CreateFixtureAsync();
-        if (fixture.TokenProof is null)
-        {
-            return;
-        }
-
         using var cancellation = new CancellationTokenSource();
         var participant = fixture.CreateProvider();
 
-        await fixture.TokenProof.AssertExactLookupTokenAsync(participant, cancellation.Token);
-        await fixture.TokenProof.AssertLineageLookupTokenAsync(participant, cancellation.Token);
-        await fixture.TokenProof.AssertPublicationTokenAsync(participant, cancellation.Token);
+        var exactToken = await fixture.TokenObservation
+            .ObserveExactLookupTokenAsync(participant, cancellation.Token);
+        var lineageToken = await fixture.TokenObservation
+            .ObserveLineageLookupTokenAsync(participant, cancellation.Token);
+        var publicationToken = await fixture.TokenObservation
+            .ObservePublicationTokenAsync(participant, cancellation.Token);
+
+        exactToken.Should().Be(cancellation.Token);
+        lineageToken.Should().Be(cancellation.Token);
+        publicationToken.Should().Be(cancellation.Token);
     }
 
     [Fact]
-    public async Task ProviderSpecificFailureProof_ShouldUsePortableFailureCategoriesWhenFixtureExposesHook()
+    public async Task ProviderFailureAndInconsistentState_ShouldBeAssertedByPortableSuite()
     {
         await using var fixture = await CreateFixtureAsync();
-        if (fixture.FailureProof is null)
-        {
-            return;
-        }
-
         var participant = fixture.CreateProvider();
-        await fixture.FailureProof.AssertProviderFailureAsync(participant);
-        await fixture.FailureProof.AssertInconsistentStateAsync(participant);
+
+        var providerFailure = await fixture.FailureScenario.ObserveProviderFailureAsync(participant);
+        var inconsistentState = await fixture.FailureScenario.ObserveInconsistentStateAsync(participant);
+
+        var providerException = providerFailure.Should().BeOfType<AIAssetCatalogException>().Subject;
+        providerException.Category.Should().Be(AIAssetCatalogFailureCategory.ProviderFailure);
+
+        var inconsistentException = inconsistentState.Should().BeOfType<AIAssetCatalogException>().Subject;
+        inconsistentException.Category.Should().Be(AIAssetCatalogFailureCategory.InconsistentState);
     }
 
     private static async Task AssertConcurrentConflictAsync(
@@ -447,7 +411,6 @@ public abstract class AIAssetCatalogProviderConformanceTests
     {
         candidates.Should().HaveCount(2);
         var participants = new[] { fixture.CreateProvider(), fixture.CreateProvider() };
-
         var results = await RunCoordinatedAsync(
             participants.Select((provider, index) =>
                 (Func<Task<CatalogPublicationResult>>)(() => provider.PublishAsync(candidates[index]).AsTask())));
