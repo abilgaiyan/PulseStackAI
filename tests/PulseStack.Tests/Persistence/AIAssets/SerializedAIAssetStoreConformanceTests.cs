@@ -149,21 +149,21 @@ public abstract class SerializedAIAssetStoreConformanceTests
         results.Count(result => result == AIAssetWriteResult.Created).Should().Be(1);
         results.Count(result => result == AIAssetWriteResult.Conflict).Should().Be(15);
 
+        var winningIndex = Array.FindIndex(results, result => result == AIAssetWriteResult.Created);
+        winningIndex.Should().BeGreaterThanOrEqualTo(0);
         var found = (SerializedAIAssetReadResult.Found)await fixture.CreateStore().ReadAsync(key);
-        candidates.Any(candidate => candidate.AsSpan().SequenceEqual(found.Representation.Span)).Should().BeTrue();
+        found.Representation.ToArray().Should().Equal(candidates[winningIndex]);
     }
 
     [Fact]
-    public async Task OverlappingReads_ShouldObserveOnlyAbsenceOrOneCompleteWinner()
+    public async Task OverlappingReads_ShouldObserveOnlyAbsenceOrTheCompleteWinningRepresentation()
     {
         using var fixture = CreateFixture();
         var key = CreateKey();
         var candidates = Enumerable.Range(1, 8)
             .Select(index => Enumerable.Repeat((byte)index, 128 * 1024).ToArray())
             .ToArray();
-        var writers = candidates
-            .Select(candidate => fixture.CreateStore())
-            .ToArray();
+        var writers = candidates.Select(_ => fixture.CreateStore()).ToArray();
         var readers = Enumerable.Range(0, 16).Select(_ => fixture.CreateStore()).ToArray();
 
         using var ready = new SemaphoreSlim(0, writers.Length + readers.Length);
@@ -172,34 +172,39 @@ public abstract class SerializedAIAssetStoreConformanceTests
         var writeTasks = writers.Select((store, index) => Task.Run(async () =>
         {
             ready.Release();
-            await start.Task.ConfigureAwait(false);
-            return await store.WriteAsync(key, candidates[index]).ConfigureAwait(false);
+            await start.Task;
+            return await store.WriteAsync(key, candidates[index]);
         })).ToArray();
 
         var readTasks = readers.Select(store => Task.Run(async () =>
         {
             ready.Release();
-            await start.Task.ConfigureAwait(false);
+            await start.Task;
             var observations = new List<SerializedAIAssetReadResult>();
             for (var index = 0; index < 12; index++)
             {
-                observations.Add(await store.ReadAsync(key).ConfigureAwait(false));
+                observations.Add(await store.ReadAsync(key));
                 await Task.Yield();
             }
+
             return observations;
         })).ToArray();
 
         for (var index = 0; index < writers.Length + readers.Length; index++)
         {
-            await ready.WaitAsync().ConfigureAwait(false);
+            await ready.WaitAsync();
         }
 
         start.SetResult();
-        var writeResults = await Task.WhenAll(writeTasks).ConfigureAwait(false);
-        var observations = (await Task.WhenAll(readTasks).ConfigureAwait(false)).SelectMany(x => x).ToArray();
+        var writeResults = await Task.WhenAll(writeTasks);
+        var observations = (await Task.WhenAll(readTasks)).SelectMany(x => x).ToArray();
 
         writeResults.Count(result => result == AIAssetWriteResult.Created).Should().Be(1);
         writeResults.Count(result => result == AIAssetWriteResult.Conflict).Should().Be(candidates.Length - 1);
+
+        var winningIndex = Array.FindIndex(writeResults, result => result == AIAssetWriteResult.Created);
+        winningIndex.Should().BeGreaterThanOrEqualTo(0);
+        var winningRepresentation = candidates[winningIndex];
 
         foreach (var observation in observations)
         {
@@ -209,7 +214,7 @@ public abstract class SerializedAIAssetStoreConformanceTests
             }
 
             var found = (SerializedAIAssetReadResult.Found)observation;
-            candidates.Any(candidate => candidate.AsSpan().SequenceEqual(found.Representation.Span)).Should().BeTrue();
+            found.Representation.ToArray().Should().Equal(winningRepresentation);
         }
     }
 
@@ -227,19 +232,6 @@ public abstract class SerializedAIAssetStoreConformanceTests
         (await fixture.CreateStore().ReadAsync(key)).Should().BeOfType<SerializedAIAssetReadResult.NotFound>();
     }
 
-    [Fact]
-    public async Task InjectedPrePublicationProviderFailure_ShouldPublishNothing()
-    {
-        using var fixture = CreateFixture();
-        var key = CreateKey();
-        var store = new PrePublicationFailingStore(fixture.CreateStore());
-
-        var act = async () => await store.WriteAsync(key, new byte[] { 1, 2, 3 });
-
-        await act.Should().ThrowAsync<IOException>();
-        (await fixture.CreateStore().ReadAsync(key)).Should().BeOfType<SerializedAIAssetReadResult.NotFound>();
-    }
-
     private static AssetDefinitionKey CreateKey() =>
         new(AssetType.Prompt, AssetId.New(), AssetVersion.Initial);
 
@@ -252,36 +244,22 @@ public abstract class SerializedAIAssetStoreConformanceTests
         var workers = operations.Select(operation => Task.Run(async () =>
         {
             ready.Release();
-            await start.Task.ConfigureAwait(false);
-            return await operation().ConfigureAwait(false);
+            await start.Task;
+            return await operation();
         })).ToArray();
 
         for (var index = 0; index < operations.Length; index++)
         {
-            await ready.WaitAsync().ConfigureAwait(false);
+            await ready.WaitAsync();
         }
 
         start.SetResult();
-        return await Task.WhenAll(workers).ConfigureAwait(false);
+        return await Task.WhenAll(workers);
     }
 
     protected interface IStoreNamespaceFixture : IDisposable
     {
         ISerializedAIAssetStore CreateStore();
-    }
-
-    private sealed class PrePublicationFailingStore(ISerializedAIAssetStore inner) : ISerializedAIAssetStore
-    {
-        public ValueTask<SerializedAIAssetReadResult> ReadAsync(
-            AssetDefinitionKey key,
-            CancellationToken cancellationToken = default) =>
-            inner.ReadAsync(key, cancellationToken);
-
-        public ValueTask<AIAssetWriteResult> WriteAsync(
-            AssetDefinitionKey key,
-            ReadOnlyMemory<byte> representation,
-            CancellationToken cancellationToken = default) =>
-            ValueTask.FromException<AIAssetWriteResult>(new IOException("Injected pre-publication provider failure."));
     }
 }
 
