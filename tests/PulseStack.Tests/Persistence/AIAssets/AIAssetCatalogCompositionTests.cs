@@ -143,16 +143,36 @@ public sealed class AIAssetCatalogCompositionTests
     }
 
     [Fact]
-    public void AdditionalLoaderFacadeRegistration_ShouldNotCreateASecondSelectedAuthority()
+    public void AdditionalUnrelatedLoaderAuthority_ShouldBeRejected()
     {
         var services = new ServiceCollection();
         services.AddInMemoryAIAssetStorage(StorageOptions);
-        services.AddTransient<IAIAssetLoader, TestLoader>();
+        services.AddSingleton<IAIAssetLoader, TestLoader>();
+
+        var act = () => services.AddInMemoryAIAssetCatalog();
+
+        var exception = act.Should().Throw<AIAssetCatalogException>().Which;
+        exception.Category.Should().Be(AIAssetCatalogFailureCategory.CompositionConfiguration);
+        services.Should().NotContain(x => x.ServiceType == typeof(IAIAssetCatalogProvider));
+    }
+
+    [Fact]
+    public void SingletonDecoratorAroundSelectedLoader_ShouldRemainOneEffectiveAuthority()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryAIAssetStorage(StorageOptions);
+
+        var selectedDescriptor = services.Single(x => x.ServiceType == typeof(IAIAssetLoader));
+        selectedDescriptor.ImplementationFactory.Should().NotBeNull();
+        services.Remove(selectedDescriptor);
+        services.AddSingleton<IAIAssetLoader>(provider =>
+            new DelegatingLoader((IAIAssetLoader)selectedDescriptor.ImplementationFactory!(provider)));
 
         var act = () => services.AddInMemoryAIAssetCatalog();
 
         act.Should().NotThrow();
         using var provider = services.BuildServiceProvider();
+        provider.GetRequiredService<IAIAssetLoader>().Should().BeOfType<DelegatingLoader>();
         provider.GetRequiredService<IAIAssetPublisher>().Should().BeOfType<AIAssetPublisher>();
         provider.GetRequiredService<IPersistentAIAssetResolver>().Should().BeOfType<PersistentAIAssetResolver>();
     }
@@ -282,6 +302,14 @@ public sealed class AIAssetCatalogCompositionTests
             AssetDefinitionKey key,
             CancellationToken cancellationToken = default) =>
             ValueTask.FromResult<AIAssetLoadResult>(new AIAssetLoadResult.NotFound());
+    }
+
+    private sealed class DelegatingLoader(IAIAssetLoader inner) : IAIAssetLoader
+    {
+        public ValueTask<AIAssetLoadResult> LoadAsync(
+            AssetDefinitionKey key,
+            CancellationToken cancellationToken = default) =>
+            inner.LoadAsync(key, cancellationToken);
     }
 
     private sealed class TestCatalogProvider : IAIAssetCatalogProvider
