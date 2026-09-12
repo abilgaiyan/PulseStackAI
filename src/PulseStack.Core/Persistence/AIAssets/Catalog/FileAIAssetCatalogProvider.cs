@@ -332,6 +332,7 @@ public sealed class FileAIAssetCatalogProvider : IAIAssetCatalogProvider
                 throw new InvalidDataException("Committed catalog record exceeds the portable record limit.");
             }
 
+            faultInjector.OnCheckpoint(FileAIAssetCatalogCheckpoint.BeforeCommittedRecordOpen, path, null);
             var bytes = new byte[checked((int)info.Length)];
             await using var stream = new FileStream(
                 path,
@@ -340,6 +341,8 @@ public sealed class FileAIAssetCatalogProvider : IAIAssetCatalogProvider
                 FileShare.Read,
                 bufferSize: 81920,
                 options: FileOptions.Asynchronous | FileOptions.SequentialScan);
+
+            faultInjector.OnCheckpoint(FileAIAssetCatalogCheckpoint.BeforeCommittedRecordRead, path, null);
             await stream.ReadExactlyAsync(bytes, cancellationToken).ConfigureAwait(false);
 
             var record = AIAssetCatalogRecordCodec.Deserialize(bytes);
@@ -354,11 +357,19 @@ public sealed class FileAIAssetCatalogProvider : IAIAssetCatalogProvider
         {
             throw;
         }
-        catch (Exception ex)
+        catch (InvalidDataException ex)
         {
             throw Failure(
                 AIAssetCatalogFailureCategory.InconsistentState,
                 "Committed catalog authority is malformed or cannot be interpreted coherently.",
+                operation,
+                inner: ex);
+        }
+        catch (Exception ex)
+        {
+            throw Failure(
+                AIAssetCatalogFailureCategory.ProviderFailure,
+                "Committed catalog authority could not be read from the filesystem.",
                 operation,
                 inner: ex);
         }
@@ -437,6 +448,8 @@ internal enum FileAIAssetCatalogOperation
 internal enum FileAIAssetCatalogCheckpoint
 {
     BeforeAuthorityRead,
+    BeforeCommittedRecordOpen,
+    BeforeCommittedRecordRead,
     BeforeStagingCreate,
     AfterStagingFlush,
     BeforeCommit
