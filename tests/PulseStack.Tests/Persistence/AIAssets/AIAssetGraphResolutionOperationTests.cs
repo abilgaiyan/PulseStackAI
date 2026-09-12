@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using FluentAssertions;
 using PulseStack.Abstractions.Assets;
@@ -298,7 +299,7 @@ public sealed class AIAssetGraphResolutionOperationTests
         using var cancelledSource = new CancellationTokenSource();
         cancelledSource.Cancel();
 
-        Func<Task> act = async () => await cancelledOperation.ResolveRootAsync(cancelledSource.Token);
+        Func<Task> act = async () => { await cancelledOperation.ResolveRootAsync(cancelledSource.Token); };
 
         var exception = await act.Should().ThrowAsync<OperationCanceledException>();
         exception.Which.CancellationToken.Should().Be(cancelledSource.Token);
@@ -374,6 +375,7 @@ public sealed class AIAssetGraphResolutionOperationTests
 
     private sealed record TestAsset : Asset
     {
+        [SetsRequiredMembers]
         public TestAsset(AssetDefinitionKey key, AssetUrn urn)
             : base(key.Type)
         {
