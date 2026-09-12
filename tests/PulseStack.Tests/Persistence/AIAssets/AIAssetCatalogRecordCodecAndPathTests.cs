@@ -20,7 +20,7 @@ public sealed class AIAssetCatalogRecordCodecAndPathTests
 
         Encoding.UTF8.GetString(bytes).Should().Be(
             "{\"formatVersion\":\"1.0\",\"assetType\":\"prompt\",\"assetId\":\"00112233445566778899aabbccddeeff\",\"version\":\"1.0\",\"urn\":\"urn:pulsestack:prompt:alpha\"}");
-        bytes.Should().NotStartWith(new byte[] { 0xEF, 0xBB, 0xBF });
+        bytes.AsSpan().StartsWith(new byte[] { 0xEF, 0xBB, 0xBF }).Should().BeFalse();
         bytes[^1].Should().NotBe((byte)'\n');
     }
 
