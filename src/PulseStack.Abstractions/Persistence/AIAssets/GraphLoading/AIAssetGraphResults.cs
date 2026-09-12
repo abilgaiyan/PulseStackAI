@@ -55,8 +55,7 @@ public abstract class AIAssetGraphRelationshipFailureContext : AIAssetGraphFailu
         }
 
         var finalRelationship = canonicalPath.Segments[^1].Relationship;
-        if (!ReferenceEquals(finalRelationship, relationship)
-            && !AIAssetGraphContract.RelationshipsEquivalent(finalRelationship, relationship))
+        if (!SameOccurrence(finalRelationship, relationship))
         {
             throw new ArgumentException(
                 "The final canonical path segment must identify the failing relationship occurrence.",
@@ -76,6 +75,18 @@ public abstract class AIAssetGraphRelationshipFailureContext : AIAssetGraphFailu
     public bool? DependencyRequired => Relationship.DependencyRequired;
     public int LocalOrdinal => Relationship.LocalOrdinal;
     public string AuthoredPath => Relationship.AuthoredPath;
+
+    private static bool SameOccurrence(
+        AIAssetGraphRelationship left,
+        AIAssetGraphRelationship right) =>
+        left.SourceKey == right.SourceKey
+        && left.TargetReference == right.TargetReference
+        && left.RelationshipClass == right.RelationshipClass
+        && left.MaterializationAuthority == right.MaterializationAuthority
+        && left.BoundaryRole == right.BoundaryRole
+        && left.DependencyRequired == right.DependencyRequired
+        && left.LocalOrdinal == right.LocalOrdinal
+        && string.Equals(left.AuthoredPath, right.AuthoredPath, StringComparison.Ordinal);
 }
 
 public sealed class AIAssetGraphRequiredDefinitionUnavailableContext : AIAssetGraphRelationshipFailureContext
