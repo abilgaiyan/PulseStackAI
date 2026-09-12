@@ -85,21 +85,25 @@ public sealed class AIAssetGraphReferenceIdentityConflictEvidenceTests
     }
 
     [Fact]
-    public void Evidence_ShouldBeExplicitAndPredecessorOutcomeDerived_NotCallerSupplied()
+    public void PredecessorOutcome_ShouldBeDerivedFromEvidence_NotCallerSupplied()
     {
         Enum.GetNames<AIAssetGraphReferenceIdentityConflictEvidence>()
             .Should().Equal("PersistentResolver", "OperationLocalIdentity");
 
         var constructors = typeof(AIAssetGraphReferenceIdentityConflictContext).GetConstructors();
-        constructors.Should().ContainSingle();
-        constructors[0].GetParameters().Select(static parameter => parameter.ParameterType)
-            .Should().Equal(
-                typeof(AssetDefinitionKey),
-                typeof(AIAssetGraphPath),
-                typeof(AIAssetGraphRelationship),
-                typeof(AIAssetGraphReferenceIdentityConflictEvidence));
-        constructors[0].GetParameters().Select(static parameter => parameter.ParameterType)
+        constructors.SelectMany(static constructor => constructor.GetParameters())
+            .Select(static parameter => parameter.ParameterType)
             .Should().NotContain(typeof(AIAssetGraphPredecessorSemanticOutcome));
+
+        constructors.Should().ContainSingle(constructor =>
+            constructor.GetParameters().Select(static parameter => parameter.ParameterType).SequenceEqual(
+                new[]
+                {
+                    typeof(AssetDefinitionKey),
+                    typeof(AIAssetGraphPath),
+                    typeof(AIAssetGraphRelationship),
+                    typeof(AIAssetGraphReferenceIdentityConflictEvidence)
+                }));
     }
 
     private static (
