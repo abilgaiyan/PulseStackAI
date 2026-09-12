@@ -559,7 +559,7 @@ public sealed class AIAssetGraphExpansionOperationTests
         using var cts = new CancellationTokenSource();
         var observedToken = CancellationToken.None;
         var wait = new TaskCompletionSource<AIAssetResolutionResult>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var resolver = new ScriptedResolver(new[] { root, child })
+        var resolver = new ScriptedResolver(new IAsset[] { root, child })
         {
             ReferenceOverride = (reference, token) =>
             {
