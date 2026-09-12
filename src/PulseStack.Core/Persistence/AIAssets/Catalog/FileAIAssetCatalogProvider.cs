@@ -12,8 +12,10 @@ namespace PulseStack.Core.Persistence.AIAssets.Catalog;
 public sealed class FileAIAssetCatalogProvider : IAIAssetCatalogProvider
 {
     private const string TemporaryExtension = ".tmp";
+    private static readonly StringComparer RootComparer =
+        OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> Coordinators =
-        new(StringComparer.Ordinal);
+        new(RootComparer);
 
     private readonly string rootPath;
     private readonly SemaphoreSlim coordinator;
@@ -218,7 +220,6 @@ public sealed class FileAIAssetCatalogProvider : IAIAssetCatalogProvider
                 }
                 catch (IOException) when (File.Exists(committedPath))
                 {
-                    // Cross-process mutation is outside the supported topology, but never overwrite it.
                     var committed = await ReadCommittedRecordAsync(committedPath, "Publish", cancellationToken).ConfigureAwait(false);
                     return committed.DefinitionKey == record.DefinitionKey && committed.Urn == record.Urn
                         ? CatalogPublicationResult.AlreadyPresent
@@ -381,10 +382,8 @@ public sealed class FileAIAssetCatalogProvider : IAIAssetCatalogProvider
         stream.Flush(flushToDisk: true);
     }
 
-    private void ObserveToken(FileAIAssetCatalogOperation operation, CancellationToken token)
-    {
+    private void ObserveToken(FileAIAssetCatalogOperation operation, CancellationToken token) =>
         faultInjector.ObserveToken(operation, token);
-    }
 
     private static string NormalizeRoot(string rootPath) =>
         Path.TrimEndingDirectorySeparator(Path.GetFullPath(rootPath));
