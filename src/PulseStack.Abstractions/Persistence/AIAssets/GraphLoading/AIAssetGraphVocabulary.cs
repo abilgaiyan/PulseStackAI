@@ -24,6 +24,12 @@ public enum AIAssetGraphBoundaryRole
     NotApplicable
 }
 
+public enum AIAssetGraphPredecessorSemanticOutcome
+{
+    DefinitionNotPublished,
+    ReferenceMismatch
+}
+
 public static class AIAssetGraphDiagnosticCodes
 {
     public const string RootDefinitionUnavailable = "AAG001";
