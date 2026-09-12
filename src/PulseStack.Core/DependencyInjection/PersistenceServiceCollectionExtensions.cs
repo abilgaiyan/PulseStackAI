@@ -43,24 +43,35 @@ public static class PersistenceServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Configures a custom serialized AI Asset store and records the explicit durability evidence
-    /// required when persistent catalog composition is enabled.
+    /// Records explicit durability evidence for a previously composed custom AI Asset storage authority.
+    /// Built-in storage providers contribute this evidence automatically.
     /// </summary>
-    public static IServiceCollection AddAIAssetStorage(
+    public static IServiceCollection AddAIAssetStorageCapability(
         this IServiceCollection services,
-        ISerializedAIAssetStore store,
-        AIAssetStorageOptions options,
         AIAssetStorageCapabilityProfile capabilityProfile)
     {
         ArgumentNullException.ThrowIfNull(services);
-        ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(capabilityProfile);
-        AIAssetStorageContract.EnsureValidOptions(options);
         EnsureValidStorageCapability(capabilityProfile);
-        EnsureStorageCompositionAvailable(services);
 
-        services.AddSingleton(store);
-        AddAIAssetStorageComposition(services, options, capabilityProfile);
+        var selections = services
+            .Where(descriptor => descriptor.ServiceType == typeof(AIAssetLoaderAuthoritySelection))
+            .ToArray();
+        if (selections.Length != 1 || selections[0].Lifetime != ServiceLifetime.Singleton)
+        {
+            throw new AIAssetStorageException(
+                AIAssetStorageFailureCategory.CompositionConfiguration,
+                "Exactly one singleton AI Asset loader authority must be selected before storage durability evidence is recorded.");
+        }
+
+        if (services.Any(descriptor => descriptor.ServiceType == typeof(AIAssetStorageCapabilityProfile)))
+        {
+            throw new AIAssetStorageException(
+                AIAssetStorageFailureCategory.CompositionConfiguration,
+                "AI Asset storage durability capability has already been configured.");
+        }
+
+        services.AddSingleton(capabilityProfile);
         return services;
     }
 
@@ -217,13 +228,17 @@ public static class PersistenceServiceCollectionExtensions
                 GetExactlyOneStorageService<IAIAssetDocumentValidator>(provider),
                 GetExactlyOneStorageService<AIAssetStorageOptions>(provider)));
 
+        services.AddSingleton<AIAssetLoaderAuthoritySelection>(provider =>
+            new AIAssetLoaderAuthoritySelection(
+                new AIAssetLoader(
+                    GetExactlyOneStorageService<ISerializedAIAssetStore>(provider),
+                    GetExactlyOneStorageService<IAIAssetDocumentCodec>(provider),
+                    GetExactlyOneStorageService<IAIAssetDocumentValidator>(provider),
+                    GetExactlyOneStorageService<IAIAssetDocumentMapper>(provider),
+                    GetExactlyOneStorageService<AIAssetStorageOptions>(provider))));
+
         services.AddSingleton<IAIAssetLoader>(provider =>
-            new AIAssetLoader(
-                GetExactlyOneStorageService<ISerializedAIAssetStore>(provider),
-                GetExactlyOneStorageService<IAIAssetDocumentCodec>(provider),
-                GetExactlyOneStorageService<IAIAssetDocumentValidator>(provider),
-                GetExactlyOneStorageService<IAIAssetDocumentMapper>(provider),
-                GetExactlyOneStorageService<AIAssetStorageOptions>(provider)));
+            provider.GetRequiredService<AIAssetLoaderAuthoritySelection>().Loader);
     }
 
     private static void AddAIAssetCatalogComposition(
@@ -234,11 +249,11 @@ public static class PersistenceServiceCollectionExtensions
         services.AddSingleton<IAIAssetPublisher>(provider =>
             new AIAssetPublisher(
                 GetExactlyOneCatalogService<IAIAssetCatalogProvider>(provider),
-                GetExactlyOneCatalogService<IAIAssetLoader>(provider)));
+                GetSelectedLoaderAuthority(provider)));
         services.AddSingleton<IPersistentAIAssetResolver>(provider =>
             new PersistentAIAssetResolver(
                 GetExactlyOneCatalogService<IAIAssetCatalogProvider>(provider),
-                GetExactlyOneCatalogService<IAIAssetLoader>(provider)));
+                GetSelectedLoaderAuthority(provider)));
     }
 
     private static void EnsureStorageCompositionAvailable(IServiceCollection services)
@@ -247,6 +262,7 @@ public static class PersistenceServiceCollectionExtensions
                 descriptor.ServiceType == typeof(ISerializedAIAssetStore)
                 || descriptor.ServiceType == typeof(AIAssetStorageOptions)
                 || descriptor.ServiceType == typeof(AIAssetStorageCapabilityProfile)
+                || descriptor.ServiceType == typeof(AIAssetLoaderAuthoritySelection)
                 || descriptor.ServiceType == typeof(IAIAssetWriter)
                 || descriptor.ServiceType == typeof(IAIAssetLoader)))
         {
@@ -270,10 +286,13 @@ public static class PersistenceServiceCollectionExtensions
                 "AI Asset catalog composition has already been configured or partially configured.");
         }
 
-        var loaderCount = services.Count(descriptor => descriptor.ServiceType == typeof(IAIAssetLoader));
-        if (loaderCount != 1)
+        var loaderSelections = services
+            .Where(descriptor => descriptor.ServiceType == typeof(AIAssetLoaderAuthoritySelection))
+            .ToArray();
+        if (loaderSelections.Length != 1 || loaderSelections[0].Lifetime != ServiceLifetime.Singleton)
         {
-            throw CatalogCompositionFailure("Exactly one IAIAssetLoader must be configured before the persistent catalog.");
+            throw CatalogCompositionFailure(
+                "Exactly one singleton AI Asset loader authority must be selected before the persistent catalog.");
         }
 
         var storageCapabilities = services
@@ -362,4 +381,7 @@ public static class PersistenceServiceCollectionExtensions
 
         return services[0];
     }
+
+    private static IAIAssetLoader GetSelectedLoaderAuthority(IServiceProvider provider) =>
+        provider.GetRequiredService<AIAssetLoaderAuthoritySelection>().Loader;
 }
