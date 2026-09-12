@@ -8,9 +8,9 @@ namespace PulseStack.Tests.Persistence.AIAssets;
 public sealed class AIAssetGraphReferenceIdentityConflictEvidenceTests
 {
     [Fact]
-    public void PersistentResolverEvidence_ShouldExposeReferenceMismatchPredecessorOutcome()
+    public void RequiredPersistentResolverEvidence_ShouldExposeReferenceMismatchPredecessorOutcome()
     {
-        var (root, relationship, path) = CreateRelationshipContext();
+        var (root, relationship, path) = CreateRelationshipContext(required: true);
 
         var context = new AIAssetGraphReferenceIdentityConflictContext(
             root,
@@ -19,13 +19,28 @@ public sealed class AIAssetGraphReferenceIdentityConflictEvidenceTests
             AIAssetGraphReferenceIdentityConflictEvidence.PersistentResolver);
 
         context.Evidence.Should().Be(AIAssetGraphReferenceIdentityConflictEvidence.PersistentResolver);
+        context.MaterializationAuthority.Should().Be(AIAssetGraphMaterializationAuthority.Required);
         context.PredecessorSemanticOutcome.Should().Be(AIAssetGraphPredecessorSemanticOutcome.ReferenceMismatch);
     }
 
     [Fact]
-    public void OperationLocalIdentityEvidence_ShouldExposeNoPredecessorOutcome()
+    public void ExcludedPersistentResolverEvidence_ShouldBeRejected()
     {
-        var (root, relationship, path) = CreateRelationshipContext();
+        var (root, relationship, path) = CreateRelationshipContext(required: false);
+
+        Action act = () => _ = new AIAssetGraphReferenceIdentityConflictContext(
+            root,
+            path,
+            relationship,
+            AIAssetGraphReferenceIdentityConflictEvidence.PersistentResolver);
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void RequiredOperationLocalIdentityEvidence_ShouldExposeNoPredecessorOutcome()
+    {
+        var (root, relationship, path) = CreateRelationshipContext(required: true);
 
         var context = new AIAssetGraphReferenceIdentityConflictContext(
             root,
@@ -34,13 +49,31 @@ public sealed class AIAssetGraphReferenceIdentityConflictEvidenceTests
             AIAssetGraphReferenceIdentityConflictEvidence.OperationLocalIdentity);
 
         context.Evidence.Should().Be(AIAssetGraphReferenceIdentityConflictEvidence.OperationLocalIdentity);
+        context.MaterializationAuthority.Should().Be(AIAssetGraphMaterializationAuthority.Required);
+        context.PredecessorSemanticOutcome.Should().BeNull();
+    }
+
+    [Fact]
+    public void ExcludedOperationLocalIdentityEvidence_ShouldBeAcceptedWithoutPredecessorOutcome()
+    {
+        var (root, relationship, path) = CreateRelationshipContext(required: false);
+
+        var context = new AIAssetGraphReferenceIdentityConflictContext(
+            root,
+            path,
+            relationship,
+            AIAssetGraphReferenceIdentityConflictEvidence.OperationLocalIdentity);
+
+        context.Evidence.Should().Be(AIAssetGraphReferenceIdentityConflictEvidence.OperationLocalIdentity);
+        context.MaterializationAuthority.Should().Be(AIAssetGraphMaterializationAuthority.Excluded);
+        context.DependencyRequired.Should().BeFalse();
         context.PredecessorSemanticOutcome.Should().BeNull();
     }
 
     [Fact]
     public void UnsupportedEvidence_ShouldBeRejected()
     {
-        var (root, relationship, path) = CreateRelationshipContext();
+        var (root, relationship, path) = CreateRelationshipContext(required: true);
 
         Action act = () => _ = new AIAssetGraphReferenceIdentityConflictContext(
             root,
@@ -52,22 +85,27 @@ public sealed class AIAssetGraphReferenceIdentityConflictEvidenceTests
     }
 
     [Fact]
-    public void PredecessorOutcome_ShouldBeDerivedFromEvidence_NotCallerSupplied()
+    public void Evidence_ShouldBeExplicitAndPredecessorOutcomeDerived_NotCallerSupplied()
     {
         Enum.GetNames<AIAssetGraphReferenceIdentityConflictEvidence>()
             .Should().Equal("PersistentResolver", "OperationLocalIdentity");
 
-        typeof(AIAssetGraphReferenceIdentityConflictContext)
-            .GetConstructors()
-            .SelectMany(static constructor => constructor.GetParameters())
-            .Select(static parameter => parameter.ParameterType)
+        var constructors = typeof(AIAssetGraphReferenceIdentityConflictContext).GetConstructors();
+        constructors.Should().ContainSingle();
+        constructors[0].GetParameters().Select(static parameter => parameter.ParameterType)
+            .Should().Equal(
+                typeof(AssetDefinitionKey),
+                typeof(AIAssetGraphPath),
+                typeof(AIAssetGraphRelationship),
+                typeof(AIAssetGraphReferenceIdentityConflictEvidence));
+        constructors[0].GetParameters().Select(static parameter => parameter.ParameterType)
             .Should().NotContain(typeof(AIAssetGraphPredecessorSemanticOutcome));
     }
 
     private static (
         AssetDefinitionKey Root,
         AIAssetGraphRelationship Relationship,
-        AIAssetGraphPath Path) CreateRelationshipContext()
+        AIAssetGraphPath Path) CreateRelationshipContext(bool required)
     {
         var root = new AssetDefinitionKey(
             AssetType.Package,
@@ -82,9 +120,11 @@ public sealed class AIAssetGraphReferenceIdentityConflictEvidenceTests
             root,
             target,
             AIAssetGraphRelationshipClass.ExplicitRequirement,
-            AIAssetGraphMaterializationAuthority.Required,
+            required
+                ? AIAssetGraphMaterializationAuthority.Required
+                : AIAssetGraphMaterializationAuthority.Excluded,
             AIAssetGraphBoundaryRole.External,
-            true,
+            required,
             0,
             "$.dependencies[0]");
         var path = new AIAssetGraphPath(
