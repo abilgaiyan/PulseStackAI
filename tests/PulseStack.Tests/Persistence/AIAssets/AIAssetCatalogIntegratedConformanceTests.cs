@@ -64,8 +64,7 @@ public sealed class AIAssetCatalogIntegratedConformanceTests
         using var reopenedProvider = BuildFileProvider(storageRoot.Path, catalogRoot.Path);
         var resolver = reopenedProvider.GetRequiredService<IPersistentAIAssetResolver>();
 
-        var exact = await resolver.ResolveAsync(definition.Key);
-        AssertResolvedIdentity(exact, definition);
+        AssertResolvedIdentity(await resolver.ResolveAsync(definition.Key), definition);
 
         var reference = new AssetReference(
             definition.Key.Type,
@@ -84,47 +83,42 @@ public sealed class AIAssetCatalogIntegratedConformanceTests
     }
 
     [Fact]
-    public async Task ConcurrentIncompatiblePublication_ShouldCommitOneLineageAuthorityAndRejectTheOther()
+    public async Task PublisherBeforeStorage_ShouldReturnDefinitionNotStoredWithoutCreatingCatalogAuthority()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryAIAssetStorage(StorageOptions);
+        services.AddInMemoryAIAssetCatalog();
+        using var provider = services.BuildServiceProvider();
+        var definition = CreatePromptDefinition();
+        var publisher = provider.GetRequiredService<IAIAssetPublisher>();
+        var catalog = provider.GetRequiredService<IAIAssetCatalogProvider>();
+
+        var result = await publisher.PublishAsync(definition.Key);
+
+        result.Should().Be(AIAssetPublicationResult.DefinitionNotStored);
+        (await catalog.FindExactAsync(definition.Key)).Should().BeOfType<ExactCatalogLookupResult.NotFound>();
+        (await catalog.FindLineageAsync(definition.Urn)).Should().BeOfType<CatalogLineageLookupResult.NotFound>();
+    }
+
+    [Fact]
+    public async Task InMemoryConcurrentIncompatiblePublication_ShouldCommitOneLineageAuthorityAndRejectTheOther()
     {
         var services = new ServiceCollection();
         services.AddInMemoryAIAssetStorage(StorageOptions);
         services.AddInMemoryAIAssetCatalog();
         using var provider = services.BuildServiceProvider();
 
-        var id = AssetId.New();
-        var first = CreatePromptDefinition(id, new AssetVersion("1.0"), new AssetUrn("urn:pulsestack:prompt:concurrent-a"));
-        var second = CreatePromptDefinition(id, new AssetVersion("2.0"), new AssetUrn("urn:pulsestack:prompt:concurrent-b"));
-        var writer = provider.GetRequiredService<IAIAssetWriter>();
-        var publisher = provider.GetRequiredService<IAIAssetPublisher>();
-        var resolver = provider.GetRequiredService<IPersistentAIAssetResolver>();
+        await AssertConcurrentIncompatiblePublicationAsync(provider);
+    }
 
-        (await writer.WriteAsync(first.Key, first.Document)).Should().Be(AIAssetWriteResult.Created);
-        (await writer.WriteAsync(second.Key, second.Document)).Should().Be(AIAssetWriteResult.Created);
+    [Fact]
+    public async Task DurableConcurrentIncompatiblePublication_ShouldCommitOneLineageAuthorityAndRejectTheOther()
+    {
+        using var storageRoot = new TemporaryDirectory();
+        using var catalogRoot = new TemporaryDirectory();
+        using var provider = BuildFileProvider(storageRoot.Path, catalogRoot.Path);
 
-        using var gate = new Barrier(2);
-        async Task<AIAssetPublicationResult> PublishAfterGateAsync(AssetDefinitionKey key)
-        {
-            return await Task.Run(async () =>
-            {
-                gate.SignalAndWait();
-                return await publisher.PublishAsync(key);
-            });
-        }
-
-        var results = await Task.WhenAll(
-            PublishAfterGateAsync(first.Key),
-            PublishAfterGateAsync(second.Key));
-
-        results.Should().ContainSingle(result => result == AIAssetPublicationResult.Published);
-        results.Should().ContainSingle(result => result == AIAssetPublicationResult.IdentityConflict);
-
-        var firstLineage = await resolver.DiscoverLineageAsync(first.Urn);
-        var secondLineage = await resolver.DiscoverLineageAsync(second.Urn);
-        var publishedLineages = new[] { firstLineage, secondLineage }
-            .OfType<CatalogLineageLookupResult.Found>()
-            .ToArray();
-        publishedLineages.Should().ContainSingle();
-        publishedLineages[0].Lineage.PublishedVersions.Should().ContainSingle();
+        await AssertConcurrentIncompatiblePublicationAsync(provider);
     }
 
     [Fact]
@@ -211,6 +205,50 @@ public sealed class AIAssetCatalogIntegratedConformanceTests
         found.Id.Should().Be(definition.Key.Id);
         found.Urn.Should().Be(definition.Urn);
         found.PublishedVersions.Should().ContainSingle().Which.Should().Be(definition.Key.Version);
+    }
+
+    private static async Task AssertConcurrentIncompatiblePublicationAsync(IServiceProvider provider)
+    {
+        var id = AssetId.New();
+        var first = CreatePromptDefinition(
+            id,
+            new AssetVersion("1.0"),
+            new AssetUrn("urn:pulsestack:prompt:concurrent-a"));
+        var second = CreatePromptDefinition(
+            id,
+            new AssetVersion("2.0"),
+            new AssetUrn("urn:pulsestack:prompt:concurrent-b"));
+        var writer = provider.GetRequiredService<IAIAssetWriter>();
+        var publisher = provider.GetRequiredService<IAIAssetPublisher>();
+        var resolver = provider.GetRequiredService<IPersistentAIAssetResolver>();
+
+        (await writer.WriteAsync(first.Key, first.Document)).Should().Be(AIAssetWriteResult.Created);
+        (await writer.WriteAsync(second.Key, second.Document)).Should().Be(AIAssetWriteResult.Created);
+
+        using var gate = new Barrier(2);
+        async Task<AIAssetPublicationResult> PublishAfterGateAsync(AssetDefinitionKey key)
+        {
+            return await Task.Run(async () =>
+            {
+                gate.SignalAndWait();
+                return await publisher.PublishAsync(key);
+            });
+        }
+
+        var results = await Task.WhenAll(
+            PublishAfterGateAsync(first.Key),
+            PublishAfterGateAsync(second.Key));
+
+        results.Should().ContainSingle(result => result == AIAssetPublicationResult.Published);
+        results.Should().ContainSingle(result => result == AIAssetPublicationResult.IdentityConflict);
+
+        var firstLineage = await resolver.DiscoverLineageAsync(first.Urn);
+        var secondLineage = await resolver.DiscoverLineageAsync(second.Urn);
+        var publishedLineages = new[] { firstLineage, secondLineage }
+            .OfType<CatalogLineageLookupResult.Found>()
+            .ToArray();
+        publishedLineages.Should().ContainSingle();
+        publishedLineages[0].Lineage.PublishedVersions.Should().ContainSingle();
     }
 
     private static void AssertResolvedIdentity(
