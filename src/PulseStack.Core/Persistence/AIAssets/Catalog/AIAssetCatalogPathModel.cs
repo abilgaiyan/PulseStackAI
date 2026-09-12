@@ -143,10 +143,7 @@ internal static class AIAssetCatalogPathModel
         AIAssetStorageContract.EnsureValidKey(key);
 
         var expected = GetRecordPath(catalogRoot, key);
-        if (!string.Equals(
-                Path.GetFullPath(recordPath),
-                Path.GetFullPath(expected),
-                StringComparison.Ordinal))
+        if (!string.Equals(recordPath, expected, StringComparison.Ordinal))
         {
             throw new InvalidDataException("Catalog record path is not in exact canonical form.");
         }
