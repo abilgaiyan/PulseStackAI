@@ -44,6 +44,7 @@ public sealed class AIAssetGraphContractTests
 
         Enum.GetNames<AIAssetGraphMaterializationAuthority>().Should().Equal("Required", "Excluded");
         Enum.GetNames<AIAssetGraphBoundaryRole>().Should().Equal("Structural", "Internal", "External", "NotApplicable");
+        Enum.GetNames<AIAssetGraphPredecessorSemanticOutcome>().Should().Equal("DefinitionNotPublished", "ReferenceMismatch");
     }
 
     [Fact]
@@ -155,6 +156,54 @@ public sealed class AIAssetGraphContractTests
     }
 
     [Fact]
+    public void MaterializedRequiredTarget_ShouldRejectAuthoredUrnMismatch()
+    {
+        var rootAsset = Asset(AssetType.Package);
+        var targetAsset = Asset(AssetType.Prompt);
+        var rootKey = AssetDefinitionKey.From(rootAsset);
+        var targetKey = AssetDefinitionKey.From(targetAsset);
+        var conflictingReference = new AssetReference(
+            targetAsset.Type,
+            targetAsset.Id,
+            new AssetUrn("urn:pulsestack:prompt:conflicting"),
+            targetAsset.Version);
+        var relationship = Relationship(rootKey, conflictingReference, dependencyRequired: true);
+
+        Action act = () => _ = new AIAssetGraph(
+            rootKey,
+            new[] { new AIAssetGraphNode(rootKey, rootAsset), new AIAssetGraphNode(targetKey, targetAsset) },
+            new[] { relationship });
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void MaterializedOptionalTarget_ShouldRejectAuthoredUrnMismatch()
+    {
+        var rootAsset = Asset(AssetType.Package);
+        var targetAsset = Asset(AssetType.Prompt);
+        var rootKey = AssetDefinitionKey.From(rootAsset);
+        var targetKey = AssetDefinitionKey.From(targetAsset);
+        var conflictingReference = new AssetReference(
+            targetAsset.Type,
+            targetAsset.Id,
+            new AssetUrn("urn:pulsestack:prompt:conflicting"),
+            targetAsset.Version);
+        var relationship = Relationship(
+            rootKey,
+            conflictingReference,
+            dependencyRequired: false,
+            authority: AIAssetGraphMaterializationAuthority.Excluded);
+
+        Action act = () => _ = new AIAssetGraph(
+            rootKey,
+            new[] { new AIAssetGraphNode(rootKey, rootAsset), new AIAssetGraphNode(targetKey, targetAsset) },
+            new[] { relationship });
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
     public void Graph_ShouldRejectDuplicateNodeIdentity()
     {
         var rootAsset = Asset(AssetType.Project);
@@ -225,6 +274,7 @@ public sealed class AIAssetGraphContractTests
         context.Code.Should().Be("AAG001");
         context.RootKey.Should().Be(root);
         context.CanonicalPath.Segments.Should().BeEmpty();
+        context.PredecessorSemanticOutcome.Should().Be(AIAssetGraphPredecessorSemanticOutcome.DefinitionNotPublished);
     }
 
     [Fact]
@@ -255,6 +305,68 @@ public sealed class AIAssetGraphContractTests
         var relationship = Relationship(Key(AssetType.Library), Reference(AssetType.Prompt), true);
 
         Action act = () => _ = new AIAssetGraphPath(root, new[] { new AIAssetGraphPathSegment(relationship) });
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void ResolverTranslatedContexts_ShouldPreserveSemanticOutcome()
+    {
+        var root = Key(AssetType.Package);
+        var requiredRelationship = Relationship(root, Reference(AssetType.Prompt), true);
+        var requiredPath = new AIAssetGraphPath(root, new[] { new AIAssetGraphPathSegment(requiredRelationship) });
+        var referenceRelationship = Relationship(root, Reference(AssetType.Tool), true, 1, "$.dependencies[1]");
+        var referencePath = new AIAssetGraphPath(root, new[] { new AIAssetGraphPathSegment(referenceRelationship) });
+
+        var required = new AIAssetGraphRequiredDefinitionUnavailableContext(root, requiredPath, requiredRelationship);
+        var conflict = new AIAssetGraphReferenceIdentityConflictContext(root, referencePath, referenceRelationship);
+
+        required.PredecessorSemanticOutcome.Should().Be(AIAssetGraphPredecessorSemanticOutcome.DefinitionNotPublished);
+        conflict.PredecessorSemanticOutcome.Should().Be(AIAssetGraphPredecessorSemanticOutcome.ReferenceMismatch);
+    }
+
+    [Fact]
+    public void LineageIdentityConflict_ShouldPreserveFailingRelationshipOccurrence()
+    {
+        var root = Key(AssetType.Package);
+        var relationship = Relationship(root, Reference(AssetType.Prompt), true, 2, "$.dependencies[2]");
+        var path = new AIAssetGraphPath(root, new[] { new AIAssetGraphPathSegment(relationship) });
+        var established = AssetDefinitionKey.From(relationship.TargetReference);
+        var conflicting = new AssetDefinitionKey(AssetType.Tool, established.Id, established.Version);
+
+        var context = new AIAssetGraphLineageIdentityConflictContext(
+            root,
+            path,
+            relationship,
+            relationship.TargetReference.Urn,
+            established,
+            conflicting);
+
+        context.Code.Should().Be("AAG004");
+        context.SourceKey.Should().Be(relationship.SourceKey);
+        context.TargetReference.Should().Be(relationship.TargetReference);
+        context.LocalOrdinal.Should().Be(2);
+        context.AuthoredPath.Should().Be("$.dependencies[2]");
+        context.Relationship.Should().BeSameAs(relationship);
+    }
+
+    [Fact]
+    public void LineageIdentityConflict_ShouldRejectPathWhoseFinalSegmentIsNotFailingOccurrence()
+    {
+        var root = Key(AssetType.Package);
+        var relationship = Relationship(root, Reference(AssetType.Prompt), true, 0, "$.dependencies[0]");
+        var other = Relationship(root, Reference(AssetType.Tool), true, 1, "$.dependencies[1]");
+        var path = new AIAssetGraphPath(root, new[] { new AIAssetGraphPathSegment(other) });
+        var established = AssetDefinitionKey.From(relationship.TargetReference);
+        var conflicting = new AssetDefinitionKey(AssetType.Tool, established.Id, established.Version);
+
+        Action act = () => _ = new AIAssetGraphLineageIdentityConflictContext(
+            root,
+            path,
+            relationship,
+            relationship.TargetReference.Urn,
+            established,
+            conflicting);
 
         act.Should().Throw<ArgumentException>();
     }
