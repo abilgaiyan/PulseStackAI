@@ -321,7 +321,8 @@ public sealed class AIAssetGraphContractTests
 
         success.GetProperty(nameof(AIAssetGraphLoadResult.Success.Graph)).Should().NotBeNull();
         variants.Where(type => type != success)
-            .Should().OnlyContain(static type => type.GetProperty("Graph") is null);
+            .Select(static type => type.GetProperty("Graph"))
+            .Should().OnlyContain(static property => property == null);
     }
 
     [Fact]
