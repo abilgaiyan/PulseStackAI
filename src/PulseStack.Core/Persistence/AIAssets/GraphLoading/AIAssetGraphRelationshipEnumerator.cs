@@ -24,24 +24,12 @@ internal sealed class AIAssetGraphRelationshipEnumerator
                 break;
 
             case LibraryAsset library when source.Type == AssetType.Library:
-                AddMembers(
-                    sourceKey,
-                    library.Options.Members,
-                    AIAssetGraphRelationshipClass.InternalMembership,
-                    "$.members",
-                    relationships,
-                    cancellationToken);
+                AddMembers(sourceKey, library.Options.Members, AIAssetGraphRelationshipClass.InternalMembership, "$.members", relationships, cancellationToken);
                 AddDependencies(source, sourceKey, AIAssetGraphBoundaryRole.External, relationships, cancellationToken);
                 break;
 
             case PackageAsset package when source.Type == AssetType.Package:
-                AddMembers(
-                    sourceKey,
-                    package.Options.Members,
-                    AIAssetGraphRelationshipClass.InternalDistribution,
-                    "$.members",
-                    relationships,
-                    cancellationToken);
+                AddMembers(sourceKey, package.Options.Members, AIAssetGraphRelationshipClass.InternalDistribution, "$.members", relationships, cancellationToken);
                 AddDependencies(source, sourceKey, AIAssetGraphBoundaryRole.External, relationships, cancellationToken);
                 break;
 
@@ -55,12 +43,12 @@ internal sealed class AIAssetGraphRelationshipEnumerator
                 AddDependencies(source, sourceKey, AIAssetGraphBoundaryRole.NotApplicable, relationships, cancellationToken);
                 break;
 
-            case PromptAsset when source.Type == AssetType.Prompt:
-            case ToolAsset when source.Type == AssetType.Tool:
-            case KnowledgeAsset when source.Type == AssetType.Knowledge:
-            case MemoryAsset when source.Type == AssetType.Memory:
-            case PolicyAsset when source.Type == AssetType.Policy:
-            case ModelAsset when source.Type == AssetType.Model:
+            case IAsset when source.Type is AssetType.Prompt
+                or AssetType.Tool
+                or AssetType.Knowledge
+                or AssetType.Memory
+                or AssetType.Policy
+                or AssetType.Model:
                 AddDependencies(source, sourceKey, AIAssetGraphBoundaryRole.NotApplicable, relationships, cancellationToken);
                 break;
 
@@ -80,22 +68,8 @@ internal sealed class AIAssetGraphRelationshipEnumerator
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        AddTyped(
-            sourceKey,
-            project.Options.EntryWorkflow,
-            AIAssetGraphRelationshipClass.DistinguishedStructural,
-            AIAssetGraphBoundaryRole.Structural,
-            "$.entryWorkflow",
-            output);
-
-        AddMembers(
-            sourceKey,
-            project.Options.OwnedAssets,
-            AIAssetGraphRelationshipClass.InternalOwnership,
-            "$.ownedAssets",
-            output,
-            cancellationToken);
-
+        AddTyped(sourceKey, project.Options.EntryWorkflow, AIAssetGraphRelationshipClass.DistinguishedStructural, AIAssetGraphBoundaryRole.Structural, "$.entryWorkflow", output);
+        AddMembers(sourceKey, project.Options.OwnedAssets, AIAssetGraphRelationshipClass.InternalOwnership, "$.ownedAssets", output, cancellationToken);
         AddDependencies(project, sourceKey, AIAssetGraphBoundaryRole.External, output, cancellationToken);
     }
 
@@ -139,13 +113,7 @@ internal sealed class AIAssetGraphRelationshipEnumerator
         foreach (var reference in references)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            AddTyped(
-                sourceKey,
-                reference,
-                AIAssetGraphRelationshipClass.DeclarativeReference,
-                AIAssetGraphBoundaryRole.NotApplicable,
-                $"{pathPrefix}[{index}]",
-                output);
+            AddTyped(sourceKey, reference, AIAssetGraphRelationshipClass.DeclarativeReference, AIAssetGraphBoundaryRole.NotApplicable, $"{pathPrefix}[{index}]", output);
             index++;
         }
     }
@@ -162,13 +130,7 @@ internal sealed class AIAssetGraphRelationshipEnumerator
         foreach (var reference in references)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            AddTyped(
-                sourceKey,
-                reference,
-                relationshipClass,
-                AIAssetGraphBoundaryRole.Internal,
-                $"{pathPrefix}[{index}]",
-                output);
+            AddTyped(sourceKey, reference, relationshipClass, AIAssetGraphBoundaryRole.Internal, $"{pathPrefix}[{index}]", output);
             index++;
         }
     }
@@ -200,13 +162,7 @@ internal sealed class AIAssetGraphRelationshipEnumerator
         switch (step)
         {
             case RunStepDefinition run:
-                AddTyped(
-                    sourceKey,
-                    run.Agent,
-                    AIAssetGraphRelationshipClass.DeclarativeReference,
-                    AIAssetGraphBoundaryRole.NotApplicable,
-                    $"{path}.agent",
-                    output);
+                AddTyped(sourceKey, run.Agent, AIAssetGraphRelationshipClass.DeclarativeReference, AIAssetGraphBoundaryRole.NotApplicable, $"{path}.agent", output);
                 break;
 
             case ParallelStepDefinition parallel:
@@ -243,6 +199,10 @@ internal sealed class AIAssetGraphRelationshipEnumerator
                     AddWorkflowStep(@switch.DefaultStep, $"{path}.default", sourceKey, output, cancellationToken);
                 }
                 break;
+
+            default:
+                throw new InvalidOperationException(
+                    $"Unsupported schema-v1 Workflow step type '{step.GetType().Name}' for graph relationship enumeration.");
         }
     }
 
@@ -281,9 +241,7 @@ internal sealed class AIAssetGraphRelationshipEnumerator
                 sourceKey,
                 item.Dependency.Reference,
                 AIAssetGraphRelationshipClass.ExplicitRequirement,
-                required
-                    ? AIAssetGraphMaterializationAuthority.Required
-                    : AIAssetGraphMaterializationAuthority.Excluded,
+                required ? AIAssetGraphMaterializationAuthority.Required : AIAssetGraphMaterializationAuthority.Excluded,
                 boundaryRole,
                 required,
                 output.Count,
