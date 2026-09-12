@@ -166,6 +166,21 @@ public sealed class AIAssetGraphLineageIdentityConflictContext : AIAssetGraphRel
                 nameof(conflictingIdentity));
         }
 
+        var relationshipIdentity = AssetDefinitionKey.From(relationship.TargetReference);
+        if (relationshipIdentity != conflictingIdentity)
+        {
+            throw new ArgumentException(
+                "ConflictingIdentity must equal the exact identity introduced by the failing authored relationship.",
+                nameof(conflictingIdentity));
+        }
+
+        if (relationship.TargetReference.Urn != conflictingUrn)
+        {
+            throw new ArgumentException(
+                "ConflictingUrn must equal the URN asserted by the failing authored relationship.",
+                nameof(conflictingUrn));
+        }
+
         ConflictingUrn = conflictingUrn;
         EstablishedIdentity = establishedIdentity;
         ConflictingIdentity = conflictingIdentity;
