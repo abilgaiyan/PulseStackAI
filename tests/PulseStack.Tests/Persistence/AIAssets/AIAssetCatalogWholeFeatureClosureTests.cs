@@ -42,6 +42,36 @@ public sealed class AIAssetCatalogWholeFeatureClosureTests
     }
 
     [Fact]
+    public void PublicResultAndFailureAlgebra_ShouldRemainExactAndClosed()
+    {
+        Enum.GetNames<CatalogPublicationResult>().Should().Equal(
+            nameof(CatalogPublicationResult.Created),
+            nameof(CatalogPublicationResult.AlreadyPresent),
+            nameof(CatalogPublicationResult.Conflict));
+
+        Enum.GetNames<AIAssetPublicationResult>().Should().Equal(
+            nameof(AIAssetPublicationResult.Published),
+            nameof(AIAssetPublicationResult.AlreadyPublished),
+            nameof(AIAssetPublicationResult.DefinitionNotStored),
+            nameof(AIAssetPublicationResult.IdentityConflict));
+
+        Enum.GetNames<AIAssetCatalogFailureCategory>().Should().Equal(
+            nameof(AIAssetCatalogFailureCategory.CompositionConfiguration),
+            nameof(AIAssetCatalogFailureCategory.ProviderFailure),
+            nameof(AIAssetCatalogFailureCategory.InconsistentState));
+
+        Enum.GetNames<AIAssetCatalogBoundaryFailureCategory>().Should().Equal(
+            nameof(AIAssetCatalogBoundaryFailureCategory.PublishedDefinitionUnavailable),
+            nameof(AIAssetCatalogBoundaryFailureCategory.CatalogAssetIdentityMismatch));
+
+        typeof(AIAssetResolutionResult).GetNestedTypes(BindingFlags.Public)
+            .Select(type => type.Name)
+            .Should().BeEquivalentTo(
+                ["Resolved", "LineageNotPublished", "DefinitionNotPublished", "ReferenceMismatch"],
+                options => options.WithStrictOrdering());
+    }
+
+    [Fact]
     public void PublicCatalogContracts_ShouldContainNoDeferredMutableDiscoveryOrVersionSelectionOperations()
     {
         var operationNames = new[]
@@ -83,8 +113,7 @@ public sealed class AIAssetCatalogWholeFeatureClosureTests
                 .Append(method.ReturnType))
             .ToArray();
 
-        exposedTypes.Should().OnlyContain(type =>
-            !ContainsProviderSpecificSurface(type));
+        exposedTypes.Should().OnlyContain(type => !ContainsProviderSpecificSurface(type));
     }
 
     [Fact]
@@ -177,20 +206,15 @@ public sealed class AIAssetCatalogWholeFeatureClosureTests
 
     private static bool ContainsProviderSpecificSurface(Type type)
     {
-        if (type.IsGenericType)
+        var name = type.FullName ?? type.Name;
+        if (name.Contains("FileAIAsset", StringComparison.Ordinal)
+            || name.Contains("InMemoryAIAsset", StringComparison.Ordinal)
+            || name.Contains("System.IO.File", StringComparison.Ordinal))
         {
-            if (ContainsProviderSpecificSurface(type.GetGenericTypeDefinition()))
-            {
-                return true;
-            }
-
-            return type.GetGenericArguments().Any(ContainsProviderSpecificSurface);
+            return true;
         }
 
-        var name = type.FullName ?? type.Name;
-        return name.Contains("FileAIAsset", StringComparison.Ordinal)
-            || name.Contains("InMemoryAIAsset", StringComparison.Ordinal)
-            || name.Contains("System.IO.File", StringComparison.Ordinal)
-            || type == typeof(string) && false;
+        return type.IsGenericType
+            && type.GetGenericArguments().Any(ContainsProviderSpecificSurface);
     }
 }
