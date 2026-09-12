@@ -247,13 +247,15 @@ public static class PersistenceServiceCollectionExtensions
     {
         services.AddSingleton(capabilityProfile);
         services.AddSingleton<IAIAssetPublisher>(provider =>
-            new AIAssetPublisher(
-                GetExactlyOneCatalogService<IAIAssetCatalogProvider>(provider),
-                GetExactlyOneCatalogService<IAIAssetLoader>(provider)));
+            CreateCatalogService(
+                provider,
+                nameof(IAIAssetPublisher),
+                static (catalog, loader) => new AIAssetPublisher(catalog, loader)));
         services.AddSingleton<IPersistentAIAssetResolver>(provider =>
-            new PersistentAIAssetResolver(
-                GetExactlyOneCatalogService<IAIAssetCatalogProvider>(provider),
-                GetExactlyOneCatalogService<IAIAssetLoader>(provider)));
+            CreateCatalogService(
+                provider,
+                nameof(IPersistentAIAssetResolver),
+                static (catalog, loader) => new PersistentAIAssetResolver(catalog, loader)));
     }
 
     private static void EnsureStorageCompositionAvailable(IServiceCollection services)
@@ -358,11 +360,39 @@ public static class PersistenceServiceCollectionExtensions
         }
     }
 
-    private static AIAssetCatalogException CatalogCompositionFailure(string message) =>
+    private static TService CreateCatalogService<TService>(
+        IServiceProvider provider,
+        string serviceName,
+        Func<IAIAssetCatalogProvider, IAIAssetLoader, TService> factory)
+        where TService : class
+    {
+        try
+        {
+            var catalog = GetExactlyOneCatalogService<IAIAssetCatalogProvider>(provider);
+            var loader = GetExactlyOneCatalogService<IAIAssetLoader>(provider);
+            return factory(catalog, loader)
+                ?? throw new InvalidOperationException($"{serviceName} construction returned null.");
+        }
+        catch (AIAssetCatalogException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            throw CatalogCompositionFailure(
+                $"Persistent AI Asset catalog service '{serviceName}' could not be constructed.",
+                exception);
+        }
+    }
+
+    private static AIAssetCatalogException CatalogCompositionFailure(
+        string message,
+        Exception? innerException = null) =>
         new(
             AIAssetCatalogFailureCategory.CompositionConfiguration,
             message,
-            new AIAssetCatalogDiagnosticContext("Compose"));
+            new AIAssetCatalogDiagnosticContext("Compose"),
+            innerException);
 
     private static TService GetExactlyOneStorageService<TService>(IServiceProvider provider)
         where TService : class
@@ -382,10 +412,10 @@ public static class PersistenceServiceCollectionExtensions
         where TService : class
     {
         var services = provider.GetServices<TService>().Take(2).ToArray();
-        if (services.Length != 1)
+        if (services.Length != 1 || services[0] is null)
         {
             throw CatalogCompositionFailure(
-                $"Exactly one {typeof(TService).Name} authority must be configured.");
+                $"Exactly one non-null {typeof(TService).Name} authority must be configured.");
         }
 
         return services[0];
