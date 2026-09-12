@@ -249,11 +249,11 @@ public static class PersistenceServiceCollectionExtensions
         services.AddSingleton<IAIAssetPublisher>(provider =>
             new AIAssetPublisher(
                 GetExactlyOneCatalogService<IAIAssetCatalogProvider>(provider),
-                GetSelectedLoaderAuthority(provider)));
+                GetExactlyOneCatalogService<IAIAssetLoader>(provider)));
         services.AddSingleton<IPersistentAIAssetResolver>(provider =>
             new PersistentAIAssetResolver(
                 GetExactlyOneCatalogService<IAIAssetCatalogProvider>(provider),
-                GetSelectedLoaderAuthority(provider)));
+                GetExactlyOneCatalogService<IAIAssetLoader>(provider)));
     }
 
     private static void EnsureStorageCompositionAvailable(IServiceCollection services)
@@ -293,6 +293,15 @@ public static class PersistenceServiceCollectionExtensions
         {
             throw CatalogCompositionFailure(
                 "Exactly one singleton AI Asset loader authority must be selected before the persistent catalog.");
+        }
+
+        var effectiveLoaders = services
+            .Where(descriptor => descriptor.ServiceType == typeof(IAIAssetLoader))
+            .ToArray();
+        if (effectiveLoaders.Length != 1 || effectiveLoaders[0].Lifetime != ServiceLifetime.Singleton)
+        {
+            throw CatalogCompositionFailure(
+                "Exactly one singleton effective IAIAssetLoader authority must be exposed to persistent catalog composition.");
         }
 
         var storageCapabilities = services
@@ -381,7 +390,4 @@ public static class PersistenceServiceCollectionExtensions
 
         return services[0];
     }
-
-    private static IAIAssetLoader GetSelectedLoaderAuthority(IServiceProvider provider) =>
-        provider.GetRequiredService<AIAssetLoaderAuthoritySelection>().Loader;
 }
