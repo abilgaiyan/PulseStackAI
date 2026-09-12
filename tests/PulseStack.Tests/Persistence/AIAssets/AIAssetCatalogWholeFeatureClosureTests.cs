@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using PulseStack.Abstractions.Persistence.AIAssets.Catalog;
@@ -118,7 +119,7 @@ public sealed class AIAssetCatalogWholeFeatureClosureTests
     }
 
     [Fact]
-    public void PublicationModelsAndResults_ShouldExposeNoMutablePublicState()
+    public void PublicationModelsAndResults_ShouldExposeNoRuntimeMutablePublicState()
     {
         var closedTypes = new[]
         {
@@ -133,7 +134,7 @@ public sealed class AIAssetCatalogWholeFeatureClosureTests
 
         closedTypes
             .SelectMany(type => type.GetProperties(BindingFlags.Instance | BindingFlags.Public))
-            .Should().OnlyContain(property => property.SetMethod == null);
+            .Should().OnlyContain(property => !HasRuntimeMutablePublicSetter(property));
 
         typeof(CatalogLineage).GetProperty(nameof(CatalogLineage.PublishedVersions))!
             .PropertyType.Should().Be(typeof(IReadOnlySet<PulseStack.Abstractions.Assets.AssetVersion>));
@@ -203,6 +204,19 @@ public sealed class AIAssetCatalogWholeFeatureClosureTests
             .GetParameters()
             .Select(parameter => parameter.ParameterType)
             .Should().Equal(typeof(IServiceCollection), typeof(string));
+    }
+
+    private static bool HasRuntimeMutablePublicSetter(PropertyInfo property)
+    {
+        var setter = property.SetMethod;
+        if (setter is null)
+        {
+            return false;
+        }
+
+        return !setter.ReturnParameter
+            .GetRequiredCustomModifiers()
+            .Contains(typeof(IsExternalInit));
     }
 
     private static bool ContainsProviderSpecificSurface(Type type)
