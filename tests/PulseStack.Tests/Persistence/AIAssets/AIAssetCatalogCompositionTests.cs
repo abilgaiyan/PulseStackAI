@@ -178,6 +178,49 @@ public sealed class AIAssetCatalogCompositionTests
     }
 
     [Fact]
+    public void NullEffectiveLoader_ShouldFailPublisherAndResolverConstructionAsCompositionConfiguration()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryAIAssetStorage(StorageOptions);
+        ReplaceEffectiveLoader(services, _ => null!);
+        services.AddInMemoryAIAssetCatalog();
+        using var provider = services.BuildServiceProvider();
+
+        var publisherAct = () => provider.GetRequiredService<IAIAssetPublisher>();
+        var resolverAct = () => provider.GetRequiredService<IPersistentAIAssetResolver>();
+
+        publisherAct.Should().Throw<AIAssetCatalogException>()
+            .Which.Category.Should().Be(AIAssetCatalogFailureCategory.CompositionConfiguration);
+        resolverAct.Should().Throw<AIAssetCatalogException>()
+            .Which.Category.Should().Be(AIAssetCatalogFailureCategory.CompositionConfiguration);
+    }
+
+    [Fact]
+    public void ThrowingEffectiveLoader_ShouldFailPublisherAndResolverConstructionAsCompositionConfigurationWithCause()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryAIAssetStorage(StorageOptions);
+        ReplaceEffectiveLoader(
+            services,
+            _ => throw new InvalidOperationException("Injected loader construction failure."));
+        services.AddInMemoryAIAssetCatalog();
+        using var provider = services.BuildServiceProvider();
+
+        var publisherAct = () => provider.GetRequiredService<IAIAssetPublisher>();
+        var resolverAct = () => provider.GetRequiredService<IPersistentAIAssetResolver>();
+
+        var publisherException = publisherAct.Should().Throw<AIAssetCatalogException>().Which;
+        publisherException.Category.Should().Be(AIAssetCatalogFailureCategory.CompositionConfiguration);
+        publisherException.InnerException.Should().BeOfType<InvalidOperationException>()
+            .Which.Message.Should().Be("Injected loader construction failure.");
+
+        var resolverException = resolverAct.Should().Throw<AIAssetCatalogException>().Which;
+        resolverException.Category.Should().Be(AIAssetCatalogFailureCategory.CompositionConfiguration);
+        resolverException.InnerException.Should().BeOfType<InvalidOperationException>()
+            .Which.Message.Should().Be("Injected loader construction failure.");
+    }
+
+    [Fact]
     public void DuplicateCatalogComposition_ShouldBeRejected()
     {
         var services = new ServiceCollection();
@@ -280,6 +323,15 @@ public sealed class AIAssetCatalogCompositionTests
             .Should().Be(ServiceLifetime.Singleton);
         services.Single(x => x.ServiceType == typeof(IAIAssetLoader)).Lifetime
             .Should().Be(ServiceLifetime.Singleton);
+    }
+
+    private static void ReplaceEffectiveLoader(
+        IServiceCollection services,
+        Func<IServiceProvider, IAIAssetLoader> factory)
+    {
+        var selectedDescriptor = services.Single(x => x.ServiceType == typeof(IAIAssetLoader));
+        services.Remove(selectedDescriptor);
+        services.AddSingleton(factory);
     }
 
     private sealed class TestSerializedStore : ISerializedAIAssetStore
