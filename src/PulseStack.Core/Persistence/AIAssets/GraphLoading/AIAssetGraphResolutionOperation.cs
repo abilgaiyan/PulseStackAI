@@ -70,7 +70,7 @@ internal sealed class AIAssetGraphResolutionOperation
     internal async ValueTask<AIAssetGraphLoadResult?> ResolveRootAsync(
         CancellationToken cancellationToken = default)
     {
-        ResolutionState state;
+        ResolutionState? state = null;
         lock (gate)
         {
             if (terminalFailure is not null)
@@ -88,12 +88,15 @@ internal sealed class AIAssetGraphResolutionOperation
             }
         }
 
-        if (state.Asset is not null || state.Failure is not null)
+        var selectedState = state
+            ?? throw new InvalidOperationException("Root resolution must select an operation-local resolution state.");
+
+        if (selectedState.Asset is not null || selectedState.Failure is not null)
         {
-            return state.Failure;
+            return selectedState.Failure;
         }
 
-        var resolutionTask = state.ResolutionTask
+        var resolutionTask = selectedState.ResolutionTask
             ?? throw new InvalidOperationException("An in-progress root resolution must retain its resolver task.");
 
         AIAssetResolutionResult result;
