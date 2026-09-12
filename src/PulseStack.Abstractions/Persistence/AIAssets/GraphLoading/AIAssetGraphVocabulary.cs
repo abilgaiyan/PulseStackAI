@@ -30,6 +30,12 @@ public enum AIAssetGraphPredecessorSemanticOutcome
     ReferenceMismatch
 }
 
+public enum AIAssetGraphReferenceIdentityConflictEvidence
+{
+    PersistentResolver,
+    OperationLocalIdentity
+}
+
 public static class AIAssetGraphDiagnosticCodes
 {
     public const string RootDefinitionUnavailable = "AAG001";
