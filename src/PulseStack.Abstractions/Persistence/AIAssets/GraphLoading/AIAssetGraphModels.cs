@@ -119,8 +119,8 @@ public sealed class AIAssetGraph
             throw new ArgumentException("Graph nodes must be unique by AssetDefinitionKey.", nameof(nodes));
         }
 
-        var nodeKeys = nodeSnapshot.Select(static node => node.DefinitionKey).ToHashSet();
-        if (!nodeKeys.Contains(rootKey))
+        var nodeByKey = nodeSnapshot.ToDictionary(static node => node.DefinitionKey);
+        if (!nodeByKey.ContainsKey(rootKey))
         {
             throw new ArgumentException("The root key must identify exactly one graph node.", nameof(nodes));
         }
@@ -137,7 +137,7 @@ public sealed class AIAssetGraph
 
         foreach (var relationship in relationshipSnapshot)
         {
-            if (!nodeKeys.Contains(relationship.SourceKey))
+            if (!nodeByKey.ContainsKey(relationship.SourceKey))
             {
                 throw new ArgumentException(
                     "Every graph relationship source must identify a materialized graph node.",
@@ -145,11 +145,22 @@ public sealed class AIAssetGraph
             }
 
             var targetKey = AssetDefinitionKey.From(relationship.TargetReference);
-            if (relationship.MaterializationAuthority == AIAssetGraphMaterializationAuthority.Required
-                && !nodeKeys.Contains(targetKey))
+            if (!nodeByKey.TryGetValue(targetKey, out var targetNode))
+            {
+                if (relationship.MaterializationAuthority == AIAssetGraphMaterializationAuthority.Required)
+                {
+                    throw new ArgumentException(
+                        "Every required graph relationship target must identify a materialized graph node.",
+                        nameof(relationships));
+                }
+
+                continue;
+            }
+
+            if (targetNode.Asset.Urn != relationship.TargetReference.Urn)
             {
                 throw new ArgumentException(
-                    "Every required graph relationship target must identify a materialized graph node.",
+                    "A materialized relationship target must agree with the authored target URN assertion.",
                     nameof(relationships));
             }
         }
