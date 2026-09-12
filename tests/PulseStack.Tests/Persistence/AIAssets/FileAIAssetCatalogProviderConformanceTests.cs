@@ -126,30 +126,13 @@ public sealed class FileAIAssetCatalogProviderConformanceTests
         exception.Which.Category.Should().Be(AIAssetCatalogFailureCategory.InconsistentState);
     }
 
-    [Theory]
-    [InlineData(FileAIAssetCatalogCheckpoint.BeforeCommittedRecordOpen)]
-    [InlineData(FileAIAssetCatalogCheckpoint.BeforeCommittedRecordRead)]
-    public async Task CommittedRecordOperationalReadFailure_ShouldBeProviderFailure(
-        FileAIAssetCatalogCheckpoint checkpoint)
-    {
-        using var directory = new TemporaryDirectory();
-        var record = CreateRecord();
-        var writer = new FileAIAssetCatalogProvider(directory.Path);
-        (await writer.PublishAsync(record)).Should().Be(CatalogPublicationResult.Created);
+    [Fact]
+    public Task CommittedRecordOpenFailure_ShouldBeProviderFailure() =>
+        AssertCommittedRecordOperationalFailureAsync(FileAIAssetCatalogCheckpoint.BeforeCommittedRecordOpen);
 
-        var injector = new TestFileCatalogFaultInjector
-        {
-            FailureCheckpoint = checkpoint,
-            NextFailure = new IOException("Injected committed-record filesystem failure.")
-        };
-        var reader = new FileAIAssetCatalogProvider(directory.Path, injector);
-
-        var act = async () => await reader.FindExactAsync(record.DefinitionKey);
-
-        var exception = await act.Should().ThrowAsync<AIAssetCatalogException>();
-        exception.Which.Category.Should().Be(AIAssetCatalogFailureCategory.ProviderFailure);
-        exception.Which.InnerException.Should().BeOfType<IOException>();
-    }
+    [Fact]
+    public Task CommittedRecordReadFailure_ShouldBeProviderFailure() =>
+        AssertCommittedRecordOperationalFailureAsync(FileAIAssetCatalogCheckpoint.BeforeCommittedRecordRead);
 
     [Fact]
     public async Task FailedCandidateCommit_ShouldRemainProviderFailureAndLeaveNoAuthority()
@@ -170,6 +153,27 @@ public sealed class FileAIAssetCatalogProviderConformanceTests
         injector.FailureCheckpoint = null;
         (await provider.FindExactAsync(record.DefinitionKey)).Should().BeOfType<ExactCatalogLookupResult.NotFound>();
         Directory.EnumerateFiles(directory.Path, "*.tmp", SearchOption.AllDirectories).Should().BeEmpty();
+    }
+
+    private static async Task AssertCommittedRecordOperationalFailureAsync(FileAIAssetCatalogCheckpoint checkpoint)
+    {
+        using var directory = new TemporaryDirectory();
+        var record = CreateRecord();
+        var writer = new FileAIAssetCatalogProvider(directory.Path);
+        (await writer.PublishAsync(record)).Should().Be(CatalogPublicationResult.Created);
+
+        var injector = new TestFileCatalogFaultInjector
+        {
+            FailureCheckpoint = checkpoint,
+            NextFailure = new IOException("Injected committed-record filesystem failure.")
+        };
+        var reader = new FileAIAssetCatalogProvider(directory.Path, injector);
+
+        var act = async () => await reader.FindExactAsync(record.DefinitionKey);
+
+        var exception = await act.Should().ThrowAsync<AIAssetCatalogException>();
+        exception.Which.Category.Should().Be(AIAssetCatalogFailureCategory.ProviderFailure);
+        exception.Which.InnerException.Should().BeOfType<IOException>();
     }
 
     private static AssetDefinitionKey CreateKey() =>
