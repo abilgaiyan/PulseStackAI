@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using PulseStack.Abstractions.Assets;
 using PulseStack.Abstractions.Persistence.AIAssets.Catalog;
 using PulseStack.Abstractions.Persistence.AIAssets.Storage;
 using PulseStack.Core.DependencyInjection;
@@ -135,9 +136,34 @@ public sealed class AIAssetCatalogWholeFeatureClosureTests
         closedTypes
             .SelectMany(type => type.GetProperties(BindingFlags.Instance | BindingFlags.Public))
             .Should().OnlyContain(property => !HasRuntimeMutablePublicSetter(property));
+    }
 
-        typeof(CatalogLineage).GetProperty(nameof(CatalogLineage.PublishedVersions))!
-            .PropertyType.Should().Be(typeof(IReadOnlySet<PulseStack.Abstractions.Assets.AssetVersion>));
+    [Fact]
+    public void CatalogIdentityAndResultPayloadShapes_ShouldRemainExactAndIdentityOnly()
+    {
+        AssertExactPublicProperties(
+            typeof(CatalogRecord),
+            (nameof(CatalogRecord.DefinitionKey), typeof(AssetDefinitionKey)),
+            (nameof(CatalogRecord.Urn), typeof(AssetUrn)));
+
+        AssertExactPublicProperties(
+            typeof(CatalogLineage),
+            (nameof(CatalogLineage.Type), typeof(AssetType)),
+            (nameof(CatalogLineage.Id), typeof(AssetId)),
+            (nameof(CatalogLineage.Urn), typeof(AssetUrn)),
+            (nameof(CatalogLineage.PublishedVersions), typeof(IReadOnlySet<AssetVersion>)));
+
+        AssertExactPublicProperties(
+            typeof(ExactCatalogLookupResult.Found),
+            (nameof(ExactCatalogLookupResult.Found.Record), typeof(CatalogRecord)));
+
+        AssertExactPublicProperties(
+            typeof(CatalogLineageLookupResult.Found),
+            (nameof(CatalogLineageLookupResult.Found.Lineage), typeof(CatalogLineage)));
+
+        AssertExactPublicProperties(
+            typeof(AIAssetResolutionResult.Resolved),
+            (nameof(AIAssetResolutionResult.Resolved.Asset), typeof(IAsset)));
     }
 
     [Fact]
@@ -204,6 +230,23 @@ public sealed class AIAssetCatalogWholeFeatureClosureTests
             .GetParameters()
             .Select(parameter => parameter.ParameterType)
             .Should().Equal(typeof(IServiceCollection), typeof(string));
+    }
+
+    private static void AssertExactPublicProperties(
+        Type type,
+        params (string Name, Type PropertyType)[] expected)
+    {
+        var actual = type
+            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+            .Select(property => (property.Name, property.PropertyType))
+            .OrderBy(property => property.Name, StringComparer.Ordinal)
+            .ToArray();
+
+        var orderedExpected = expected
+            .OrderBy(property => property.Name, StringComparer.Ordinal)
+            .ToArray();
+
+        actual.Should().Equal(orderedExpected);
     }
 
     private static bool HasRuntimeMutablePublicSetter(PropertyInfo property)
