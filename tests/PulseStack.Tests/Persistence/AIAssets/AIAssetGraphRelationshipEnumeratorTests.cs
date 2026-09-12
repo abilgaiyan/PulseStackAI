@@ -27,7 +27,7 @@ public sealed class AIAssetGraphRelationshipEnumeratorTests
 
         var library = Construct<LibraryAsset>(
             AssetId.New(), MakeUrn("library"),
-            new LibraryAssetOptions { Name = "library", Members = new[] { Ref(AssetType.Agent, "member") } },
+            new LibraryAssetOptions { Name = "library", Description = "library", Members = new[] { Ref(AssetType.Agent, "member") } },
             new AssetDependency[] { new(Ref(AssetType.Tool, "dependency")) });
 
         var package = Construct<PackageAsset>(
