@@ -35,6 +35,9 @@ public sealed class AIAssetGraphRootDefinitionUnavailableContext : AIAssetGraphF
     }
 
     public override string Code => AIAssetGraphDiagnosticCodes.RootDefinitionUnavailable;
+
+    public AIAssetGraphPredecessorSemanticOutcome PredecessorSemanticOutcome =>
+        AIAssetGraphPredecessorSemanticOutcome.DefinitionNotPublished;
 }
 
 public abstract class AIAssetGraphRelationshipFailureContext : AIAssetGraphFailureContext
@@ -106,6 +109,9 @@ public sealed class AIAssetGraphRequiredDefinitionUnavailableContext : AIAssetGr
     }
 
     public override string Code => AIAssetGraphDiagnosticCodes.RequiredDefinitionUnavailable;
+
+    public AIAssetGraphPredecessorSemanticOutcome PredecessorSemanticOutcome =>
+        AIAssetGraphPredecessorSemanticOutcome.DefinitionNotPublished;
 }
 
 public sealed class AIAssetGraphReferenceIdentityConflictContext : AIAssetGraphRelationshipFailureContext
@@ -127,17 +133,21 @@ public sealed class AIAssetGraphReferenceIdentityConflictContext : AIAssetGraphR
     public override string Code => AIAssetGraphDiagnosticCodes.ReferenceIdentityConflict;
 
     public AssetReference AssertedReference => TargetReference;
+
+    public AIAssetGraphPredecessorSemanticOutcome PredecessorSemanticOutcome =>
+        AIAssetGraphPredecessorSemanticOutcome.ReferenceMismatch;
 }
 
-public sealed class AIAssetGraphLineageIdentityConflictContext : AIAssetGraphFailureContext
+public sealed class AIAssetGraphLineageIdentityConflictContext : AIAssetGraphRelationshipFailureContext
 {
     public AIAssetGraphLineageIdentityConflictContext(
         AssetDefinitionKey rootKey,
         AIAssetGraphPath canonicalPath,
+        AIAssetGraphRelationship relationship,
         AssetUrn conflictingUrn,
         AssetDefinitionKey establishedIdentity,
         AssetDefinitionKey conflictingIdentity)
-        : base(rootKey, canonicalPath)
+        : base(rootKey, canonicalPath, relationship)
     {
         ArgumentNullException.ThrowIfNull(conflictingUrn);
         if (string.IsNullOrWhiteSpace(conflictingUrn.Value))
