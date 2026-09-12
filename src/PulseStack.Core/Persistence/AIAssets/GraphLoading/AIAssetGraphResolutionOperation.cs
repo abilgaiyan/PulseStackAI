@@ -98,13 +98,8 @@ internal sealed class AIAssetGraphResolutionOperation
 
         var targetKey = AssetDefinitionKey.From(relationship.TargetReference);
 
-        var lineageFailure = CheckEstablishedLineage(path, relationship, targetKey);
-        if (lineageFailure is not null)
-        {
-            terminalFailure = lineageFailure;
-            return terminalFailure;
-        }
-
+        // Definition identity is the primary operation-local authority. Once the key is known,
+        // same-key URN disagreement is AAG003 regardless of any other lineage evidence.
         if (resolutions.TryGetValue(targetKey, out var known))
         {
             if (known.Failure is not null)
@@ -122,6 +117,13 @@ internal sealed class AIAssetGraphResolutionOperation
                 terminalFailure = identityFailure;
             }
 
+            return terminalFailure;
+        }
+
+        var lineageFailure = CheckEstablishedLineage(path, relationship, targetKey);
+        if (lineageFailure is not null)
+        {
+            terminalFailure = lineageFailure;
             return terminalFailure;
         }
 
