@@ -119,6 +119,18 @@ public sealed class AIAssetGraphReferenceIdentityConflictContext : AIAssetGraphR
     public AIAssetGraphReferenceIdentityConflictContext(
         AssetDefinitionKey rootKey,
         AIAssetGraphPath canonicalPath,
+        AIAssetGraphRelationship relationship)
+        : this(
+            rootKey,
+            canonicalPath,
+            relationship,
+            AIAssetGraphReferenceIdentityConflictEvidence.PersistentResolver)
+    {
+    }
+
+    public AIAssetGraphReferenceIdentityConflictContext(
+        AssetDefinitionKey rootKey,
+        AIAssetGraphPath canonicalPath,
         AIAssetGraphRelationship relationship,
         AIAssetGraphReferenceIdentityConflictEvidence evidence)
         : base(rootKey, canonicalPath, relationship)
