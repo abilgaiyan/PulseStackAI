@@ -119,32 +119,21 @@ public sealed class AIAssetGraphReferenceIdentityConflictContext : AIAssetGraphR
     public AIAssetGraphReferenceIdentityConflictContext(
         AssetDefinitionKey rootKey,
         AIAssetGraphPath canonicalPath,
-        AIAssetGraphRelationship relationship)
-        : this(
-            rootKey,
-            canonicalPath,
-            relationship,
-            AIAssetGraphReferenceIdentityConflictEvidence.PersistentResolver)
-    {
-    }
-
-    public AIAssetGraphReferenceIdentityConflictContext(
-        AssetDefinitionKey rootKey,
-        AIAssetGraphPath canonicalPath,
         AIAssetGraphRelationship relationship,
         AIAssetGraphReferenceIdentityConflictEvidence evidence)
         : base(rootKey, canonicalPath, relationship)
     {
-        if (relationship.MaterializationAuthority != AIAssetGraphMaterializationAuthority.Required)
-        {
-            throw new ArgumentException(
-                "ReferenceIdentityConflict must originate from a required relationship.",
-                nameof(relationship));
-        }
-
         if (!Enum.IsDefined(evidence))
         {
             throw new ArgumentOutOfRangeException(nameof(evidence));
+        }
+
+        if (evidence == AIAssetGraphReferenceIdentityConflictEvidence.PersistentResolver
+            && relationship.MaterializationAuthority != AIAssetGraphMaterializationAuthority.Required)
+        {
+            throw new ArgumentException(
+                "PersistentResolver ReferenceIdentityConflict must originate from a required relationship.",
+                nameof(relationship));
         }
 
         Evidence = evidence;
