@@ -70,8 +70,6 @@ internal sealed class AIAssetGraphResolutionOperation
     internal async ValueTask<AIAssetGraphLoadResult?> ResolveRootAsync(
         CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
         ResolutionState state;
         lock (gate)
         {
@@ -80,9 +78,11 @@ internal sealed class AIAssetGraphResolutionOperation
                 return terminalFailure;
             }
 
-            if (!resolutions.TryGetValue(rootKey, out state!))
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (!resolutions.TryGetValue(rootKey, out state))
             {
-                var task = resolver.ResolveAsync(rootKey, cancellationToken).AsTask();
+                var task = StartRootResolution(cancellationToken);
                 state = ResolutionState.InProgress(task, null, null);
                 resolutions.Add(rootKey, state);
             }
@@ -137,6 +137,15 @@ internal sealed class AIAssetGraphResolutionOperation
     {
         ArgumentNullException.ThrowIfNull(path);
         ArgumentNullException.ThrowIfNull(relationship);
+
+        lock (gate)
+        {
+            if (terminalFailure is not null)
+            {
+                return terminalFailure;
+            }
+        }
+
         cancellationToken.ThrowIfCancellationRequested();
 
         if (path.RootKey != rootKey)
@@ -220,7 +229,7 @@ internal sealed class AIAssetGraphResolutionOperation
                         "Graph relationship materialization authority is outside the frozen schema-v1 vocabulary.");
                 }
 
-                var task = resolver.ResolveAsync(relationship.TargetReference, cancellationToken).AsTask();
+                var task = StartReferenceResolution(relationship.TargetReference, cancellationToken);
                 stateToAwait = ResolutionState.InProgress(task, path, relationship);
                 resolutions.Add(targetKey, stateToAwait);
             }
@@ -325,6 +334,32 @@ internal sealed class AIAssetGraphResolutionOperation
                 default:
                     throw UnexpectedResolverOutcome(resolutionResult, "exact-reference required resolution");
             }
+        }
+    }
+
+    private Task<AIAssetResolutionResult> StartRootResolution(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return resolver.ResolveAsync(rootKey, cancellationToken).AsTask();
+        }
+        catch (Exception exception)
+        {
+            return Task.FromException<AIAssetResolutionResult>(exception);
+        }
+    }
+
+    private Task<AIAssetResolutionResult> StartReferenceResolution(
+        AssetReference reference,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return resolver.ResolveAsync(reference, cancellationToken).AsTask();
+        }
+        catch (Exception exception)
+        {
+            return Task.FromException<AIAssetResolutionResult>(exception);
         }
     }
 
