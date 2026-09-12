@@ -93,9 +93,8 @@ public sealed class AIAssetCatalogCompositionTests
     public void CustomStorageWithExplicitTransientEvidence_ShouldAllowTransientCatalog()
     {
         var services = new ServiceCollection();
-        services.AddAIAssetStorage(
-            new TestSerializedStore(),
-            StorageOptions,
+        services.AddAIAssetStorage(new TestSerializedStore(), StorageOptions);
+        services.AddAIAssetStorageCapability(
             new AIAssetStorageCapabilityProfile(AIAssetAuthorityDurability.Transient));
 
         var act = () => services.AddInMemoryAIAssetCatalog();
@@ -108,9 +107,8 @@ public sealed class AIAssetCatalogCompositionTests
     {
         using var catalogRoot = new TemporaryDirectory();
         var services = new ServiceCollection();
-        services.AddAIAssetStorage(
-            new TestSerializedStore(),
-            StorageOptions,
+        services.AddAIAssetStorage(new TestSerializedStore(), StorageOptions);
+        services.AddAIAssetStorageCapability(
             new AIAssetStorageCapabilityProfile(AIAssetAuthorityDurability.Durable));
 
         var act = () => services.AddFileAIAssetCatalog(catalogRoot.Path);
@@ -128,6 +126,35 @@ public sealed class AIAssetCatalogCompositionTests
         var exception = act.Should().Throw<AIAssetCatalogException>().Which;
         exception.Category.Should().Be(AIAssetCatalogFailureCategory.CompositionConfiguration);
         services.Should().NotContain(x => x.ServiceType == typeof(IAIAssetCatalogProvider));
+    }
+
+    [Fact]
+    public void ScopedLoaderAndCapabilityMetadataWithoutSelectedAuthority_ShouldBeRejected()
+    {
+        var services = new ServiceCollection();
+        services.AddScoped<IAIAssetLoader, TestLoader>();
+        services.AddSingleton(new AIAssetStorageCapabilityProfile(AIAssetAuthorityDurability.Transient));
+
+        var act = () => services.AddInMemoryAIAssetCatalog();
+
+        var exception = act.Should().Throw<AIAssetCatalogException>().Which;
+        exception.Category.Should().Be(AIAssetCatalogFailureCategory.CompositionConfiguration);
+        services.Should().NotContain(x => x.ServiceType == typeof(IAIAssetCatalogProvider));
+    }
+
+    [Fact]
+    public void AdditionalLoaderFacadeRegistration_ShouldNotCreateASecondSelectedAuthority()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryAIAssetStorage(StorageOptions);
+        services.AddTransient<IAIAssetLoader, TestLoader>();
+
+        var act = () => services.AddInMemoryAIAssetCatalog();
+
+        act.Should().NotThrow();
+        using var provider = services.BuildServiceProvider();
+        provider.GetRequiredService<IAIAssetPublisher>().Should().BeOfType<AIAssetPublisher>();
+        provider.GetRequiredService<IPersistentAIAssetResolver>().Should().BeOfType<PersistentAIAssetResolver>();
     }
 
     [Fact]
@@ -160,9 +187,10 @@ public sealed class AIAssetCatalogCompositionTests
     public void UndefinedStorageDurability_ShouldBeRejectedForExplicitCustomStorage()
     {
         var services = new ServiceCollection();
+        services.AddAIAssetStorage(new TestSerializedStore(), StorageOptions);
         var capability = new AIAssetStorageCapabilityProfile((AIAssetAuthorityDurability)42);
 
-        var act = () => services.AddAIAssetStorage(new TestSerializedStore(), StorageOptions, capability);
+        var act = () => services.AddAIAssetStorageCapability(capability);
 
         var exception = act.Should().Throw<AIAssetStorageException>().Which;
         exception.Category.Should().Be(AIAssetStorageFailureCategory.CompositionConfiguration);
@@ -246,6 +274,14 @@ public sealed class AIAssetCatalogCompositionTests
             ReadOnlyMemory<byte> representation,
             CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(AIAssetWriteResult.Created);
+    }
+
+    private sealed class TestLoader : IAIAssetLoader
+    {
+        public ValueTask<AIAssetLoadResult> LoadAsync(
+            AssetDefinitionKey key,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<AIAssetLoadResult>(new AIAssetLoadResult.NotFound());
     }
 
     private sealed class TestCatalogProvider : IAIAssetCatalogProvider
