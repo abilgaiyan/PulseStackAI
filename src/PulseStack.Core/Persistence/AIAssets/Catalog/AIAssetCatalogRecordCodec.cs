@@ -27,8 +27,8 @@ internal static class AIAssetCatalogRecordCodec
     public static byte[] Serialize(CatalogRecord record)
     {
         ArgumentNullException.ThrowIfNull(record);
-        EnsureWellFormedUnicode(record.DefinitionKey.Version.Value, nameof(record));
-        EnsureWellFormedUnicode(record.Urn.Value, nameof(record));
+        AIAssetCatalogUnicode.EnsureWellFormed(record.DefinitionKey.Version.Value, nameof(record));
+        AIAssetCatalogUnicode.EnsureWellFormed(record.Urn.Value, nameof(record));
 
         var buffer = new ArrayBufferWriter<byte>();
         using (var writer = new Utf8JsonWriter(buffer, WriterOptions))
@@ -147,7 +147,7 @@ internal static class AIAssetCatalogRecordCodec
             }
 
             var value = reader.GetString() ?? throw new JsonException($"Catalog record member '{propertyName}' is null.");
-            EnsureWellFormedUnicode(value, propertyName);
+            AIAssetCatalogUnicode.EnsureWellFormed(value, propertyName);
 
             switch (propertyName)
             {
@@ -235,7 +235,7 @@ internal static class AIAssetCatalogRecordCodec
         _ => throw new ArgumentOutOfRangeException(nameof(type), type, "Unknown AI Asset type.")
     };
 
-    private static AssetType FromAssetTypeToken(string token) => token switch
+    internal static AssetType FromAssetTypeToken(string token) => token switch
     {
         "project" => AssetType.Project,
         "library" => AssetType.Library,
@@ -251,25 +251,4 @@ internal static class AIAssetCatalogRecordCodec
         "provider" => throw new JsonException("The reserved provider asset type cannot be persisted in the catalog."),
         _ => throw new JsonException($"Unknown catalog assetType token '{token}'.")
     };
-
-    private static void EnsureWellFormedUnicode(string value, string parameterName)
-    {
-        for (var index = 0; index < value.Length; index++)
-        {
-            var current = value[index];
-            if (!char.IsSurrogate(current))
-            {
-                continue;
-            }
-
-            if (!char.IsHighSurrogate(current)
-                || index + 1 >= value.Length
-                || !char.IsLowSurrogate(value[index + 1]))
-            {
-                throw new ArgumentException("Catalog record strings must contain well-formed Unicode.", parameterName);
-            }
-
-            index++;
-        }
-    }
 }
