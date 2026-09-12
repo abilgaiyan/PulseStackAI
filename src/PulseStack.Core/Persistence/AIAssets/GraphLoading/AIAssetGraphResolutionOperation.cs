@@ -93,8 +93,43 @@ internal sealed class AIAssetGraphResolutionOperation
             return state.Failure;
         }
 
-        var result = await state.ResolutionTask!.ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
+        var resolutionTask = state.ResolutionTask
+            ?? throw new InvalidOperationException("An in-progress root resolution must retain its resolver task.");
+
+        AIAssetResolutionResult result;
+        try
+        {
+            result = await resolutionTask.ConfigureAwait(false);
+        }
+        catch
+        {
+            lock (gate)
+            {
+                if (terminalFailure is not null)
+                {
+                    return terminalFailure;
+                }
+            }
+
+            throw;
+        }
+
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+        catch (OperationCanceledException)
+        {
+            lock (gate)
+            {
+                if (terminalFailure is not null)
+                {
+                    return terminalFailure;
+                }
+            }
+
+            throw;
+        }
 
         lock (gate)
         {
@@ -235,8 +270,45 @@ internal sealed class AIAssetGraphResolutionOperation
             }
         }
 
-        var resolutionResult = await stateToAwait.ResolutionTask!.ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
+        var awaitedState = stateToAwait
+            ?? throw new InvalidOperationException("A required relationship must select an operation-local resolution state.");
+        var resolutionTask = awaitedState.ResolutionTask
+            ?? throw new InvalidOperationException("An in-progress required resolution must retain its resolver task.");
+
+        AIAssetResolutionResult resolutionResult;
+        try
+        {
+            resolutionResult = await resolutionTask.ConfigureAwait(false);
+        }
+        catch
+        {
+            lock (gate)
+            {
+                if (terminalFailure is not null)
+                {
+                    return terminalFailure;
+                }
+            }
+
+            throw;
+        }
+
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+        catch (OperationCanceledException)
+        {
+            lock (gate)
+            {
+                if (terminalFailure is not null)
+                {
+                    return terminalFailure;
+                }
+            }
+
+            throw;
+        }
 
         lock (gate)
         {
