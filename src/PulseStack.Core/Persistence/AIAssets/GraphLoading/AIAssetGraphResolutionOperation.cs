@@ -92,8 +92,15 @@ internal sealed class AIAssetGraphResolutionOperation
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        EnsurePathIdentifiesRelationship(path, relationship);
 
+        if (path.RootKey != rootKey)
+        {
+            throw new ArgumentException(
+                "The relationship path must belong to this resolution operation's root key.",
+                nameof(path));
+        }
+
+        EnsurePathIdentifiesRelationship(path, relationship);
         relationships.Add(relationship);
 
         var targetKey = AssetDefinitionKey.From(relationship.TargetReference);
