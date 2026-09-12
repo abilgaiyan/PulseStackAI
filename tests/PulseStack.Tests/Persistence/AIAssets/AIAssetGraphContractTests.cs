@@ -329,18 +329,22 @@ public sealed class AIAssetGraphContractTests
     public void LineageIdentityConflict_ShouldPreserveFailingRelationshipOccurrence()
     {
         var root = Key(AssetType.Package);
-        var relationship = Relationship(root, Reference(AssetType.Prompt), true, 2, "$.dependencies[2]");
+        var conflictingReference = Reference(AssetType.Prompt);
+        var conflictingIdentity = AssetDefinitionKey.From(conflictingReference);
+        var establishedIdentity = new AssetDefinitionKey(
+            AssetType.Tool,
+            AssetId.New(),
+            conflictingIdentity.Version);
+        var relationship = Relationship(root, conflictingReference, true, 2, "$.dependencies[2]");
         var path = new AIAssetGraphPath(root, new[] { new AIAssetGraphPathSegment(relationship) });
-        var established = AssetDefinitionKey.From(relationship.TargetReference);
-        var conflicting = new AssetDefinitionKey(AssetType.Tool, established.Id, established.Version);
 
         var context = new AIAssetGraphLineageIdentityConflictContext(
             root,
             path,
             relationship,
-            relationship.TargetReference.Urn,
-            established,
-            conflicting);
+            conflictingReference.Urn,
+            establishedIdentity,
+            conflictingIdentity);
 
         context.Code.Should().Be("AAG004");
         context.SourceKey.Should().Be(relationship.SourceKey);
@@ -348,25 +352,75 @@ public sealed class AIAssetGraphContractTests
         context.LocalOrdinal.Should().Be(2);
         context.AuthoredPath.Should().Be("$.dependencies[2]");
         context.Relationship.Should().BeSameAs(relationship);
+        context.EstablishedIdentity.Should().Be(establishedIdentity);
+        context.ConflictingIdentity.Should().Be(conflictingIdentity);
+        context.ConflictingUrn.Should().Be(conflictingReference.Urn);
     }
 
     [Fact]
     public void LineageIdentityConflict_ShouldRejectPathWhoseFinalSegmentIsNotFailingOccurrence()
     {
         var root = Key(AssetType.Package);
-        var relationship = Relationship(root, Reference(AssetType.Prompt), true, 0, "$.dependencies[0]");
+        var conflictingReference = Reference(AssetType.Prompt);
+        var conflictingIdentity = AssetDefinitionKey.From(conflictingReference);
+        var establishedIdentity = new AssetDefinitionKey(AssetType.Tool, AssetId.New(), conflictingIdentity.Version);
+        var relationship = Relationship(root, conflictingReference, true, 0, "$.dependencies[0]");
         var other = Relationship(root, Reference(AssetType.Tool), true, 1, "$.dependencies[1]");
         var path = new AIAssetGraphPath(root, new[] { new AIAssetGraphPathSegment(other) });
-        var established = AssetDefinitionKey.From(relationship.TargetReference);
-        var conflicting = new AssetDefinitionKey(AssetType.Tool, established.Id, established.Version);
 
         Action act = () => _ = new AIAssetGraphLineageIdentityConflictContext(
             root,
             path,
             relationship,
-            relationship.TargetReference.Urn,
-            established,
-            conflicting);
+            conflictingReference.Urn,
+            establishedIdentity,
+            conflictingIdentity);
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void LineageIdentityConflict_ShouldRejectConflictingIdentityNotIntroducedByRelationship()
+    {
+        var root = Key(AssetType.Package);
+        var conflictingReference = Reference(AssetType.Prompt);
+        var relationship = Relationship(root, conflictingReference, true, 0, "$.dependencies[0]");
+        var path = new AIAssetGraphPath(root, new[] { new AIAssetGraphPathSegment(relationship) });
+        var relationshipIdentity = AssetDefinitionKey.From(conflictingReference);
+        var establishedIdentity = new AssetDefinitionKey(AssetType.Tool, AssetId.New(), relationshipIdentity.Version);
+        var differentConflictingIdentity = new AssetDefinitionKey(
+            relationshipIdentity.Type,
+            AssetId.New(),
+            relationshipIdentity.Version);
+
+        Action act = () => _ = new AIAssetGraphLineageIdentityConflictContext(
+            root,
+            path,
+            relationship,
+            conflictingReference.Urn,
+            establishedIdentity,
+            differentConflictingIdentity);
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void LineageIdentityConflict_ShouldRejectConflictingUrnNotAssertedByRelationship()
+    {
+        var root = Key(AssetType.Package);
+        var conflictingReference = Reference(AssetType.Prompt);
+        var conflictingIdentity = AssetDefinitionKey.From(conflictingReference);
+        var establishedIdentity = new AssetDefinitionKey(AssetType.Tool, AssetId.New(), conflictingIdentity.Version);
+        var relationship = Relationship(root, conflictingReference, true, 0, "$.dependencies[0]");
+        var path = new AIAssetGraphPath(root, new[] { new AIAssetGraphPathSegment(relationship) });
+
+        Action act = () => _ = new AIAssetGraphLineageIdentityConflictContext(
+            root,
+            path,
+            relationship,
+            new AssetUrn("urn:pulsestack:prompt:different"),
+            establishedIdentity,
+            conflictingIdentity);
 
         act.Should().Throw<ArgumentException>();
     }
