@@ -121,9 +121,19 @@ public sealed class AIAssetCatalogRecordCodecAndPathTests
     }
 
     [Fact]
-    public void Serialize_ShouldRejectIllFormedUnicode()
+    public void Serialize_ShouldRejectIllFormedUnicodeInUrn()
     {
         var record = CreateRecord(urn: "urn:pulsestack:prompt:\uD800");
+
+        var act = () => AIAssetCatalogRecordCodec.Serialize(record);
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void Serialize_ShouldRejectIllFormedUnicodeInVersion()
+    {
+        var record = CreateRecord(version: "\uD800");
 
         var act = () => AIAssetCatalogRecordCodec.Serialize(record);
 
@@ -151,6 +161,124 @@ public sealed class AIAssetCatalogRecordCodecAndPathTests
         var encoded = AIAssetCatalogPathModel.EncodeVersion(new AssetVersion("A😀"));
 
         encoded.Should().Be("0041D83DDE00");
+    }
+
+    [Theory]
+    [InlineData("1.0-beta")]
+    [InlineData("Ω")]
+    [InlineData("A😀Z")]
+    public void EncodeAndDecodeVersion_ShouldRoundTripRepresentableStringsExactly(string value)
+    {
+        var version = new AssetVersion(value);
+
+        var encoded = AIAssetCatalogPathModel.EncodeVersion(version);
+        var decoded = AIAssetCatalogPathModel.DecodeVersion(encoded);
+
+        decoded.Should().Be(version);
+    }
+
+    [Theory]
+    [InlineData("006a")]
+    [InlineData("004")]
+    [InlineData("004100")]
+    [InlineData("00G1")]
+    [InlineData("D800")]
+    public void DecodeVersion_ShouldRejectNonCanonicalOrUnrepresentableTokens(string encoded)
+    {
+        var act = () => AIAssetCatalogPathModel.DecodeVersion(encoded);
+
+        act.Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
+    public void EncodeVersionAndGetRecordPath_ShouldRejectIllFormedUnicodeVersion()
+    {
+        var version = new AssetVersion("\uD800");
+        var key = new AssetDefinitionKey(AssetType.Prompt, FixedId, version);
+
+        var encode = () => AIAssetCatalogPathModel.EncodeVersion(version);
+        var getPath = () => AIAssetCatalogPathModel.GetRecordPath("catalog-root", key);
+
+        encode.Should().Throw<ArgumentException>();
+        getPath.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void ParseRecordPath_ShouldRecoverExactDefinitionKey()
+    {
+        var expected = new AssetDefinitionKey(AssetType.Prompt, FixedId, new AssetVersion("A😀Z"));
+        var path = AIAssetCatalogPathModel.GetRecordPath("catalog-root", expected);
+
+        var actual = AIAssetCatalogPathModel.ParseRecordPath("catalog-root", path);
+
+        actual.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("006a.catalog")]
+    [InlineData("006A.CATALOG")]
+    [InlineData("006A.catalog.tmp")]
+    [InlineData("006.catalog")]
+    [InlineData("00G1.catalog")]
+    public void ParseRecordPath_ShouldRejectNonCanonicalFinalFilename(string fileName)
+    {
+        var path = Path.Combine(
+            "catalog-root",
+            "records",
+            "prompt",
+            "00112233445566778899aabbccddeeff",
+            fileName);
+
+        var act = () => AIAssetCatalogPathModel.ParseRecordPath("catalog-root", path);
+
+        act.Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
+    public void ValidateRecordPath_ShouldAcceptExactPathAndRecordAgreement()
+    {
+        var record = CreateRecord(version: "2.Ω");
+        var path = AIAssetCatalogPathModel.GetRecordPath("catalog-root", record.DefinitionKey);
+
+        var act = () => AIAssetCatalogPathModel.ValidateRecordPath("catalog-root", path, record);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void ValidateRecordPath_ShouldRejectAssetTypeMismatch()
+    {
+        var record = CreateRecord();
+        var wrongKey = new AssetDefinitionKey(AssetType.Agent, FixedId, record.DefinitionKey.Version);
+        var path = AIAssetCatalogPathModel.GetRecordPath("catalog-root", wrongKey);
+
+        var act = () => AIAssetCatalogPathModel.ValidateRecordPath("catalog-root", path, record);
+
+        act.Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
+    public void ValidateRecordPath_ShouldRejectAssetIdMismatch()
+    {
+        var record = CreateRecord();
+        var wrongKey = new AssetDefinitionKey(AssetType.Prompt, AssetId.New(), record.DefinitionKey.Version);
+        var path = AIAssetCatalogPathModel.GetRecordPath("catalog-root", wrongKey);
+
+        var act = () => AIAssetCatalogPathModel.ValidateRecordPath("catalog-root", path, record);
+
+        act.Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
+    public void ValidateRecordPath_ShouldRejectVersionMismatch()
+    {
+        var record = CreateRecord();
+        var wrongKey = new AssetDefinitionKey(AssetType.Prompt, FixedId, new AssetVersion("2.0"));
+        var path = AIAssetCatalogPathModel.GetRecordPath("catalog-root", wrongKey);
+
+        var act = () => AIAssetCatalogPathModel.ValidateRecordPath("catalog-root", path, record);
+
+        act.Should().Throw<InvalidDataException>();
     }
 
     [Fact]
