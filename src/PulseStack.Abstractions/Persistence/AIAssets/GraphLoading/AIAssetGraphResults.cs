@@ -120,6 +120,19 @@ public sealed class AIAssetGraphReferenceIdentityConflictContext : AIAssetGraphR
         AssetDefinitionKey rootKey,
         AIAssetGraphPath canonicalPath,
         AIAssetGraphRelationship relationship)
+        : this(
+            rootKey,
+            canonicalPath,
+            relationship,
+            AIAssetGraphReferenceIdentityConflictEvidence.PersistentResolver)
+    {
+    }
+
+    public AIAssetGraphReferenceIdentityConflictContext(
+        AssetDefinitionKey rootKey,
+        AIAssetGraphPath canonicalPath,
+        AIAssetGraphRelationship relationship,
+        AIAssetGraphReferenceIdentityConflictEvidence evidence)
         : base(rootKey, canonicalPath, relationship)
     {
         if (relationship.MaterializationAuthority != AIAssetGraphMaterializationAuthority.Required)
@@ -128,14 +141,25 @@ public sealed class AIAssetGraphReferenceIdentityConflictContext : AIAssetGraphR
                 "ReferenceIdentityConflict must originate from a required relationship.",
                 nameof(relationship));
         }
+
+        if (!Enum.IsDefined(evidence))
+        {
+            throw new ArgumentOutOfRangeException(nameof(evidence));
+        }
+
+        Evidence = evidence;
     }
 
     public override string Code => AIAssetGraphDiagnosticCodes.ReferenceIdentityConflict;
 
     public AssetReference AssertedReference => TargetReference;
 
-    public AIAssetGraphPredecessorSemanticOutcome PredecessorSemanticOutcome =>
-        AIAssetGraphPredecessorSemanticOutcome.ReferenceMismatch;
+    public AIAssetGraphReferenceIdentityConflictEvidence Evidence { get; }
+
+    public AIAssetGraphPredecessorSemanticOutcome? PredecessorSemanticOutcome =>
+        Evidence == AIAssetGraphReferenceIdentityConflictEvidence.PersistentResolver
+            ? AIAssetGraphPredecessorSemanticOutcome.ReferenceMismatch
+            : null;
 }
 
 public sealed class AIAssetGraphLineageIdentityConflictContext : AIAssetGraphRelationshipFailureContext
