@@ -11,9 +11,11 @@ namespace PulseStack.Core.Persistence.AIAssets.GraphLoading;
 /// </summary>
 internal sealed class AIAssetGraphResolutionOperation
 {
+    private readonly object gate = new();
     private readonly IPersistentAIAssetResolver resolver;
     private readonly AssetDefinitionKey rootKey;
     private readonly Dictionary<AssetDefinitionKey, ResolutionState> resolutions = [];
+    private readonly Dictionary<AssetDefinitionKey, AssetUrn> assertedUrns = [];
     private readonly Dictionary<AssetUrn, AssetDefinitionKey> establishedLineages = [];
     private readonly Dictionary<AssetDefinitionKey, List<PendingAssertion>> pendingAssertions = [];
     private readonly List<AIAssetGraphNode> nodes = [];
@@ -32,49 +34,99 @@ internal sealed class AIAssetGraphResolutionOperation
 
     internal AssetDefinitionKey RootKey => rootKey;
 
-    internal AIAssetGraphLoadResult? TerminalFailure => terminalFailure;
+    internal AIAssetGraphLoadResult? TerminalFailure
+    {
+        get
+        {
+            lock (gate)
+            {
+                return terminalFailure;
+            }
+        }
+    }
 
-    internal IReadOnlyList<AIAssetGraphNode> MaterializedNodes =>
-        new ReadOnlyCollection<AIAssetGraphNode>(nodes.ToArray());
+    internal IReadOnlyList<AIAssetGraphNode> MaterializedNodes
+    {
+        get
+        {
+            lock (gate)
+            {
+                return new ReadOnlyCollection<AIAssetGraphNode>(nodes.ToArray());
+            }
+        }
+    }
 
-    internal IReadOnlyList<AIAssetGraphRelationship> ObservedRelationships =>
-        new ReadOnlyCollection<AIAssetGraphRelationship>(relationships.ToArray());
+    internal IReadOnlyList<AIAssetGraphRelationship> ObservedRelationships
+    {
+        get
+        {
+            lock (gate)
+            {
+                return new ReadOnlyCollection<AIAssetGraphRelationship>(relationships.ToArray());
+            }
+        }
+    }
 
     internal async ValueTask<AIAssetGraphLoadResult?> ResolveRootAsync(
         CancellationToken cancellationToken = default)
     {
-        if (terminalFailure is not null)
-        {
-            return terminalFailure;
-        }
-
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (resolutions.TryGetValue(rootKey, out var known))
+        ResolutionState state;
+        lock (gate)
         {
-            return known.Failure;
-        }
-
-        var result = await resolver.ResolveAsync(rootKey, cancellationToken).ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        switch (result)
-        {
-            case AIAssetResolutionResult.Resolved resolved:
-                EnsureResolvedIdentity(rootKey, resolved.Asset, "root");
-                CommitResolved(rootKey, resolved.Asset);
-                return null;
-
-            case AIAssetResolutionResult.DefinitionNotPublished:
+            if (terminalFailure is not null)
             {
-                var failure = new AIAssetGraphLoadResult.RootDefinitionUnavailable(
-                    new AIAssetGraphRootDefinitionUnavailableContext(rootKey));
-                CommitFailure(rootKey, failure);
-                return failure;
+                return terminalFailure;
             }
 
-            default:
-                throw UnexpectedResolverOutcome(result, "exact-key root resolution");
+            if (!resolutions.TryGetValue(rootKey, out state!))
+            {
+                var task = resolver.ResolveAsync(rootKey, cancellationToken).AsTask();
+                state = ResolutionState.InProgress(task, null, null);
+                resolutions.Add(rootKey, state);
+            }
+        }
+
+        if (state.Asset is not null || state.Failure is not null)
+        {
+            return state.Failure;
+        }
+
+        var result = await state.ResolutionTask!.ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            if (terminalFailure is not null)
+            {
+                return terminalFailure;
+            }
+
+            var current = resolutions[rootKey];
+            if (current.Asset is not null || current.Failure is not null)
+            {
+                return current.Failure;
+            }
+
+            switch (result)
+            {
+                case AIAssetResolutionResult.Resolved resolved:
+                    EnsureResolvedIdentity(rootKey, resolved.Asset, "root");
+                    CommitResolved(rootKey, resolved.Asset);
+                    return null;
+
+                case AIAssetResolutionResult.DefinitionNotPublished:
+                {
+                    var failure = new AIAssetGraphLoadResult.RootDefinitionUnavailable(
+                        new AIAssetGraphRootDefinitionUnavailableContext(rootKey));
+                    CommitFailure(rootKey, failure);
+                    return failure;
+                }
+
+                default:
+                    throw UnexpectedResolverOutcome(result, "exact-key root resolution");
+            }
         }
     }
 
@@ -85,12 +137,6 @@ internal sealed class AIAssetGraphResolutionOperation
     {
         ArgumentNullException.ThrowIfNull(path);
         ArgumentNullException.ThrowIfNull(relationship);
-
-        if (terminalFailure is not null)
-        {
-            return terminalFailure;
-        }
-
         cancellationToken.ThrowIfCancellationRequested();
 
         if (path.RootKey != rootKey)
@@ -101,115 +147,213 @@ internal sealed class AIAssetGraphResolutionOperation
         }
 
         EnsurePathIdentifiesRelationship(path, relationship);
-        relationships.Add(relationship);
 
-        var targetKey = AssetDefinitionKey.From(relationship.TargetReference);
-
-        // Definition identity is the primary operation-local authority. Once the key is known,
-        // same-key URN disagreement is AAG003 regardless of any other lineage evidence.
-        if (resolutions.TryGetValue(targetKey, out var known))
+        ResolutionState? stateToAwait = null;
+        lock (gate)
         {
-            if (known.Failure is not null)
+            if (terminalFailure is not null)
             {
-                terminalFailure = known.Failure;
                 return terminalFailure;
             }
 
-            var identityFailure = CheckKnownResolvedIdentity(
-                path,
-                relationship,
-                known.Asset!);
-            if (identityFailure is not null)
+            EnsureMaterializedSource(relationship.SourceKey);
+            relationships.Add(relationship);
+
+            var targetKey = AssetDefinitionKey.From(relationship.TargetReference);
+
+            if (resolutions.TryGetValue(targetKey, out var known))
             {
-                terminalFailure = identityFailure;
-            }
-
-            return terminalFailure;
-        }
-
-        var lineageFailure = CheckEstablishedLineage(path, relationship, targetKey);
-        if (lineageFailure is not null)
-        {
-            terminalFailure = lineageFailure;
-            return terminalFailure;
-        }
-
-        if (relationship.MaterializationAuthority == AIAssetGraphMaterializationAuthority.Excluded)
-        {
-            AddPendingAssertion(targetKey, path, relationship);
-            return null;
-        }
-
-        if (relationship.MaterializationAuthority != AIAssetGraphMaterializationAuthority.Required)
-        {
-            throw new InvalidOperationException(
-                "Graph relationship materialization authority is outside the frozen schema-v1 vocabulary.");
-        }
-
-        var result = await resolver.ResolveAsync(relationship.TargetReference, cancellationToken)
-            .ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        switch (result)
-        {
-            case AIAssetResolutionResult.Resolved resolved:
-            {
-                EnsureResolvedIdentity(targetKey, resolved.Asset, "required reference");
-
-                if (!Equals(resolved.Asset.Urn, relationship.TargetReference.Urn))
+                if (known.Failure is not null)
                 {
-                    throw new InvalidOperationException(
-                        "The persistent resolver returned a resolved Asset whose URN disagrees with the authored reference.");
-                }
-
-                var resolvedLineageFailure = CheckResolvedLineage(
-                    path,
-                    relationship,
-                    targetKey,
-                    resolved.Asset.Urn);
-                if (resolvedLineageFailure is not null)
-                {
-                    terminalFailure = resolvedLineageFailure;
+                    terminalFailure = known.Failure;
                     return terminalFailure;
                 }
 
-                CommitResolved(targetKey, resolved.Asset);
-
-                var pendingFailure = CheckPendingAssertions(targetKey, resolved.Asset);
-                if (pendingFailure is not null)
+                if (known.Asset is not null)
                 {
-                    terminalFailure = pendingFailure;
+                    var identityFailure = CheckKnownResolvedIdentity(path, relationship, known.Asset);
+                    if (identityFailure is not null)
+                    {
+                        terminalFailure = identityFailure;
+                    }
+
+                    return terminalFailure;
+                }
+
+                var assertionFailure = CheckOperationLocalAssertions(path, relationship, targetKey);
+                if (assertionFailure is not null)
+                {
+                    terminalFailure = assertionFailure;
+                    return terminalFailure;
+                }
+
+                EstablishAssertions(targetKey, relationship.TargetReference.Urn);
+
+                if (relationship.MaterializationAuthority == AIAssetGraphMaterializationAuthority.Excluded)
+                {
+                    AddPendingAssertion(targetKey, path, relationship);
+                    return null;
+                }
+
+                stateToAwait = known;
+            }
+            else
+            {
+                var assertionFailure = CheckOperationLocalAssertions(path, relationship, targetKey);
+                if (assertionFailure is not null)
+                {
+                    terminalFailure = assertionFailure;
+                    return terminalFailure;
+                }
+
+                EstablishAssertions(targetKey, relationship.TargetReference.Urn);
+
+                if (relationship.MaterializationAuthority == AIAssetGraphMaterializationAuthority.Excluded)
+                {
+                    AddPendingAssertion(targetKey, path, relationship);
+                    return null;
+                }
+
+                if (relationship.MaterializationAuthority != AIAssetGraphMaterializationAuthority.Required)
+                {
+                    throw new InvalidOperationException(
+                        "Graph relationship materialization authority is outside the frozen schema-v1 vocabulary.");
+                }
+
+                var task = resolver.ResolveAsync(relationship.TargetReference, cancellationToken).AsTask();
+                stateToAwait = ResolutionState.InProgress(task, path, relationship);
+                resolutions.Add(targetKey, stateToAwait);
+            }
+        }
+
+        var resolutionResult = await stateToAwait.ResolutionTask!.ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            if (terminalFailure is not null)
+            {
+                return terminalFailure;
+            }
+
+            var targetKey = AssetDefinitionKey.From(relationship.TargetReference);
+            var current = resolutions[targetKey];
+            if (current.Failure is not null)
+            {
+                terminalFailure = current.Failure;
+                return terminalFailure;
+            }
+
+            if (current.Asset is not null)
+            {
+                var identityFailure = CheckKnownResolvedIdentity(path, relationship, current.Asset);
+                if (identityFailure is not null)
+                {
+                    terminalFailure = identityFailure;
                 }
 
                 return terminalFailure;
             }
 
-            case AIAssetResolutionResult.DefinitionNotPublished:
-            {
-                var failure = new AIAssetGraphLoadResult.RequiredDefinitionUnavailable(
-                    new AIAssetGraphRequiredDefinitionUnavailableContext(
-                        rootKey,
-                        path,
-                        relationship));
-                CommitFailure(targetKey, failure);
-                return failure;
-            }
+            var initiatingPath = current.InitiatingPath
+                ?? throw new InvalidOperationException("An in-progress required resolution must retain its initiating path.");
+            var initiatingRelationship = current.InitiatingRelationship
+                ?? throw new InvalidOperationException("An in-progress required resolution must retain its initiating relationship.");
 
-            case AIAssetResolutionResult.ReferenceMismatch:
+            switch (resolutionResult)
             {
-                var failure = new AIAssetGraphLoadResult.ReferenceIdentityConflict(
-                    new AIAssetGraphReferenceIdentityConflictContext(
-                        rootKey,
-                        path,
-                        relationship,
-                        AIAssetGraphReferenceIdentityConflictEvidence.PersistentResolver));
-                CommitFailure(targetKey, failure);
-                return failure;
-            }
+                case AIAssetResolutionResult.Resolved resolved:
+                {
+                    EnsureResolvedIdentity(targetKey, resolved.Asset, "required reference");
+                    if (!Equals(resolved.Asset.Urn, initiatingRelationship.TargetReference.Urn))
+                    {
+                        throw new InvalidOperationException(
+                            "The persistent resolver returned a resolved Asset whose URN disagrees with the authored reference.");
+                    }
 
-            default:
-                throw UnexpectedResolverOutcome(result, "exact-reference required resolution");
+                    var resolvedLineageFailure = CheckEstablishedLineage(
+                        initiatingPath,
+                        initiatingRelationship,
+                        targetKey);
+                    if (resolvedLineageFailure is not null)
+                    {
+                        terminalFailure = resolvedLineageFailure;
+                        return terminalFailure;
+                    }
+
+                    CommitResolved(targetKey, resolved.Asset);
+
+                    var pendingFailure = CheckPendingAssertions(targetKey, resolved.Asset);
+                    if (pendingFailure is not null)
+                    {
+                        terminalFailure = pendingFailure;
+                        return terminalFailure;
+                    }
+
+                    var currentRelationshipFailure = CheckKnownResolvedIdentity(path, relationship, resolved.Asset);
+                    if (currentRelationshipFailure is not null)
+                    {
+                        terminalFailure = currentRelationshipFailure;
+                    }
+
+                    return terminalFailure;
+                }
+
+                case AIAssetResolutionResult.DefinitionNotPublished:
+                {
+                    var failure = new AIAssetGraphLoadResult.RequiredDefinitionUnavailable(
+                        new AIAssetGraphRequiredDefinitionUnavailableContext(
+                            rootKey,
+                            initiatingPath,
+                            initiatingRelationship));
+                    CommitFailure(targetKey, failure);
+                    return failure;
+                }
+
+                case AIAssetResolutionResult.ReferenceMismatch:
+                {
+                    var failure = new AIAssetGraphLoadResult.ReferenceIdentityConflict(
+                        new AIAssetGraphReferenceIdentityConflictContext(
+                            rootKey,
+                            initiatingPath,
+                            initiatingRelationship,
+                            AIAssetGraphReferenceIdentityConflictEvidence.PersistentResolver));
+                    CommitFailure(targetKey, failure);
+                    return failure;
+                }
+
+                default:
+                    throw UnexpectedResolverOutcome(resolutionResult, "exact-reference required resolution");
+            }
         }
+    }
+
+    private void EnsureMaterializedSource(AssetDefinitionKey sourceKey)
+    {
+        if (!resolutions.TryGetValue(sourceKey, out var source) || source.Asset is null)
+        {
+            throw new InvalidOperationException(
+                "A graph relationship may only originate from an operation-local successfully materialized source node.");
+        }
+    }
+
+    private AIAssetGraphLoadResult? CheckOperationLocalAssertions(
+        AIAssetGraphPath path,
+        AIAssetGraphRelationship relationship,
+        AssetDefinitionKey targetKey)
+    {
+        if (assertedUrns.TryGetValue(targetKey, out var assertedUrn)
+            && assertedUrn != relationship.TargetReference.Urn)
+        {
+            return new AIAssetGraphLoadResult.ReferenceIdentityConflict(
+                new AIAssetGraphReferenceIdentityConflictContext(
+                    rootKey,
+                    path,
+                    relationship,
+                    AIAssetGraphReferenceIdentityConflictEvidence.OperationLocalIdentity));
+        }
+
+        return CheckEstablishedLineage(path, relationship, targetKey);
     }
 
     private AIAssetGraphLoadResult? CheckEstablishedLineage(
@@ -217,33 +361,7 @@ internal sealed class AIAssetGraphResolutionOperation
         AIAssetGraphRelationship relationship,
         AssetDefinitionKey targetKey)
     {
-        if (!establishedLineages.TryGetValue(relationship.TargetReference.Urn, out var established))
-        {
-            return null;
-        }
-
-        if (SameLineageIdentity(established, targetKey))
-        {
-            return null;
-        }
-
-        return new AIAssetGraphLoadResult.LineageIdentityConflict(
-            new AIAssetGraphLineageIdentityConflictContext(
-                rootKey,
-                path,
-                relationship,
-                relationship.TargetReference.Urn,
-                established,
-                targetKey));
-    }
-
-    private AIAssetGraphLoadResult? CheckResolvedLineage(
-        AIAssetGraphPath path,
-        AIAssetGraphRelationship relationship,
-        AssetDefinitionKey targetKey,
-        AssetUrn resolvedUrn)
-    {
-        if (!establishedLineages.TryGetValue(resolvedUrn, out var established)
+        if (!establishedLineages.TryGetValue(relationship.TargetReference.Urn, out var established)
             || SameLineageIdentity(established, targetKey))
         {
             return null;
@@ -290,15 +408,6 @@ internal sealed class AIAssetGraphResolutionOperation
 
         foreach (var assertion in assertions)
         {
-            var lineageFailure = CheckEstablishedLineage(
-                assertion.Path,
-                assertion.Relationship,
-                key);
-            if (lineageFailure is not null)
-            {
-                return lineageFailure;
-            }
-
             if (!Equals(asset.Urn, assertion.Relationship.TargetReference.Urn))
             {
                 return new AIAssetGraphLoadResult.ReferenceIdentityConflict(
@@ -311,6 +420,19 @@ internal sealed class AIAssetGraphResolutionOperation
         }
 
         return null;
+    }
+
+    private void EstablishAssertions(AssetDefinitionKey key, AssetUrn urn)
+    {
+        if (!assertedUrns.ContainsKey(key))
+        {
+            assertedUrns.Add(key, urn);
+        }
+
+        if (!establishedLineages.ContainsKey(urn))
+        {
+            establishedLineages.Add(urn, key);
+        }
     }
 
     private void AddPendingAssertion(
@@ -329,27 +451,20 @@ internal sealed class AIAssetGraphResolutionOperation
 
     private void CommitResolved(AssetDefinitionKey key, IAsset asset)
     {
-        resolutions.Add(key, ResolutionState.Resolved(asset));
-        nodes.Add(new AIAssetGraphNode(key, asset));
-
-        if (!establishedLineages.TryGetValue(asset.Urn, out var established))
+        resolutions[key] = ResolutionState.Resolved(asset);
+        if (nodes.All(node => node.DefinitionKey != key))
         {
-            establishedLineages.Add(asset.Urn, key);
-            return;
+            nodes.Add(new AIAssetGraphNode(key, asset));
         }
 
-        if (!SameLineageIdentity(established, key))
-        {
-            throw new InvalidOperationException(
-                "A resolved Asset introduced a conflicting operation-local lineage identity without an authored relationship context.");
-        }
+        EstablishAssertions(key, asset.Urn);
     }
 
     private void CommitFailure(
         AssetDefinitionKey key,
         AIAssetGraphLoadResult failure)
     {
-        resolutions.Add(key, ResolutionState.Failed(failure));
+        resolutions[key] = ResolutionState.Failed(failure);
         terminalFailure = failure;
     }
 
@@ -409,10 +524,22 @@ internal sealed class AIAssetGraphResolutionOperation
         AIAssetGraphRelationship Relationship);
 
     private sealed record ResolutionState(
+        Task<AIAssetResolutionResult>? ResolutionTask,
+        AIAssetGraphPath? InitiatingPath,
+        AIAssetGraphRelationship? InitiatingRelationship,
         IAsset? Asset,
         AIAssetGraphLoadResult? Failure)
     {
-        internal static ResolutionState Resolved(IAsset asset) => new(asset, null);
-        internal static ResolutionState Failed(AIAssetGraphLoadResult failure) => new(null, failure);
+        internal static ResolutionState InProgress(
+            Task<AIAssetResolutionResult> task,
+            AIAssetGraphPath? path,
+            AIAssetGraphRelationship? relationship) =>
+            new(task, path, relationship, null, null);
+
+        internal static ResolutionState Resolved(IAsset asset) =>
+            new(null, null, null, asset, null);
+
+        internal static ResolutionState Failed(AIAssetGraphLoadResult failure) =>
+            new(null, null, null, null, failure);
     }
 }
