@@ -90,6 +90,10 @@ internal static class AIAssetCatalogRecordCodec
         {
             throw new InvalidDataException("Catalog record is not valid canonical JSON.", ex);
         }
+        catch (ArgumentException ex)
+        {
+            throw new InvalidDataException("Catalog record contains an invalid identity value.", ex);
+        }
         catch (FormatException ex)
         {
             throw new InvalidDataException("Catalog record contains an invalid identity value.", ex);
@@ -214,7 +218,7 @@ internal static class AIAssetCatalogRecordCodec
         }
     }
 
-    private static string ToAssetTypeToken(AssetType type) => type switch
+    internal static string ToAssetTypeToken(AssetType type) => type switch
     {
         AssetType.Project => "project",
         AssetType.Library => "library",
