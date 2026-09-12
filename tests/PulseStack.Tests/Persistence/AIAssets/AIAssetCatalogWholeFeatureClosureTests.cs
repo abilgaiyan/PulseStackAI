@@ -104,7 +104,8 @@ public sealed class AIAssetCatalogWholeFeatureClosureTests
     [Fact]
     public void CatalogProviderContract_ShouldRemainPortableAndProviderNeutral()
     {
-        typeof(IAIAssetCatalogProvider).Assembly.Should().Be(typeof(IAIAssetPublisher).Assembly);
+        ReferenceEquals(typeof(IAIAssetCatalogProvider).Assembly, typeof(IAIAssetPublisher).Assembly)
+            .Should().BeTrue();
 
         var exposedTypes = typeof(IAIAssetCatalogProvider)
             .GetMethods()
@@ -132,7 +133,7 @@ public sealed class AIAssetCatalogWholeFeatureClosureTests
 
         closedTypes
             .SelectMany(type => type.GetProperties(BindingFlags.Instance | BindingFlags.Public))
-            .Should().OnlyContain(property => property.SetMethod is null);
+            .Should().OnlyContain(property => property.SetMethod == null);
 
         typeof(CatalogLineage).GetProperty(nameof(CatalogLineage.PublishedVersions))!
             .PropertyType.Should().Be(typeof(IReadOnlySet<PulseStack.Abstractions.Assets.AssetVersion>));
