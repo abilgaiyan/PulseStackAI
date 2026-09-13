@@ -166,7 +166,9 @@ internal static class AIAssetGraphFailureComparer
         var sharedLength = Math.Min(left.Segments.Count, right.Segments.Count);
         for (var index = 0; index < sharedLength; index++)
         {
-            var segmentComparison = CompareSegments(left.Segments[index], right.Segments[index]);
+            var segmentComparison = CompareRelationships(
+                left.Segments[index].Relationship,
+                right.Segments[index].Relationship);
             if (segmentComparison != 0)
             {
                 return segmentComparison;
@@ -176,8 +178,13 @@ internal static class AIAssetGraphFailureComparer
         return left.Segments.Count.CompareTo(right.Segments.Count);
     }
 
-    private static int CompareSegments(AIAssetGraphPathSegment left, AIAssetGraphPathSegment right)
+    internal static int CompareRelationships(
+        AIAssetGraphRelationship left,
+        AIAssetGraphRelationship right)
     {
+        ArgumentNullException.ThrowIfNull(left);
+        ArgumentNullException.ThrowIfNull(right);
+
         var ordinalComparison = left.LocalOrdinal.CompareTo(right.LocalOrdinal);
         if (ordinalComparison != 0)
         {
