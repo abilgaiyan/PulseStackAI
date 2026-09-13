@@ -21,8 +21,9 @@ public sealed class AIAssetGraphLoaderTests
         var result = await loader.LoadAsync(AssetDefinitionKey.From(root));
 
         var success = result.Should().BeOfType<AIAssetGraphLoadResult.Success>().Subject;
-        success.Graph.Nodes.Select(static node => node.DefinitionKey).Should().Contain(
-            AssetDefinitionKey.From(root), AssetDefinitionKey.From(child));
+        var definitionKeys = success.Graph.Nodes.Select(static node => node.DefinitionKey).ToArray();
+        definitionKeys.Should().Contain(AssetDefinitionKey.From(root));
+        definitionKeys.Should().Contain(AssetDefinitionKey.From(child));
     }
 
     [Fact]
