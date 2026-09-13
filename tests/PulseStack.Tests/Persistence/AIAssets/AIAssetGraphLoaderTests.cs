@@ -121,6 +121,88 @@ public sealed class AIAssetGraphLoaderTests
     }
 
     [Fact]
+    public async Task LoadAsync_ShouldHonorCallerCancellationWhileRequiredResolutionIsInFlightBeforeCommit()
+    {
+        var child = Foundation(Key(AssetType.Tool, 2), "child");
+        var root = Package(Key(AssetType.Package, 1), new[] { Reference(child) });
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var resolver = new ScriptedResolver(root, child)
+        {
+            ReferenceOverride = async (_, token) =>
+            {
+                entered.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, token);
+                return new AIAssetResolutionResult.Resolved(child);
+            }
+        };
+        var graphConstructionCount = 0;
+        var hooks = new AIAssetGraphLoaderExecutionHooks
+        {
+            BeforeGraphConstruction = () => Interlocked.Increment(ref graphConstructionCount)
+        };
+        var loader = new AIAssetGraphLoader(resolver, hooks);
+        using var cts = new CancellationTokenSource();
+
+        var task = loader.LoadAsync(AssetDefinitionKey.From(root), cts.Token).AsTask();
+        await entered.Task;
+        cts.Cancel();
+
+        Func<Task> act = async () => await task;
+        var thrown = await act.Should().ThrowAsync<OperationCanceledException>();
+        thrown.Which.CancellationToken.Should().Be(cts.Token);
+        graphConstructionCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task LoadAsync_ShouldKeepCommittedSemanticFailureWhenCallerCancelsImmediatelyAfterCommit()
+    {
+        var missing = Foundation(Key(AssetType.Tool, 2), "missing");
+        var root = Package(Key(AssetType.Package, 1), new[] { Reference(missing) });
+        using var cts = new CancellationTokenSource();
+        var graphConstructionCount = 0;
+        var hooks = new AIAssetGraphLoaderExecutionHooks
+        {
+            AfterTerminalCommit = committed =>
+            {
+                committed.Should().BeOfType<AIAssetGraphLoadResult.RequiredDefinitionUnavailable>();
+                cts.Cancel();
+            },
+            BeforeGraphConstruction = () => Interlocked.Increment(ref graphConstructionCount)
+        };
+        var loader = new AIAssetGraphLoader(new ScriptedResolver(root), hooks);
+
+        var result = await loader.LoadAsync(AssetDefinitionKey.From(root), cts.Token);
+
+        result.Should().BeOfType<AIAssetGraphLoadResult.RequiredDefinitionUnavailable>();
+        cts.IsCancellationRequested.Should().BeTrue();
+        graphConstructionCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task LoadAsync_ShouldKeepCommittedSemanticFailureWhenLaterWorkFaults()
+    {
+        var missing = Foundation(Key(AssetType.Tool, 2), "missing");
+        var root = Package(Key(AssetType.Package, 1), new[] { Reference(missing) });
+        var laterFault = new TestPredecessorException();
+        var graphConstructionCount = 0;
+        var hooks = new AIAssetGraphLoaderExecutionHooks
+        {
+            AfterTerminalCommit = committed =>
+            {
+                committed.Should().BeOfType<AIAssetGraphLoadResult.RequiredDefinitionUnavailable>();
+                throw laterFault;
+            },
+            BeforeGraphConstruction = () => Interlocked.Increment(ref graphConstructionCount)
+        };
+        var loader = new AIAssetGraphLoader(new ScriptedResolver(root), hooks);
+
+        var result = await loader.LoadAsync(AssetDefinitionKey.From(root));
+
+        result.Should().BeOfType<AIAssetGraphLoadResult.RequiredDefinitionUnavailable>();
+        graphConstructionCount.Should().Be(0);
+    }
+
+    [Fact]
     public async Task LoadAsync_ShouldPreserveOneResolutionPerKeyAcrossConvergentPaths()
     {
         var shared = Foundation(Key(AssetType.Tool, 4), "shared");
@@ -207,6 +289,7 @@ public sealed class AIAssetGraphLoaderTests
     {
         private readonly IReadOnlyDictionary<AssetDefinitionKey, IAsset> assets;
         internal Func<AssetDefinitionKey, CancellationToken, ValueTask<AIAssetResolutionResult>>? ExactOverride { get; init; }
+        internal Func<AssetReference, CancellationToken, ValueTask<AIAssetResolutionResult>>? ReferenceOverride { get; init; }
         internal int ExactCalls;
         internal Dictionary<AssetDefinitionKey, int> ReferenceCalls { get; } = [];
 
@@ -231,6 +314,7 @@ public sealed class AIAssetGraphLoaderTests
             {
                 ReferenceCalls[key] = ReferenceCalls.TryGetValue(key, out var count) ? count + 1 : 1;
             }
+            if (ReferenceOverride is not null) return ReferenceOverride(reference, cancellationToken);
             if (!assets.TryGetValue(key, out var asset))
                 return ValueTask.FromResult<AIAssetResolutionResult>(new AIAssetResolutionResult.DefinitionNotPublished());
             return ValueTask.FromResult<AIAssetResolutionResult>(asset.Urn == reference.Urn
