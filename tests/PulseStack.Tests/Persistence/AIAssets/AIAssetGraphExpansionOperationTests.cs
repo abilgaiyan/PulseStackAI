@@ -395,7 +395,7 @@ public sealed class AIAssetGraphExpansionOperationTests
     private static ScriptedResolver Resolver(params IAsset[] assets) => new(assets);
 
     private static AssetDefinitionKey Key(AssetType type) =>
-        new(type, AssetId.New(), new AssetVersion("1.0"));
+        new(type, AssetId.New(), AssetVersion.Initial);
 
     private static TestAsset Foundation(AssetDefinitionKey key, string suffix) =>
         new(key, UrnFor(key, suffix));
@@ -411,7 +411,6 @@ public sealed class AIAssetGraphExpansionOperationTests
         Construct<PackageAsset>(
             key.Id,
             urn ?? UrnFor(key, "package"),
-            key.Version,
             new PackageAssetOptions { Name = "package", Description = "package", Members = members },
             dependencies ?? Array.Empty<AssetDependency>());
 
@@ -423,7 +422,6 @@ public sealed class AIAssetGraphExpansionOperationTests
         Construct<LibraryAsset>(
             key.Id,
             urn ?? UrnFor(key, "library"),
-            key.Version,
             new LibraryAssetOptions { Name = "library", Description = "library", Members = members },
             dependencies ?? Array.Empty<AssetDependency>());
 
@@ -436,7 +434,6 @@ public sealed class AIAssetGraphExpansionOperationTests
         Construct<ProjectAsset>(
             key.Id,
             urn ?? UrnFor(key, "project"),
-            key.Version,
             new ProjectAssetOptions { Name = "project", EntryWorkflow = entryWorkflow, OwnedAssets = ownedAssets },
             dependencies ?? Array.Empty<AssetDependency>());
 
@@ -449,7 +446,6 @@ public sealed class AIAssetGraphExpansionOperationTests
         var workflow = Construct<WorkflowAsset>(
             key.Id,
             urn ?? UrnFor(key, "workflow"),
-            key.Version,
             new WorkflowAssetOptions { Name = "workflow", Steps = steps });
         return dependencies is null ? workflow : workflow with { Dependencies = dependencies };
     }
@@ -464,7 +460,6 @@ public sealed class AIAssetGraphExpansionOperationTests
         var agent = Construct<AgentDefinition>(
             key.Id,
             urn ?? UrnFor(key, "agent"),
-            key.Version,
             new AgentDefinitionOptions
             {
                 Name = "agent",
