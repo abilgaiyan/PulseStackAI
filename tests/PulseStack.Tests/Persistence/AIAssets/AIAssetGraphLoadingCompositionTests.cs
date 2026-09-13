@@ -183,8 +183,6 @@ public sealed class AIAssetGraphLoadingCompositionTests
         public ValueTask<AIAssetGraphLoadResult> LoadAsync(
             AssetDefinitionKey rootKey,
             CancellationToken cancellationToken = default) =>
-            ValueTask.FromResult<AIAssetGraphLoadResult>(
-                new AIAssetGraphLoadResult.RootDefinitionUnavailable(
-                    new AIAssetGraphRootDefinitionUnavailableContext(rootKey)));
+            throw new NotSupportedException();
     }
 }
