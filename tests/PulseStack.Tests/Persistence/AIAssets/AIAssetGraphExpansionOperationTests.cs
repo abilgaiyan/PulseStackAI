@@ -22,28 +22,18 @@ public sealed class AIAssetGraphExpansionOperationTests
         var optionalModelKey = Key(AssetType.Model);
         var optionalModel = Foundation(optionalModelKey, "optional-model");
         var opaqueAgentKey = Key(AssetType.Agent);
-
         sharedTool = sharedTool with
         {
             References = new[] { Reference(opaqueAgentKey, UrnFor(opaqueAgentKey, "opaque-agent")) }
         };
 
         var workflowKey = Key(AssetType.Workflow);
-        var workflow = Construct<WorkflowAsset>(
-            workflowKey.Id,
-            UrnFor(workflowKey, "entry-workflow"),
-            new WorkflowAssetOptions { Name = "entry", Steps = Array.Empty<WorkflowStepDefinition>() });
+        var workflow = Workflow(workflowKey, Array.Empty<WorkflowStepDefinition>());
 
         var nestedPackageKey = Key(AssetType.Package);
-        var nestedPackage = Construct<PackageAsset>(
-            nestedPackageKey.Id,
-            UrnFor(nestedPackageKey, "nested-package"),
-            new PackageAssetOptions
-            {
-                Name = "nested-package",
-                Description = "nested-package",
-                Members = new[] { Reference(sharedTool) }
-            },
+        var nestedPackage = Package(
+            nestedPackageKey,
+            new[] { Reference(sharedTool) },
             new[]
             {
                 new AssetDependency(Reference(requiredPrompt), true),
@@ -51,45 +41,18 @@ public sealed class AIAssetGraphExpansionOperationTests
             });
 
         var projectKey = Key(AssetType.Project);
-        var project = Construct<ProjectAsset>(
-            projectKey.Id,
-            UrnFor(projectKey, "project"),
-            new ProjectAssetOptions
-            {
-                Name = "project",
-                EntryWorkflow = Reference(workflow),
-                OwnedAssets = new[] { Reference(sharedTool) }
-            },
-            Array.Empty<AssetDependency>());
+        var project = Project(
+            projectKey,
+            Reference(workflow),
+            new[] { Reference(workflow), Reference(sharedTool) });
 
         var libraryKey = Key(AssetType.Library);
-        var library = Construct<LibraryAsset>(
-            libraryKey.Id,
-            UrnFor(libraryKey, "library"),
-            new LibraryAssetOptions
-            {
-                Name = "library",
-                Description = "library",
-                Members = new[] { Reference(sharedTool) }
-            },
-            Array.Empty<AssetDependency>());
+        var library = Library(libraryKey, new[] { Reference(sharedTool) });
 
         var rootKey = Key(AssetType.Package);
-        var root = Construct<PackageAsset>(
-            rootKey.Id,
-            UrnFor(rootKey, "root-package"),
-            new PackageAssetOptions
-            {
-                Name = "root",
-                Description = "root",
-                Members = new[]
-                {
-                    Reference(nestedPackage),
-                    Reference(project),
-                    Reference(library)
-                }
-            },
-            Array.Empty<AssetDependency>());
+        var root = Package(
+            rootKey,
+            new[] { Reference(nestedPackage), Reference(project), Reference(library) });
 
         var resolver = Resolver(root, nestedPackage, project, library, workflow, sharedTool, requiredPrompt, optionalModel);
         var operation = new AIAssetGraphExpansionOperation(resolver, rootKey);
@@ -150,46 +113,18 @@ public sealed class AIAssetGraphExpansionOperationTests
         var dependency = Foundation(dependencyKey, "agent-dependency");
 
         var agentKey = Key(AssetType.Agent);
-        var agent = Construct<AgentDefinition>(
-            agentKey.Id,
-            UrnFor(agentKey, "agent"),
-            new AgentDefinitionOptions
-            {
-                Name = "agent",
-                Goal = "goal",
-                Role = "role",
-                Model = Reference(model),
-                Tools = new[] { Reference(tool) }
-            }) with
+        var agent = Agent(agentKey, Reference(model), Reference(tool)) with
         {
             Dependencies = new[] { new AssetDependency(Reference(dependency), true) }
         };
 
         var workflowKey = Key(AssetType.Workflow);
-        var workflow = Construct<WorkflowAsset>(
-            workflowKey.Id,
-            UrnFor(workflowKey, "workflow"),
-            new WorkflowAssetOptions
-            {
-                Name = "workflow",
-                Steps = new WorkflowStepDefinition[]
-                {
-                    new RunStepDefinition { Agent = Reference(agent) }
-                }
-            });
+        var workflow = Workflow(
+            workflowKey,
+            new WorkflowStepDefinition[] { new RunStepDefinition { Agent = Reference(agent) } });
 
         var rootKey = Key(AssetType.Package);
-        var root = Construct<PackageAsset>(
-            rootKey.Id,
-            UrnFor(rootKey, "root"),
-            new PackageAssetOptions
-            {
-                Name = "root",
-                Description = "root",
-                Members = new[] { Reference(workflow) }
-            },
-            Array.Empty<AssetDependency>());
-
+        var root = Package(rootKey, new[] { Reference(workflow) });
         var resolver = Resolver(root, workflow, agent, model, tool, dependency);
         var operation = new AIAssetGraphExpansionOperation(resolver, rootKey);
 
@@ -233,17 +168,7 @@ public sealed class AIAssetGraphExpansionOperationTests
             Dependencies = new[] { new AssetDependency(Reference(shared), true) }
         };
         var rootKey = Key(AssetType.Package);
-        var root = Construct<PackageAsset>(
-            rootKey.Id,
-            UrnFor(rootKey, "root"),
-            new PackageAssetOptions
-            {
-                Name = "root",
-                Description = "root",
-                Members = new[] { Reference(left), Reference(right) }
-            },
-            Array.Empty<AssetDependency>());
-
+        var root = Package(rootKey, new[] { Reference(left), Reference(right) });
         var resolver = Resolver(root, left, right, shared);
         var operation = new AIAssetGraphExpansionOperation(resolver, rootKey);
 
@@ -261,16 +186,7 @@ public sealed class AIAssetGraphExpansionOperationTests
         var rootKey = Key(AssetType.Package);
         var rootUrn = UrnFor(rootKey, "self-root");
         var rootReference = Reference(rootKey, rootUrn);
-        var root = Construct<PackageAsset>(
-            rootKey.Id,
-            rootUrn,
-            new PackageAssetOptions
-            {
-                Name = "root",
-                Description = "root",
-                Members = new[] { rootReference }
-            },
-            Array.Empty<AssetDependency>());
+        var root = Package(rootKey, new[] { rootReference }, urn: rootUrn);
         var resolver = Resolver(root);
         var operation = new AIAssetGraphExpansionOperation(resolver, rootKey);
 
@@ -296,16 +212,7 @@ public sealed class AIAssetGraphExpansionOperationTests
         {
             Dependencies = new[] { new AssetDependency(Reference(rootKey, rootUrn), true) }
         };
-        var root = Construct<PackageAsset>(
-            rootKey.Id,
-            rootUrn,
-            new PackageAssetOptions
-            {
-                Name = "root",
-                Description = "root",
-                Members = new[] { Reference(child) }
-            },
-            Array.Empty<AssetDependency>());
+        var root = Package(rootKey, new[] { Reference(child) }, urn: rootUrn);
         var resolver = Resolver(root, child);
         var operation = new AIAssetGraphExpansionOperation(resolver, rootKey);
 
@@ -324,41 +231,12 @@ public sealed class AIAssetGraphExpansionOperationTests
     {
         var rootKey = Key(AssetType.Package);
         var aKey = Key(AssetType.Package);
-        var bKey = Key(AssetType.Library);
+        var bKey = Key(AssetType.Package);
         var aUrn = UrnFor(aKey, "a");
         var bUrn = UrnFor(bKey, "b");
-
-        var a = Construct<PackageAsset>(
-            aKey.Id,
-            aUrn,
-            new PackageAssetOptions
-            {
-                Name = "a",
-                Description = "a",
-                Members = new[] { Reference(bKey, bUrn) }
-            },
-            Array.Empty<AssetDependency>());
-        var b = Construct<LibraryAsset>(
-            bKey.Id,
-            bUrn,
-            new LibraryAssetOptions
-            {
-                Name = "b",
-                Description = "b",
-                Members = new[] { Reference(aKey, aUrn) }
-            },
-            Array.Empty<AssetDependency>());
-        var root = Construct<PackageAsset>(
-            rootKey.Id,
-            UrnFor(rootKey, "root"),
-            new PackageAssetOptions
-            {
-                Name = "root",
-                Description = "root",
-                Members = new[] { Reference(a) }
-            },
-            Array.Empty<AssetDependency>());
-
+        var a = Package(aKey, new[] { Reference(bKey, bUrn) }, urn: aUrn);
+        var b = Package(bKey, new[] { Reference(aKey, aUrn) }, urn: bUrn);
+        var root = Package(rootKey, new[] { Reference(a) });
         var resolver = Resolver(root, a, b);
         var operation = new AIAssetGraphExpansionOperation(resolver, rootKey);
 
@@ -387,16 +265,7 @@ public sealed class AIAssetGraphExpansionOperationTests
         {
             Dependencies = new[] { new AssetDependency(Reference(aKey, aUrn), true) }
         };
-        var root = Construct<PackageAsset>(
-            rootKey.Id,
-            UrnFor(rootKey, "root"),
-            new PackageAssetOptions
-            {
-                Name = "root",
-                Description = "root",
-                Members = new[] { Reference(a) }
-            },
-            Array.Empty<AssetDependency>());
+        var root = Package(rootKey, new[] { Reference(a) });
         var resolver = Resolver(root, a, b);
         var operation = new AIAssetGraphExpansionOperation(resolver, rootKey);
 
@@ -416,36 +285,16 @@ public sealed class AIAssetGraphExpansionOperationTests
         var workflowKey = Key(AssetType.Workflow);
         var agentKey = Key(AssetType.Agent);
         var workflowUrn = UrnFor(workflowKey, "workflow");
-        var agentUrn = UrnFor(agentKey, "agent");
-
-        var agent = Construct<AgentDefinition>(
-            agentKey.Id,
-            agentUrn,
-            new AgentDefinitionOptions { Name = "agent", Goal = "goal", Role = "role" }) with
+        var agent = Agent(agentKey);
+        var workflow = Workflow(
+            workflowKey,
+            new WorkflowStepDefinition[] { new RunStepDefinition { Agent = Reference(agent) } },
+            urn: workflowUrn);
+        agent = agent with
         {
             Dependencies = new[] { new AssetDependency(Reference(workflowKey, workflowUrn), true) }
         };
-        var workflow = Construct<WorkflowAsset>(
-            workflowKey.Id,
-            workflowUrn,
-            new WorkflowAssetOptions
-            {
-                Name = "workflow",
-                Steps = new WorkflowStepDefinition[]
-                {
-                    new RunStepDefinition { Agent = Reference(agent) }
-                }
-            });
-        var root = Construct<PackageAsset>(
-            rootKey.Id,
-            UrnFor(rootKey, "root"),
-            new PackageAssetOptions
-            {
-                Name = "root",
-                Description = "root",
-                Members = new[] { Reference(workflow) }
-            },
-            Array.Empty<AssetDependency>());
+        var root = Package(rootKey, new[] { Reference(workflow) });
         var resolver = Resolver(root, workflow, agent);
         var operation = new AIAssetGraphExpansionOperation(resolver, rootKey);
 
@@ -465,34 +314,16 @@ public sealed class AIAssetGraphExpansionOperationTests
         var projectKey = Key(AssetType.Project);
         var workflowKey = Key(AssetType.Workflow);
         var projectUrn = UrnFor(projectKey, "project");
-        var workflowUrn = UrnFor(workflowKey, "workflow");
-        var workflow = Construct<WorkflowAsset>(
-            workflowKey.Id,
-            workflowUrn,
-            new WorkflowAssetOptions { Name = "workflow", Steps = Array.Empty<WorkflowStepDefinition>() }) with
+        var workflow = Workflow(workflowKey, Array.Empty<WorkflowStepDefinition>()) with
         {
             Dependencies = new[] { new AssetDependency(Reference(projectKey, projectUrn), true) }
         };
-        var project = Construct<ProjectAsset>(
-            projectKey.Id,
-            projectUrn,
-            new ProjectAssetOptions
-            {
-                Name = "project",
-                EntryWorkflow = Reference(workflowKey, workflowUrn),
-                OwnedAssets = Array.Empty<AssetReference>()
-            },
-            Array.Empty<AssetDependency>());
-        var root = Construct<PackageAsset>(
-            rootKey.Id,
-            UrnFor(rootKey, "root"),
-            new PackageAssetOptions
-            {
-                Name = "root",
-                Description = "root",
-                Members = new[] { Reference(project) }
-            },
-            Array.Empty<AssetDependency>());
+        var project = Project(
+            projectKey,
+            Reference(workflow),
+            new[] { Reference(workflow) },
+            urn: projectUrn);
+        var root = Package(rootKey, new[] { Reference(project) });
         var resolver = Resolver(root, project, workflow);
         var operation = new AIAssetGraphExpansionOperation(resolver, rootKey);
 
@@ -516,16 +347,7 @@ public sealed class AIAssetGraphExpansionOperationTests
         {
             Dependencies = new[] { new AssetDependency(Reference(rootKey, rootUrn), false) }
         };
-        var root = Construct<PackageAsset>(
-            rootKey.Id,
-            rootUrn,
-            new PackageAssetOptions
-            {
-                Name = "root",
-                Description = "root",
-                Members = new[] { Reference(child) }
-            },
-            Array.Empty<AssetDependency>());
+        var root = Package(rootKey, new[] { Reference(child) }, urn: rootUrn);
         var resolver = Resolver(root, child);
         var operation = new AIAssetGraphExpansionOperation(resolver, rootKey);
 
@@ -546,16 +368,7 @@ public sealed class AIAssetGraphExpansionOperationTests
         var rootKey = Key(AssetType.Package);
         var childKey = Key(AssetType.Tool);
         var child = Foundation(childKey, "child");
-        var root = Construct<PackageAsset>(
-            rootKey.Id,
-            UrnFor(rootKey, "root"),
-            new PackageAssetOptions
-            {
-                Name = "root",
-                Description = "root",
-                Members = new[] { Reference(child) }
-            },
-            Array.Empty<AssetDependency>());
+        var root = Package(rootKey, new[] { Reference(child) });
         using var cts = new CancellationTokenSource();
         var observedToken = CancellationToken.None;
         var wait = new TaskCompletionSource<AIAssetResolutionResult>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -589,6 +402,79 @@ public sealed class AIAssetGraphExpansionOperationTests
 
     private static TestAsset Foundation(AssetDefinitionKey key, AssetUrn urn) =>
         new(key, urn);
+
+    private static PackageAsset Package(
+        AssetDefinitionKey key,
+        IReadOnlyList<AssetReference> members,
+        IReadOnlyList<AssetDependency>? dependencies = null,
+        AssetUrn? urn = null) =>
+        Construct<PackageAsset>(
+            key.Id,
+            urn ?? UrnFor(key, "package"),
+            key.Version,
+            new PackageAssetOptions { Name = "package", Description = "package", Members = members },
+            dependencies ?? Array.Empty<AssetDependency>());
+
+    private static LibraryAsset Library(
+        AssetDefinitionKey key,
+        IReadOnlyList<AssetReference> members,
+        IReadOnlyList<AssetDependency>? dependencies = null,
+        AssetUrn? urn = null) =>
+        Construct<LibraryAsset>(
+            key.Id,
+            urn ?? UrnFor(key, "library"),
+            key.Version,
+            new LibraryAssetOptions { Name = "library", Description = "library", Members = members },
+            dependencies ?? Array.Empty<AssetDependency>());
+
+    private static ProjectAsset Project(
+        AssetDefinitionKey key,
+        AssetReference entryWorkflow,
+        IReadOnlyList<AssetReference> ownedAssets,
+        IReadOnlyList<AssetDependency>? dependencies = null,
+        AssetUrn? urn = null) =>
+        Construct<ProjectAsset>(
+            key.Id,
+            urn ?? UrnFor(key, "project"),
+            key.Version,
+            new ProjectAssetOptions { Name = "project", EntryWorkflow = entryWorkflow, OwnedAssets = ownedAssets },
+            dependencies ?? Array.Empty<AssetDependency>());
+
+    private static WorkflowAsset Workflow(
+        AssetDefinitionKey key,
+        IReadOnlyList<WorkflowStepDefinition> steps,
+        IReadOnlyList<AssetDependency>? dependencies = null,
+        AssetUrn? urn = null)
+    {
+        var workflow = Construct<WorkflowAsset>(
+            key.Id,
+            urn ?? UrnFor(key, "workflow"),
+            key.Version,
+            new WorkflowAssetOptions { Name = "workflow", Steps = steps });
+        return dependencies is null ? workflow : workflow with { Dependencies = dependencies };
+    }
+
+    private static AgentDefinition Agent(
+        AssetDefinitionKey key,
+        AssetReference? model = null,
+        AssetReference? tool = null,
+        IReadOnlyList<AssetDependency>? dependencies = null,
+        AssetUrn? urn = null)
+    {
+        var agent = Construct<AgentDefinition>(
+            key.Id,
+            urn ?? UrnFor(key, "agent"),
+            key.Version,
+            new AgentDefinitionOptions
+            {
+                Name = "agent",
+                Goal = "goal",
+                Role = "role",
+                Model = model,
+                Tools = tool is null ? Array.Empty<AssetReference>() : new[] { tool }
+            });
+        return dependencies is null ? agent : agent with { Dependencies = dependencies };
+    }
 
     private static AssetReference Reference(IAsset asset) =>
         new(asset.Type, asset.Id, asset.Urn, asset.Version);
