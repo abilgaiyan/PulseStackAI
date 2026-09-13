@@ -268,22 +268,22 @@ public sealed class AIAssetGraphResultBuilderTests
     {
         version ??= AssetVersion.Initial;
         var assetId = new AssetId(Guid.Parse($"00000000-0000-0000-0000-{id:D12}"));
-        var urn = new AssetUrn($"urn:pulsestack:test:b6:{type}:{id}:{version.Value}");
-        IAsset asset = type switch
+        var asset = new TestAsset(type)
         {
-            AssetType.Project => new ProjectAsset(assetId, urn, version, "project", null!, Array.Empty<AssetReference>(), Array.Empty<AssetDependency>()),
-            AssetType.Library => new LibraryAsset(assetId, urn, version, "library", Array.Empty<AssetReference>(), Array.Empty<AssetDependency>()),
-            AssetType.Package => new PackageAsset(assetId, urn, version, "package", Array.Empty<AssetReference>(), Array.Empty<AssetDependency>()),
-            AssetType.Workflow => new WorkflowAsset(assetId, urn, version, "workflow", Array.Empty<WorkflowStep>(), Array.Empty<AssetDependency>()),
-            AssetType.Agent => new AgentAsset(assetId, urn, version, "agent", "role", "goal", Array.Empty<string>(), null, null, Array.Empty<AssetReference>(), Array.Empty<AssetReference>(), null, Array.Empty<AssetReference>(), Array.Empty<AssetDependency>()),
-            AssetType.Prompt => new PromptAsset(assetId, urn, version, "prompt", "instructions", Array.Empty<AssetDependency>()),
-            AssetType.Tool => new ToolAsset(assetId, urn, version, "tool", Array.Empty<AssetDependency>()),
-            AssetType.Knowledge => new KnowledgeAsset(assetId, urn, version, "knowledge", Array.Empty<AssetDependency>()),
-            AssetType.Memory => new MemoryAsset(assetId, urn, version, "memory", Array.Empty<AssetDependency>()),
-            AssetType.Policy => new PolicyAsset(assetId, urn, version, "policy", Array.Empty<AssetDependency>()),
-            AssetType.Model => new ModelAsset(assetId, urn, version, "model", "provider", "model", Array.Empty<AssetDependency>()),
-            _ => throw new ArgumentOutOfRangeException(nameof(type))
+            Id = assetId,
+            Urn = new AssetUrn($"urn:pulsestack:test:b6:{type}:{id}:{version.Value}"),
+            Version = version,
+            Metadata = new AssetMetadata { Name = $"b6-{type}-{id}" }
         };
+
         return new AIAssetGraphNode(AssetDefinitionKey.From(asset), asset);
+    }
+
+    private sealed record TestAsset : Asset
+    {
+        internal TestAsset(AssetType type)
+            : base(type)
+        {
+        }
     }
 }
