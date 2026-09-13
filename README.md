@@ -321,17 +321,29 @@ IWorkflowRuntime
 
 Declarative Workflow grammar now realizes `Run`, `Parallel`, `If`, `Retry`, `ForEach`, and `Switch` into the existing execution runtime without exposing provider or infrastructure concerns in the Application Language.
 
-## Next Milestone
+## MS-009 — AI Asset Platform Implementation
 
-- ⬜ **MS-009 — AI Asset Platform Implementation**
+MS-009 is active and is being delivered through independently reviewed and frozen increments. **MS-009.1 through MS-009.9 are implemented according to their individual closure records; this does not declare the broader MS-009 milestone complete.**
 
-Expected areas:
+Completed work through MS-009.9 includes the schema-v1 persistence foundation for AI Assets, canonical serialization, serialized storage/loading, persistent catalog and exact resolution, and aggregate declarative graph loading.
 
-- AI Projects
-- AI Libraries
-- Asset Catalog / Registry
-- dependency and reference management
-- validation, versioning, discovery, and loading
+### ✅ MS-009.9 — Aggregate Declarative Graph Loading
+
+MS-009.9 adds provider-neutral multi-definition declarative loading for persisted Project, Library, and Package roots.
+
+```text
+persistent exact resolution
+        ↓
+multi-definition declarative graph loading
+        ↓
+future runtime realization
+
+MS-009.9 ends at AIAssetGraph.
+```
+
+The graph loader operates above `IPersistentAIAssetResolver`. It preserves authored aggregate and declarative relationships, expands the required closure, preserves optional requirements without expanding them, and remains independent of storage/catalog provider implementation. Runtime realization, activation, binding, and execution are outside this capability.
+
+The next MS-009 boundary will be established separately from repository and roadmap evidence rather than inferred from MS-009.9 closure.
 
 Later platform capabilities include Planner, Human Approval, Scheduling, Distributed Runtime, Visual Designer, and Marketplace.
 
