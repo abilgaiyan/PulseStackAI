@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using FluentAssertions;
 using PulseStack.Abstractions.Assets;
+using PulseStack.Abstractions.Persistence.AIAssets.Catalog;
 using PulseStack.Abstractions.Persistence.AIAssets.GraphLoading;
 using PulseStack.Abstractions.Workflows.Definitions;
 using PulseStack.Core.Persistence.AIAssets.GraphLoading;
@@ -12,15 +13,59 @@ namespace PulseStack.Tests.Persistence.AIAssets;
 public sealed class AIAssetGraphResultBuilderTests
 {
     [Fact]
+    public async Task CompletedSuccessfulExpansion_ShouldMintSnapshotAndBuildGraph()
+    {
+        var tool = Foundation(Key(AssetType.Tool, 2));
+        var root = Package(Key(AssetType.Package, 1), new[] { Reference(tool) });
+        var resolver = new ScriptedResolver(root, tool);
+
+        var completion = await AIAssetGraphSuccessfulOperationSnapshot.CompleteAsync(
+            resolver,
+            AssetDefinitionKey.From(root));
+
+        completion.Failure.Should().BeNull();
+        completion.Success.Should().NotBeNull();
+
+        var graph = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root))
+            .Build(completion.Success!);
+
+        graph.RootKey.Should().Be(AssetDefinitionKey.From(root));
+        graph.Nodes.Select(static node => node.DefinitionKey).Should().Contain(
+            AssetDefinitionKey.From(root),
+            AssetDefinitionKey.From(tool));
+        graph.Relationships.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task FailedCycleExpansion_ShouldNeverMintSuccessfulSnapshot()
+    {
+        var aKey = Key(AssetType.Tool, 2);
+        var bKey = Key(AssetType.Prompt, 3);
+        var a = Foundation(aKey);
+        var b = Foundation(bKey);
+        a = a with { Dependencies = new[] { new AssetDependency(Reference(b), true) } };
+        b = b with { Dependencies = new[] { new AssetDependency(Reference(a), true) } };
+        var root = Package(Key(AssetType.Package, 1), new[] { Reference(a) });
+        var resolver = new ScriptedResolver(root, a, b);
+
+        var completion = await AIAssetGraphSuccessfulOperationSnapshot.CompleteAsync(
+            resolver,
+            AssetDefinitionKey.From(root));
+
+        completion.Failure.Should().BeOfType<AIAssetGraphLoadResult.RequiredMaterializationCycle>();
+        completion.Success.Should().BeNull();
+    }
+
+    [Fact]
     public void Build_ShouldNormalizeNodesByFrozenDefinitionKeyOrder()
     {
         var workflow = Workflow(Key(AssetType.Workflow, 6));
         var project = Project(Key(AssetType.Project, 9), Reference(workflow), new[] { Reference(workflow) });
         var library = Library(Key(AssetType.Library, 8), Array.Empty<AssetReference>());
-        var nestedPackage = Package(Key(AssetType.Package, 7), Array.Empty<AssetReference>());
         var agent = Agent(Key(AssetType.Agent, 5));
         var prompt = Foundation(Key(AssetType.Prompt, 4));
         var tool = Foundation(Key(AssetType.Tool, 3));
+        var nestedPackage = Package(Key(AssetType.Package, 7), new[] { Reference(tool) });
         var knowledge = Foundation(Key(AssetType.Knowledge, 2));
         var memory = Foundation(Key(AssetType.Memory, 1));
         var policy = Foundation(Key(AssetType.Policy, 10));
@@ -31,11 +76,12 @@ public sealed class AIAssetGraphResultBuilderTests
         };
         var root = Package(Key(AssetType.Package, 20), descendants.Select(Reference).ToArray());
         var nodes = descendants.Append(root).Select(Node).ToArray();
-        var builder = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root));
+        var relationships = RelationshipsFor(nodes).ToArray();
+        var snapshot = ForgeSnapshot(AssetDefinitionKey.From(root), nodes.Reverse(), relationships.Reverse());
 
-        var graph = builder.Build(nodes.Reverse(), RelationshipsFor(nodes).Reverse());
+        var graph = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root)).Build(snapshot);
 
-        graph.Nodes.Select(node => node.DefinitionKey.Type).Should().Equal(
+        graph.Nodes.Select(static node => node.DefinitionKey.Type).Should().Equal(
             AssetType.Project,
             AssetType.Library,
             AssetType.Package,
@@ -60,11 +106,11 @@ public sealed class AIAssetGraphResultBuilderTests
             Key(AssetType.Package, 1),
             new[] { Reference(highId), Reference(lowIdHighVersion), Reference(lowIdLowVersion) });
         var nodes = new[] { Node(highId), Node(lowIdHighVersion), Node(root), Node(lowIdLowVersion) };
-        var builder = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root));
+        var snapshot = ForgeSnapshot(AssetDefinitionKey.From(root), nodes, RelationshipsFor(nodes));
 
-        var graph = builder.Build(nodes, RelationshipsFor(nodes));
+        var graph = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root)).Build(snapshot);
 
-        graph.Nodes.Skip(1).Select(node => node.DefinitionKey).Should().Equal(
+        graph.Nodes.Skip(1).Select(static node => node.DefinitionKey).Should().Equal(
             AssetDefinitionKey.From(lowIdLowVersion),
             AssetDefinitionKey.From(lowIdHighVersion),
             AssetDefinitionKey.From(highId));
@@ -80,14 +126,16 @@ public sealed class AIAssetGraphResultBuilderTests
         };
         var root = Package(Key(AssetType.Package, 1), new[] { Reference(tool), Reference(workflow) });
         var nodes = new[] { Node(tool), Node(workflow), Node(root) };
-        var relationships = RelationshipsFor(nodes).ToArray();
-        var builder = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root));
+        var snapshot = ForgeSnapshot(
+            AssetDefinitionKey.From(root),
+            nodes.Reverse(),
+            RelationshipsFor(nodes).Reverse());
 
-        var graph = builder.Build(nodes.Reverse(), relationships.Reverse());
+        var graph = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root)).Build(snapshot);
 
-        graph.Relationships.Select(Signature).Should().BeInAscendingOrder();
         graph.Relationships.Where(edge => edge.SourceKey == AssetDefinitionKey.From(root))
-            .Select(edge => edge.LocalOrdinal).Should().Equal(0, 1);
+            .Select(static edge => edge.LocalOrdinal).Should().Equal(0, 1);
+        graph.Relationships.Select(Signature).Should().BeInAscendingOrder();
     }
 
     [Fact]
@@ -104,10 +152,9 @@ public sealed class AIAssetGraphResultBuilderTests
         };
         var root = Package(Key(AssetType.Package, 1), new[] { Reference(left), Reference(right) });
         var nodes = new[] { Node(root), Node(left), Node(right), Node(tool) };
-        var relationships = RelationshipsFor(nodes).ToArray();
-        var builder = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root));
+        var snapshot = ForgeSnapshot(AssetDefinitionKey.From(root), nodes, RelationshipsFor(nodes).Reverse());
 
-        var graph = builder.Build(nodes, relationships.Reverse());
+        var graph = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root)).Build(snapshot);
 
         graph.Relationships.Should().HaveCount(4);
         graph.Relationships.Count(edge => AssetDefinitionKey.From(edge.TargetReference) == AssetDefinitionKey.From(tool))
@@ -117,20 +164,21 @@ public sealed class AIAssetGraphResultBuilderTests
     [Fact]
     public void Build_ShouldAllowExcludedOptionalTargetToBeAbsent()
     {
+        var member = Foundation(Key(AssetType.Prompt, 3));
         var absent = Foundation(Key(AssetType.Tool, 2));
         var root = Package(
             Key(AssetType.Package, 1),
-            Array.Empty<AssetReference>(),
+            new[] { Reference(member) },
             new[] { new AssetDependency(Reference(absent), false) });
-        var nodes = new[] { Node(root) };
-        var relationships = RelationshipsFor(nodes).ToArray();
-        var builder = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root));
+        var nodes = new[] { Node(root), Node(member) };
+        var snapshot = ForgeSnapshot(AssetDefinitionKey.From(root), nodes, RelationshipsFor(nodes));
 
-        var graph = builder.Build(nodes, relationships);
+        var graph = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root)).Build(snapshot);
 
-        graph.Relationships.Should().ContainSingle();
-        graph.Relationships[0].MaterializationAuthority.Should().Be(AIAssetGraphMaterializationAuthority.Excluded);
-        graph.Nodes.Should().ContainSingle();
+        graph.Relationships.Should().Contain(edge =>
+            edge.MaterializationAuthority == AIAssetGraphMaterializationAuthority.Excluded
+            && AssetDefinitionKey.From(edge.TargetReference) == AssetDefinitionKey.From(absent));
+        graph.Nodes.Should().NotContain(node => node.DefinitionKey == AssetDefinitionKey.From(absent));
     }
 
     [Fact]
@@ -143,10 +191,9 @@ public sealed class AIAssetGraphResultBuilderTests
         };
         var root = Package(Key(AssetType.Package, 1), new[] { Reference(optionalSource), Reference(tool) });
         var nodes = new[] { Node(root), Node(optionalSource), Node(tool) };
-        var relationships = RelationshipsFor(nodes).ToArray();
-        var builder = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root));
+        var snapshot = ForgeSnapshot(AssetDefinitionKey.From(root), nodes, RelationshipsFor(nodes));
 
-        var graph = builder.Build(nodes, relationships);
+        var graph = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root)).Build(snapshot);
 
         graph.Relationships.Should().Contain(edge =>
             edge.SourceKey == AssetDefinitionKey.From(optionalSource)
@@ -160,26 +207,30 @@ public sealed class AIAssetGraphResultBuilderTests
         var missing = Foundation(Key(AssetType.Tool, 2));
         var root = Package(Key(AssetType.Package, 1), new[] { Reference(missing) });
         var rootNode = Node(root);
-        var relationship = RelationshipsFor(new[] { rootNode }).Single();
-        var builder = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root));
+        var snapshot = ForgeSnapshot(
+            AssetDefinitionKey.From(root),
+            new[] { rootNode },
+            RelationshipsFor(new[] { rootNode }));
 
-        Action act = () => builder.Build(new[] { rootNode }, new[] { relationship });
+        Action act = () => new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root)).Build(snapshot);
 
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*required*target*materialized*");
+        act.Should().Throw<InvalidOperationException>().WithMessage("*required*target*materialized*");
     }
 
     [Fact]
     public void Build_ShouldRejectMaterializedTargetUrnMismatch()
     {
         var tool = Foundation(Key(AssetType.Tool, 2));
-        var wrongReference = new AssetReference(tool.Type, tool.Id, new AssetUrn("urn:pulsestack:test:b6:wrong"), tool.Version);
+        var wrongReference = new AssetReference(
+            tool.Type,
+            tool.Id,
+            new AssetUrn("urn:pulsestack:test:b6:wrong"),
+            tool.Version);
         var root = Package(Key(AssetType.Package, 1), new[] { wrongReference });
         var nodes = new[] { Node(root), Node(tool) };
-        var relationship = RelationshipsFor(new[] { Node(root) }).Single();
-        var builder = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root));
+        var snapshot = ForgeSnapshot(AssetDefinitionKey.From(root), nodes, RelationshipsFor(new[] { Node(root) }));
 
-        Action act = () => builder.Build(nodes, new[] { relationship });
+        Action act = () => new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root)).Build(snapshot);
 
         act.Should().Throw<InvalidOperationException>().WithMessage("*URN*");
     }
@@ -187,12 +238,16 @@ public sealed class AIAssetGraphResultBuilderTests
     [Fact]
     public void Build_ShouldRejectDuplicateDefinitionKeys()
     {
-        var root = Package(Key(AssetType.Package, 1), Array.Empty<AssetReference>());
+        var member = Foundation(Key(AssetType.Tool, 2));
+        var root = Package(Key(AssetType.Package, 1), new[] { Reference(member) });
         var rootNode = Node(root);
         var duplicate = new AIAssetGraphNode(rootNode.DefinitionKey, rootNode.Asset);
-        var builder = new AIAssetGraphResultBuilder(rootNode.DefinitionKey);
+        var snapshot = ForgeSnapshot(
+            AssetDefinitionKey.From(root),
+            new[] { rootNode, duplicate, Node(member) },
+            RelationshipsFor(new[] { rootNode, Node(member) }));
 
-        Action act = () => builder.Build(new[] { rootNode, duplicate }, Array.Empty<AIAssetGraphRelationship>());
+        Action act = () => new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root)).Build(snapshot);
 
         act.Should().Throw<InvalidOperationException>().WithMessage("*more than one node*");
     }
@@ -200,11 +255,15 @@ public sealed class AIAssetGraphResultBuilderTests
     [Fact]
     public void Build_ShouldRequireExactRootExactlyOnce()
     {
-        var root = Package(Key(AssetType.Package, 1), Array.Empty<AssetReference>());
+        var rootMember = Foundation(Key(AssetType.Tool, 3));
+        var root = Package(Key(AssetType.Package, 1), new[] { Reference(rootMember) });
         var other = Foundation(Key(AssetType.Tool, 2));
-        var builder = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root));
+        var snapshot = ForgeSnapshot(
+            AssetDefinitionKey.From(root),
+            new[] { Node(other) },
+            Array.Empty<AIAssetGraphRelationship>());
 
-        Action act = () => builder.Build(new[] { Node(other) }, Array.Empty<AIAssetGraphRelationship>());
+        Action act = () => new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root)).Build(snapshot);
 
         act.Should().Throw<InvalidOperationException>().WithMessage("*root exactly once*");
     }
@@ -214,10 +273,12 @@ public sealed class AIAssetGraphResultBuilderTests
     {
         var tool = Foundation(Key(AssetType.Tool, 2));
         var root = Package(Key(AssetType.Package, 1), new[] { Reference(tool) });
-        var nodes = new[] { Node(root), Node(tool) };
-        var builder = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root));
+        var snapshot = ForgeSnapshot(
+            AssetDefinitionKey.From(root),
+            new[] { Node(root), Node(tool) },
+            Array.Empty<AIAssetGraphRelationship>());
 
-        Action act = () => builder.Build(nodes, Array.Empty<AIAssetGraphRelationship>());
+        Action act = () => new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root)).Build(snapshot);
 
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*every authoritative relationship authored*");
@@ -226,41 +287,33 @@ public sealed class AIAssetGraphResultBuilderTests
     [Fact]
     public void Build_ShouldRejectDisconnectedMaterializedNodeOutsideRequiredClosure()
     {
-        var root = Package(Key(AssetType.Package, 1), Array.Empty<AssetReference>());
+        var member = Foundation(Key(AssetType.Prompt, 3));
         var unrelated = Foundation(Key(AssetType.Tool, 2));
-        var nodes = new[] { Node(root), Node(unrelated) };
-        var builder = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root));
+        var root = Package(Key(AssetType.Package, 1), new[] { Reference(member) });
+        var nodes = new[] { Node(root), Node(member), Node(unrelated) };
+        var snapshot = ForgeSnapshot(AssetDefinitionKey.From(root), nodes, RelationshipsFor(nodes));
 
-        Action act = () => builder.Build(nodes, Array.Empty<AIAssetGraphRelationship>());
+        Action act = () => new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root)).Build(snapshot);
 
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*outside the root required-materialization closure*");
     }
 
     [Fact]
-    public void Build_ShouldDetachCollectionSnapshotsFromCallerArrays()
+    public void Build_ShouldDetachCollectionSnapshotsFromSuccessfulSnapshot()
     {
         var tool = Foundation(Key(AssetType.Tool, 2));
         var root = Package(Key(AssetType.Package, 1), new[] { Reference(tool) });
         var nodes = new[] { Node(tool), Node(root) };
         var relationships = RelationshipsFor(nodes).ToArray();
-        var originalRelationship = relationships[0];
-        var builder = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root));
+        var snapshot = ForgeSnapshot(AssetDefinitionKey.From(root), nodes, relationships);
 
-        var graph = builder.Build(nodes, relationships);
+        var graph = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root)).Build(snapshot);
         nodes[0] = Node(Foundation(Key(AssetType.Model, 9)));
-        relationships[0] = new AIAssetGraphRelationship(
-            AssetDefinitionKey.From(root),
-            Reference(tool),
-            AIAssetGraphRelationshipClass.ExplicitRequirement,
-            AIAssetGraphMaterializationAuthority.Excluded,
-            AIAssetGraphBoundaryRole.External,
-            false,
-            0,
-            "$.dependencies[0]");
+        relationships[0] = relationships[0] with { };
 
-        graph.Nodes.Select(node => node.DefinitionKey).Should().Contain(AssetDefinitionKey.From(tool));
-        graph.Relationships.Should().ContainSingle().Which.Should().BeSameAs(originalRelationship);
+        graph.Nodes.Select(static node => node.DefinitionKey).Should().Contain(AssetDefinitionKey.From(tool));
+        graph.Relationships.Should().ContainSingle();
     }
 
     [Fact]
@@ -274,17 +327,32 @@ public sealed class AIAssetGraphResultBuilderTests
         var root = Package(Key(AssetType.Package, 1), new[] { Reference(workflow), Reference(tool) });
         var nodes = new[] { Node(root), Node(workflow), Node(tool) };
         var relationships = RelationshipsFor(nodes).ToArray();
-        var builder = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root));
-
-        var forward = builder.Build(nodes, relationships);
-        var reordered = builder.Build(
+        var forwardSnapshot = ForgeSnapshot(AssetDefinitionKey.From(root), nodes, relationships);
+        var reorderedSnapshot = ForgeSnapshot(
+            AssetDefinitionKey.From(root),
             new HashSet<AIAssetGraphNode>(nodes.Reverse()),
             new HashSet<AIAssetGraphRelationship>(relationships.Reverse()));
+        var builder = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root));
 
-        reordered.Nodes.Select(node => node.DefinitionKey)
-            .Should().Equal(forward.Nodes.Select(node => node.DefinitionKey));
+        var forward = builder.Build(forwardSnapshot);
+        var reordered = builder.Build(reorderedSnapshot);
+
+        reordered.Nodes.Select(static node => node.DefinitionKey)
+            .Should().Equal(forward.Nodes.Select(static node => node.DefinitionKey));
         reordered.Relationships.Select(Signature)
             .Should().Equal(forward.Relationships.Select(Signature));
+    }
+
+    private static AIAssetGraphSuccessfulOperationSnapshot ForgeSnapshot(
+        AssetDefinitionKey rootKey,
+        IEnumerable<AIAssetGraphNode> nodes,
+        IEnumerable<AIAssetGraphRelationship> relationships)
+    {
+        var constructor = typeof(AIAssetGraphSuccessfulOperationSnapshot)
+            .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
+            .Single();
+        return (AIAssetGraphSuccessfulOperationSnapshot)constructor.Invoke(
+            new object[] { rootKey, nodes.ToArray(), relationships.ToArray() });
     }
 
     private static IEnumerable<AIAssetGraphRelationship> RelationshipsFor(
@@ -388,6 +456,66 @@ public sealed class AIAssetGraphResultBuilderTests
         }
 
         return true;
+    }
+
+    private sealed class ScriptedResolver : IPersistentAIAssetResolver
+    {
+        private readonly IReadOnlyDictionary<AssetDefinitionKey, IAsset> assets;
+
+        internal ScriptedResolver(params IAsset[] assets)
+        {
+            this.assets = assets.ToDictionary(AssetDefinitionKey.From);
+        }
+
+        public ValueTask<AIAssetResolutionResult> ResolveAsync(
+            AssetDefinitionKey key,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return ValueTask.FromResult<AIAssetResolutionResult>(
+                assets.TryGetValue(key, out var asset)
+                    ? new AIAssetResolutionResult.Resolved(asset)
+                    : new AIAssetResolutionResult.DefinitionNotPublished());
+        }
+
+        public ValueTask<AIAssetResolutionResult> ResolveAsync(
+            AssetReference reference,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var key = AssetDefinitionKey.From(reference);
+            if (!assets.TryGetValue(key, out var asset))
+            {
+                return ValueTask.FromResult<AIAssetResolutionResult>(
+                    new AIAssetResolutionResult.DefinitionNotPublished());
+            }
+
+            return ValueTask.FromResult<AIAssetResolutionResult>(
+                asset.Urn == reference.Urn
+                    ? new AIAssetResolutionResult.Resolved(asset)
+                    : new AIAssetResolutionResult.ReferenceMismatch());
+        }
+
+        public ValueTask<AIAssetResolutionResult> ResolveAsync(
+            AssetUrn urn,
+            AssetVersion version,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var asset = assets.Values.FirstOrDefault(candidate => candidate.Urn == urn && candidate.Version == version);
+            return ValueTask.FromResult<AIAssetResolutionResult>(
+                asset is null
+                    ? new AIAssetResolutionResult.LineageNotPublished()
+                    : new AIAssetResolutionResult.Resolved(asset));
+        }
+
+        public ValueTask<CatalogLineageLookupResult> DiscoverLineageAsync(
+            AssetUrn urn,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return ValueTask.FromResult<CatalogLineageLookupResult>(new CatalogLineageLookupResult.NotFound());
+        }
     }
 
     private sealed record TestAsset : Asset
