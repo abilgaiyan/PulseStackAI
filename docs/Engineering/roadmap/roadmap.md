@@ -185,22 +185,50 @@ Deferred from MS-008:
 
 ---
 
-## ⬜ MS-009 — AI Asset Platform Implementation
+## MS-009 — AI Asset Platform Implementation
 
-MS-009 moves from runtime execution to authoring-side Asset management.
+MS-009 moves from runtime execution to authoring-side Asset management. It is delivered through independently reviewed increments rather than as one indivisible implementation step.
 
-Expected capabilities include:
+```text
+MS-009.1–MS-009.9
+    implemented according to their individual closure records
 
-- AI Projects
-- AI Libraries
-- Asset catalog / registry
-- dependency graph and reference management
-- Asset validation
-- versioning and lifecycle
-- discovery and loading
-- application organization
+MS-009.9
+    aggregate declarative graph loading complete
 
-MS-009 should build on the realization contracts established by MS-008 rather than redefining runtime execution.
+broader MS-009
+    governed by the next repository/roadmap boundary
+```
+
+Work completed through MS-009.9 establishes the schema-v1 AI Asset persistence platform needed for portable definition storage and declarative loading, including persistence contracts and mappings, canonical serialization, serialized storage/loading, persistent catalog and exact resolution, and aggregate declarative graph loading.
+
+### ✅ MS-009.9 — Aggregate Declarative Graph Loading
+
+MS-009.9 closes provider-neutral multi-definition declarative graph loading for these supported aggregate roots:
+
+```text
+Project
+Library
+Package
+```
+
+Its architectural boundary is:
+
+```text
+persistent exact resolution
+        ↓
+multi-definition declarative graph loading
+        ↓
+future runtime realization
+
+MS-009.9 ends at AIAssetGraph.
+```
+
+The graph-loading layer is above `IPersistentAIAssetResolver`. Storage and catalog providers remain graph-unaware. Required declarative relationships form the materialized closure; optional requirements are preserved but do not initiate expansion. Runtime realization, activation, binding, instantiation, registration, and execution remain outside MS-009.9.
+
+The integrated closure proof covers public in-memory and file-backed persistence/catalog composition, file-backed recomposition, convergent graph loading, supported aggregate roots, deterministic normalized graph equivalence, and real persistent-resolver semantic failures that are reachable without violating lower-layer invariants.
+
+MS-009.9 does **not** declare all possible MS-009 work complete. The next MS-009 boundary must be established separately from current repository and roadmap evidence and explicitly authorized before implementation.
 
 ---
 
