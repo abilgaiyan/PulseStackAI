@@ -6,53 +6,9 @@ using PulseStack.Abstractions.Persistence.AIAssets.GraphLoading;
 namespace PulseStack.Core.Persistence.AIAssets.GraphLoading;
 
 /// <summary>
-/// Internal completion gate for B.6. A success snapshot can only be minted after the frozen
-/// expansion authority finishes without returning a graph-semantic failure. Predecessor
-/// exceptions and caller cancellation propagate unchanged from ExpandAsync.
+/// B.6 success-only completion authority. The private constructor prevents arbitrary
+/// collection snapshots from entering successful graph construction.
 /// </summary>
-internal sealed class AIAssetGraphOperationCompletion
-{
-    private AIAssetGraphOperationCompletion(
-        AIAssetGraphLoadResult? failure,
-        AIAssetGraphSuccessfulOperationSnapshot? success)
-    {
-        Failure = failure;
-        Success = success;
-    }
-
-    internal AIAssetGraphLoadResult? Failure { get; }
-
-    internal AIAssetGraphSuccessfulOperationSnapshot? Success { get; }
-
-    internal static async ValueTask<AIAssetGraphOperationCompletion> CompleteAsync(
-        IPersistentAIAssetResolver resolver,
-        AssetDefinitionKey rootKey,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(resolver);
-        AIAssetGraphContract.EnsureValidAggregateRootKey(rootKey, nameof(rootKey));
-
-        var operation = new AIAssetGraphExpansionOperation(resolver, rootKey);
-        var failure = await operation.ExpandAsync(cancellationToken).ConfigureAwait(false);
-        if (failure is not null)
-        {
-            return new AIAssetGraphOperationCompletion(failure, null);
-        }
-
-        if (operation.TerminalFailure is not null)
-        {
-            throw new InvalidOperationException(
-                "Frozen graph expansion reported successful completion while retaining a terminal graph failure.");
-        }
-
-        var success = AIAssetGraphSuccessfulOperationSnapshot.Create(
-            operation.RootKey,
-            operation.MaterializedNodes,
-            operation.ObservedRelationships);
-        return new AIAssetGraphOperationCompletion(null, success);
-    }
-}
-
 internal sealed class AIAssetGraphSuccessfulOperationSnapshot
 {
     private AIAssetGraphSuccessfulOperationSnapshot(
@@ -71,18 +27,32 @@ internal sealed class AIAssetGraphSuccessfulOperationSnapshot
 
     internal IReadOnlyList<AIAssetGraphRelationship> ObservedRelationships { get; }
 
-    internal static AIAssetGraphSuccessfulOperationSnapshot Create(
+    internal static async ValueTask<(AIAssetGraphLoadResult? Failure, AIAssetGraphSuccessfulOperationSnapshot? Success)> CompleteAsync(
+        IPersistentAIAssetResolver resolver,
         AssetDefinitionKey rootKey,
-        IEnumerable<AIAssetGraphNode> materializedNodes,
-        IEnumerable<AIAssetGraphRelationship> observedRelationships)
+        CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(resolver);
         AIAssetGraphContract.EnsureValidAggregateRootKey(rootKey, nameof(rootKey));
-        ArgumentNullException.ThrowIfNull(materializedNodes);
-        ArgumentNullException.ThrowIfNull(observedRelationships);
 
-        return new AIAssetGraphSuccessfulOperationSnapshot(
-            rootKey,
-            materializedNodes.ToArray(),
-            observedRelationships.ToArray());
+        var operation = new AIAssetGraphExpansionOperation(resolver, rootKey);
+        var failure = await operation.ExpandAsync(cancellationToken).ConfigureAwait(false);
+        if (failure is not null)
+        {
+            return (failure, null);
+        }
+
+        if (operation.TerminalFailure is not null)
+        {
+            throw new InvalidOperationException(
+                "Frozen graph expansion reported successful completion while retaining a terminal graph failure.");
+        }
+
+        return (
+            null,
+            new AIAssetGraphSuccessfulOperationSnapshot(
+                operation.RootKey,
+                operation.MaterializedNodes.ToArray(),
+                operation.ObservedRelationships.ToArray()));
     }
 }
