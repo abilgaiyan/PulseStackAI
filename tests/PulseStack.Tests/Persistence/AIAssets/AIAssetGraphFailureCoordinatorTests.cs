@@ -286,7 +286,7 @@ public sealed class AIAssetGraphFailureCoordinatorTests
             typeof(AIAssetGraphLoadResult.RequiredMaterializationCycle)
         };
 
-        failureTypes.Should().OnlyContain(type => type.GetProperty("Graph") is null);
+        failureTypes.Should().OnlyContain(type => type.GetProperty("Graph") == null);
         typeof(AIAssetGraphFailureContext).GetProperties()
             .Should().NotContain(property => typeof(IAsset).IsAssignableFrom(property.PropertyType));
     }
