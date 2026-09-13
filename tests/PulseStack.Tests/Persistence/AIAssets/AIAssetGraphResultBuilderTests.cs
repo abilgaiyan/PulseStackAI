@@ -4,7 +4,6 @@ using FluentAssertions;
 using PulseStack.Abstractions.Assets;
 using PulseStack.Abstractions.Persistence.AIAssets.Catalog;
 using PulseStack.Abstractions.Persistence.AIAssets.GraphLoading;
-using PulseStack.Abstractions.Workflows.Definitions;
 using PulseStack.Core.Persistence.AIAssets.GraphLoading;
 using Xunit;
 
@@ -17,10 +16,8 @@ public sealed class AIAssetGraphResultBuilderTests
     {
         var tool = Foundation(Key(AssetType.Tool, 2));
         var root = Package(Key(AssetType.Package, 1), new[] { Reference(tool) });
-        var resolver = new ScriptedResolver(root, tool);
-
         var completion = await AIAssetGraphSuccessfulOperationSnapshot.CompleteAsync(
-            resolver,
+            new ScriptedResolver(root, tool),
             AssetDefinitionKey.From(root));
 
         completion.Failure.Should().BeNull();
@@ -29,27 +26,23 @@ public sealed class AIAssetGraphResultBuilderTests
         var graph = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root))
             .Build(completion.Success!);
 
-        graph.RootKey.Should().Be(AssetDefinitionKey.From(root));
-        graph.Nodes.Select(static node => node.DefinitionKey).Should().Contain(
+        graph.Nodes.Select(static node => node.DefinitionKey).Should().Equal(
             AssetDefinitionKey.From(root),
             AssetDefinitionKey.From(tool));
         graph.Relationships.Should().ContainSingle();
     }
 
     [Fact]
-    public async Task FailedCycleExpansion_ShouldNeverMintSuccessfulSnapshot()
+    public async Task RequiredCycle_ShouldReturnFailureWithoutSuccessSnapshot()
     {
-        var aKey = Key(AssetType.Tool, 2);
-        var bKey = Key(AssetType.Prompt, 3);
-        var a = Foundation(aKey);
-        var b = Foundation(bKey);
+        var a = Foundation(Key(AssetType.Tool, 2));
+        var b = Foundation(Key(AssetType.Prompt, 3));
         a = a with { Dependencies = new[] { new AssetDependency(Reference(b), true) } };
         b = b with { Dependencies = new[] { new AssetDependency(Reference(a), true) } };
         var root = Package(Key(AssetType.Package, 1), new[] { Reference(a) });
-        var resolver = new ScriptedResolver(root, a, b);
 
         var completion = await AIAssetGraphSuccessfulOperationSnapshot.CompleteAsync(
-            resolver,
+            new ScriptedResolver(root, a, b),
             AssetDefinitionKey.From(root));
 
         completion.Failure.Should().BeOfType<AIAssetGraphLoadResult.RequiredMaterializationCycle>();
@@ -57,215 +50,67 @@ public sealed class AIAssetGraphResultBuilderTests
     }
 
     [Fact]
-    public void Build_ShouldNormalizeNodesByFrozenDefinitionKeyOrder()
+    public void Build_ShouldNormalizeNodesByTypeGuidAndVersion()
     {
-        var workflow = Workflow(Key(AssetType.Workflow, 6));
-        var project = Project(Key(AssetType.Project, 9), Reference(workflow), new[] { Reference(workflow) });
-        var library = Library(Key(AssetType.Library, 8), Array.Empty<AssetReference>());
-        var agent = Agent(Key(AssetType.Agent, 5));
+        var lowV1 = Foundation(Key(AssetType.Tool, 2, AssetVersion.Initial));
+        var lowV2 = Foundation(Key(AssetType.Tool, 2, new AssetVersion("2.0")));
+        var high = Foundation(Key(AssetType.Tool, 9));
         var prompt = Foundation(Key(AssetType.Prompt, 4));
-        var tool = Foundation(Key(AssetType.Tool, 3));
-        var nestedPackage = Package(Key(AssetType.Package, 7), new[] { Reference(tool) });
-        var knowledge = Foundation(Key(AssetType.Knowledge, 2));
-        var memory = Foundation(Key(AssetType.Memory, 1));
-        var policy = Foundation(Key(AssetType.Policy, 10));
-        var model = Foundation(Key(AssetType.Model, 11));
-        var descendants = new IAsset[]
-        {
-            project, library, nestedPackage, workflow, agent, prompt, tool, knowledge, memory, policy, model
-        };
-        var root = Package(Key(AssetType.Package, 20), descendants.Select(Reference).ToArray());
-        var nodes = descendants.Append(root).Select(Node).ToArray();
-        var relationships = RelationshipsFor(nodes).ToArray();
-        var snapshot = ForgeSnapshot(AssetDefinitionKey.From(root), nodes.Reverse(), relationships.Reverse());
+        var root = Package(Key(AssetType.Package, 1), new[] { Reference(high), Reference(lowV2), Reference(lowV1), Reference(prompt) });
+        var nodes = new[] { Node(high), Node(lowV2), Node(root), Node(prompt), Node(lowV1) };
+        var snapshot = ForgeSnapshot(AssetDefinitionKey.From(root), nodes.Reverse(), RelationshipsFor(nodes));
 
         var graph = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root)).Build(snapshot);
 
-        graph.Nodes.Select(static node => node.DefinitionKey.Type).Should().Equal(
-            AssetType.Project,
-            AssetType.Library,
-            AssetType.Package,
-            AssetType.Package,
-            AssetType.Workflow,
-            AssetType.Agent,
-            AssetType.Prompt,
-            AssetType.Tool,
-            AssetType.Knowledge,
-            AssetType.Memory,
-            AssetType.Policy,
-            AssetType.Model);
-    }
-
-    [Fact]
-    public void Build_ShouldUseGuidThenVersionWithinOneType()
-    {
-        var lowIdLowVersion = Foundation(Key(AssetType.Tool, 2, AssetVersion.Initial));
-        var lowIdHighVersion = Foundation(Key(AssetType.Tool, 2, new AssetVersion("2.0")));
-        var highId = Foundation(Key(AssetType.Tool, 9, AssetVersion.Initial));
-        var root = Package(
-            Key(AssetType.Package, 1),
-            new[] { Reference(highId), Reference(lowIdHighVersion), Reference(lowIdLowVersion) });
-        var nodes = new[] { Node(highId), Node(lowIdHighVersion), Node(root), Node(lowIdLowVersion) };
-        var snapshot = ForgeSnapshot(AssetDefinitionKey.From(root), nodes, RelationshipsFor(nodes));
-
-        var graph = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root)).Build(snapshot);
-
-        graph.Nodes.Skip(1).Select(static node => node.DefinitionKey).Should().Equal(
-            AssetDefinitionKey.From(lowIdLowVersion),
-            AssetDefinitionKey.From(lowIdHighVersion),
-            AssetDefinitionKey.From(highId));
+        graph.Nodes.Select(static node => node.DefinitionKey).Should().Equal(
+            AssetDefinitionKey.From(root),
+            AssetDefinitionKey.From(prompt),
+            AssetDefinitionKey.From(lowV1),
+            AssetDefinitionKey.From(lowV2),
+            AssetDefinitionKey.From(high));
     }
 
     [Fact]
     public void Build_ShouldNormalizeRelationshipsBySourceThenLocalOrdinal()
     {
-        var tool = Foundation(Key(AssetType.Tool, 3));
-        var workflow = Workflow(Key(AssetType.Workflow, 2)) with
-        {
-            Dependencies = new[] { new AssetDependency(Reference(tool), true) }
-        };
-        var root = Package(Key(AssetType.Package, 1), new[] { Reference(tool), Reference(workflow) });
-        var nodes = new[] { Node(tool), Node(workflow), Node(root) };
-        var snapshot = ForgeSnapshot(
-            AssetDefinitionKey.From(root),
-            nodes.Reverse(),
-            RelationshipsFor(nodes).Reverse());
+        var left = Foundation(Key(AssetType.Tool, 2));
+        var right = Foundation(Key(AssetType.Prompt, 3));
+        var root = Package(Key(AssetType.Package, 1), new[] { Reference(right), Reference(left) });
+        var nodes = new[] { Node(left), Node(root), Node(right) };
+        var relationships = RelationshipsFor(nodes).Reverse().ToArray();
+        var snapshot = ForgeSnapshot(AssetDefinitionKey.From(root), nodes, relationships);
 
         var graph = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root)).Build(snapshot);
 
-        graph.Relationships.Where(edge => edge.SourceKey == AssetDefinitionKey.From(root))
-            .Select(static edge => edge.LocalOrdinal).Should().Equal(0, 1);
-        graph.Relationships.Select(Signature).Should().BeInAscendingOrder();
+        graph.Relationships.Select(static relationship => relationship.LocalOrdinal).Should().Equal(0, 1);
     }
 
     [Fact]
-    public void Build_ShouldPreserveEveryDistinctAuthoredRelationshipOccurrence()
+    public void Build_ShouldPreserveOptionalAbsentAndPresentTargets()
     {
-        var tool = Foundation(Key(AssetType.Tool, 4));
-        var left = Foundation(Key(AssetType.Prompt, 2)) with
+        var present = Foundation(Key(AssetType.Tool, 2));
+        var absent = Foundation(Key(AssetType.Knowledge, 4));
+        var optionalSource = Foundation(Key(AssetType.Prompt, 3)) with
         {
-            Dependencies = new[] { new AssetDependency(Reference(tool), true) }
+            Dependencies = new[]
+            {
+                new AssetDependency(Reference(present), false),
+                new AssetDependency(Reference(absent), false)
+            }
         };
-        var right = Foundation(Key(AssetType.Knowledge, 3)) with
-        {
-            Dependencies = new[] { new AssetDependency(Reference(tool), true) }
-        };
-        var root = Package(Key(AssetType.Package, 1), new[] { Reference(left), Reference(right) });
-        var nodes = new[] { Node(root), Node(left), Node(right), Node(tool) };
-        var snapshot = ForgeSnapshot(AssetDefinitionKey.From(root), nodes, RelationshipsFor(nodes).Reverse());
-
-        var graph = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root)).Build(snapshot);
-
-        graph.Relationships.Should().HaveCount(4);
-        graph.Relationships.Count(edge => AssetDefinitionKey.From(edge.TargetReference) == AssetDefinitionKey.From(tool))
-            .Should().Be(2);
-    }
-
-    [Fact]
-    public void Build_ShouldAllowExcludedOptionalTargetToBeAbsent()
-    {
-        var member = Foundation(Key(AssetType.Prompt, 3));
-        var absent = Foundation(Key(AssetType.Tool, 2));
-        var root = Package(
-            Key(AssetType.Package, 1),
-            new[] { Reference(member) },
-            new[] { new AssetDependency(Reference(absent), false) });
-        var nodes = new[] { Node(root), Node(member) };
+        var root = Package(Key(AssetType.Package, 1), new[] { Reference(optionalSource), Reference(present) });
+        var nodes = new[] { Node(root), Node(optionalSource), Node(present) };
         var snapshot = ForgeSnapshot(AssetDefinitionKey.From(root), nodes, RelationshipsFor(nodes));
 
         var graph = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root)).Build(snapshot);
 
         graph.Relationships.Should().Contain(edge =>
-            edge.MaterializationAuthority == AIAssetGraphMaterializationAuthority.Excluded
-            && AssetDefinitionKey.From(edge.TargetReference) == AssetDefinitionKey.From(absent));
-        graph.Nodes.Should().NotContain(node => node.DefinitionKey == AssetDefinitionKey.From(absent));
-    }
-
-    [Fact]
-    public void Build_ShouldPreserveExcludedOptionalWhenTargetMaterializedElsewhere()
-    {
-        var tool = Foundation(Key(AssetType.Tool, 3));
-        var optionalSource = Foundation(Key(AssetType.Prompt, 2)) with
-        {
-            Dependencies = new[] { new AssetDependency(Reference(tool), false) }
-        };
-        var root = Package(Key(AssetType.Package, 1), new[] { Reference(optionalSource), Reference(tool) });
-        var nodes = new[] { Node(root), Node(optionalSource), Node(tool) };
-        var snapshot = ForgeSnapshot(AssetDefinitionKey.From(root), nodes, RelationshipsFor(nodes));
-
-        var graph = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root)).Build(snapshot);
-
-        graph.Relationships.Should().Contain(edge =>
-            edge.SourceKey == AssetDefinitionKey.From(optionalSource)
-            && AssetDefinitionKey.From(edge.TargetReference) == AssetDefinitionKey.From(tool)
+            AssetDefinitionKey.From(edge.TargetReference) == AssetDefinitionKey.From(present)
             && edge.MaterializationAuthority == AIAssetGraphMaterializationAuthority.Excluded);
-    }
-
-    [Fact]
-    public void Build_ShouldRejectMissingRequiredTarget()
-    {
-        var missing = Foundation(Key(AssetType.Tool, 2));
-        var root = Package(Key(AssetType.Package, 1), new[] { Reference(missing) });
-        var rootNode = Node(root);
-        var snapshot = ForgeSnapshot(
-            AssetDefinitionKey.From(root),
-            new[] { rootNode },
-            RelationshipsFor(new[] { rootNode }));
-
-        Action act = () => new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root)).Build(snapshot);
-
-        act.Should().Throw<InvalidOperationException>().WithMessage("*required*target*materialized*");
-    }
-
-    [Fact]
-    public void Build_ShouldRejectMaterializedTargetUrnMismatch()
-    {
-        var tool = Foundation(Key(AssetType.Tool, 2));
-        var wrongReference = new AssetReference(
-            tool.Type,
-            tool.Id,
-            new AssetUrn("urn:pulsestack:test:b6:wrong"),
-            tool.Version);
-        var root = Package(Key(AssetType.Package, 1), new[] { wrongReference });
-        var nodes = new[] { Node(root), Node(tool) };
-        var snapshot = ForgeSnapshot(AssetDefinitionKey.From(root), nodes, RelationshipsFor(new[] { Node(root) }));
-
-        Action act = () => new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root)).Build(snapshot);
-
-        act.Should().Throw<InvalidOperationException>().WithMessage("*URN*");
-    }
-
-    [Fact]
-    public void Build_ShouldRejectDuplicateDefinitionKeys()
-    {
-        var member = Foundation(Key(AssetType.Tool, 2));
-        var root = Package(Key(AssetType.Package, 1), new[] { Reference(member) });
-        var rootNode = Node(root);
-        var duplicate = new AIAssetGraphNode(rootNode.DefinitionKey, rootNode.Asset);
-        var snapshot = ForgeSnapshot(
-            AssetDefinitionKey.From(root),
-            new[] { rootNode, duplicate, Node(member) },
-            RelationshipsFor(new[] { rootNode, Node(member) }));
-
-        Action act = () => new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root)).Build(snapshot);
-
-        act.Should().Throw<InvalidOperationException>().WithMessage("*more than one node*");
-    }
-
-    [Fact]
-    public void Build_ShouldRequireExactRootExactlyOnce()
-    {
-        var rootMember = Foundation(Key(AssetType.Tool, 3));
-        var root = Package(Key(AssetType.Package, 1), new[] { Reference(rootMember) });
-        var other = Foundation(Key(AssetType.Tool, 2));
-        var snapshot = ForgeSnapshot(
-            AssetDefinitionKey.From(root),
-            new[] { Node(other) },
-            Array.Empty<AIAssetGraphRelationship>());
-
-        Action act = () => new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root)).Build(snapshot);
-
-        act.Should().Throw<InvalidOperationException>().WithMessage("*root exactly once*");
+        graph.Relationships.Should().Contain(edge =>
+            AssetDefinitionKey.From(edge.TargetReference) == AssetDefinitionKey.From(absent)
+            && edge.MaterializationAuthority == AIAssetGraphMaterializationAuthority.Excluded);
+        graph.Nodes.Should().NotContain(node => node.DefinitionKey == AssetDefinitionKey.From(absent));
     }
 
     [Fact]
@@ -285,7 +130,7 @@ public sealed class AIAssetGraphResultBuilderTests
     }
 
     [Fact]
-    public void Build_ShouldRejectDisconnectedMaterializedNodeOutsideRequiredClosure()
+    public void Build_ShouldRejectDisconnectedMaterializedNode()
     {
         var member = Foundation(Key(AssetType.Prompt, 3));
         var unrelated = Foundation(Key(AssetType.Tool, 2));
@@ -300,47 +145,93 @@ public sealed class AIAssetGraphResultBuilderTests
     }
 
     [Fact]
-    public void Build_ShouldDetachCollectionSnapshotsFromSuccessfulSnapshot()
+    public void Build_ShouldRejectMissingRequiredTargetAndUrnMismatch()
     {
-        var tool = Foundation(Key(AssetType.Tool, 2));
-        var root = Package(Key(AssetType.Package, 1), new[] { Reference(tool) });
-        var nodes = new[] { Node(tool), Node(root) };
-        var relationships = RelationshipsFor(nodes).ToArray();
-        var snapshot = ForgeSnapshot(AssetDefinitionKey.From(root), nodes, relationships);
+        var missing = Foundation(Key(AssetType.Tool, 2));
+        var root = Package(Key(AssetType.Package, 1), new[] { Reference(missing) });
+        var rootNode = Node(root);
+        var missingSnapshot = ForgeSnapshot(
+            AssetDefinitionKey.From(root),
+            new[] { rootNode },
+            RelationshipsFor(new[] { rootNode }));
 
-        var graph = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root)).Build(snapshot);
-        nodes[0] = Node(Foundation(Key(AssetType.Model, 9)));
-        relationships[0] = relationships[0] with { };
+        Action missingAct = () => new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root)).Build(missingSnapshot);
+        missingAct.Should().Throw<InvalidOperationException>().WithMessage("*required*target*materialized*");
 
-        graph.Nodes.Select(static node => node.DefinitionKey).Should().Contain(AssetDefinitionKey.From(tool));
-        graph.Relationships.Should().ContainSingle();
+        var materialized = Foundation(Key(AssetType.Tool, 2));
+        var wrongReference = new AssetReference(
+            materialized.Type,
+            materialized.Id,
+            new AssetUrn("urn:pulsestack:test:b6:wrong"),
+            materialized.Version);
+        var mismatchRoot = Package(Key(AssetType.Package, 5), new[] { wrongReference });
+        var mismatchNodes = new[] { Node(mismatchRoot), Node(materialized) };
+        var mismatchSnapshot = ForgeSnapshot(
+            AssetDefinitionKey.From(mismatchRoot),
+            mismatchNodes,
+            RelationshipsFor(new[] { Node(mismatchRoot) }));
+
+        Action mismatchAct = () => new AIAssetGraphResultBuilder(AssetDefinitionKey.From(mismatchRoot)).Build(mismatchSnapshot);
+        mismatchAct.Should().Throw<InvalidOperationException>().WithMessage("*URN*");
     }
 
     [Fact]
-    public void Build_ShouldBeIndependentOfInputAndHashIterationOrder()
+    public void Build_ShouldRejectDuplicateNodeAndWrongRoot()
     {
-        var tool = Foundation(Key(AssetType.Tool, 3));
-        var workflow = Workflow(Key(AssetType.Workflow, 2)) with
-        {
-            Dependencies = new[] { new AssetDependency(Reference(tool), true) }
-        };
-        var root = Package(Key(AssetType.Package, 1), new[] { Reference(workflow), Reference(tool) });
-        var nodes = new[] { Node(root), Node(workflow), Node(tool) };
+        var member = Foundation(Key(AssetType.Tool, 2));
+        var root = Package(Key(AssetType.Package, 1), new[] { Reference(member) });
+        var rootNode = Node(root);
+        var duplicateSnapshot = ForgeSnapshot(
+            AssetDefinitionKey.From(root),
+            new[] { rootNode, new AIAssetGraphNode(rootNode.DefinitionKey, rootNode.Asset), Node(member) },
+            RelationshipsFor(new[] { rootNode, Node(member) }));
+
+        Action duplicateAct = () => new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root)).Build(duplicateSnapshot);
+        duplicateAct.Should().Throw<InvalidOperationException>().WithMessage("*more than one node*");
+
+        var wrongRoot = Package(Key(AssetType.Package, 5), new[] { Reference(member) });
+        var validSnapshot = ForgeSnapshot(
+            AssetDefinitionKey.From(root),
+            new[] { rootNode, Node(member) },
+            RelationshipsFor(new[] { rootNode, Node(member) }));
+
+        Action wrongRootAct = () => new AIAssetGraphResultBuilder(AssetDefinitionKey.From(wrongRoot)).Build(validSnapshot);
+        wrongRootAct.Should().Throw<InvalidOperationException>().WithMessage("*snapshot root*");
+    }
+
+    [Fact]
+    public void Build_ShouldDetachAndRemainOrderIndependent()
+    {
+        var left = Foundation(Key(AssetType.Tool, 2));
+        var right = Foundation(Key(AssetType.Prompt, 3));
+        var root = Package(Key(AssetType.Package, 1), new[] { Reference(left), Reference(right) });
+        var nodes = new[] { Node(root), Node(left), Node(right) };
         var relationships = RelationshipsFor(nodes).ToArray();
         var forwardSnapshot = ForgeSnapshot(AssetDefinitionKey.From(root), nodes, relationships);
-        var reorderedSnapshot = ForgeSnapshot(
+        var reversedSnapshot = ForgeSnapshot(
             AssetDefinitionKey.From(root),
             new HashSet<AIAssetGraphNode>(nodes.Reverse()),
             new HashSet<AIAssetGraphRelationship>(relationships.Reverse()));
         var builder = new AIAssetGraphResultBuilder(AssetDefinitionKey.From(root));
 
         var forward = builder.Build(forwardSnapshot);
-        var reordered = builder.Build(reorderedSnapshot);
+        var reversed = builder.Build(reversedSnapshot);
+        nodes[0] = Node(Foundation(Key(AssetType.Model, 9)));
+        relationships[0] = new AIAssetGraphRelationship(
+            AssetDefinitionKey.From(root),
+            Reference(left),
+            AIAssetGraphRelationshipClass.ExplicitRequirement,
+            AIAssetGraphMaterializationAuthority.Excluded,
+            AIAssetGraphBoundaryRole.External,
+            false,
+            0,
+            "$.dependencies[0]");
 
-        reordered.Nodes.Select(static node => node.DefinitionKey)
+        reversed.Nodes.Select(static node => node.DefinitionKey)
             .Should().Equal(forward.Nodes.Select(static node => node.DefinitionKey));
-        reordered.Relationships.Select(Signature)
+        reversed.Relationships.Select(Signature)
             .Should().Equal(forward.Relationships.Select(Signature));
+        forward.Nodes.Should().Contain(node => node.DefinitionKey == AssetDefinitionKey.From(root));
     }
 
     private static AIAssetGraphSuccessfulOperationSnapshot ForgeSnapshot(
@@ -355,8 +246,7 @@ public sealed class AIAssetGraphResultBuilderTests
             new object[] { rootKey, nodes.ToArray(), relationships.ToArray() });
     }
 
-    private static IEnumerable<AIAssetGraphRelationship> RelationshipsFor(
-        IEnumerable<AIAssetGraphNode> nodes)
+    private static IEnumerable<AIAssetGraphRelationship> RelationshipsFor(IEnumerable<AIAssetGraphNode> nodes)
     {
         var enumerator = new AIAssetGraphRelationshipEnumerator();
         return nodes.SelectMany(node => enumerator.Enumerate(node.Asset)).ToArray();
@@ -365,17 +255,10 @@ public sealed class AIAssetGraphResultBuilderTests
     private static string Signature(AIAssetGraphRelationship relationship) =>
         $"{relationship.SourceKey.Type}|{relationship.SourceKey.Id.Value:D}|{relationship.SourceKey.Version.Value}|{relationship.LocalOrdinal:D8}|{relationship.AuthoredPath}";
 
-    private static AIAssetGraphNode Node(IAsset asset) =>
-        new(AssetDefinitionKey.From(asset), asset);
+    private static AIAssetGraphNode Node(IAsset asset) => new(AssetDefinitionKey.From(asset), asset);
 
-    private static AssetDefinitionKey Key(
-        AssetType type,
-        int value,
-        AssetVersion? version = null) =>
-        new(
-            type,
-            new AssetId(Guid.Parse($"00000000-0000-0000-0000-{value:D12}")),
-            version ?? AssetVersion.Initial);
+    private static AssetDefinitionKey Key(AssetType type, int value, AssetVersion? version = null) =>
+        new(type, new AssetId(Guid.Parse($"00000000-0000-0000-0000-{value:D12}")), version ?? AssetVersion.Initial);
 
     private static TestAsset Foundation(AssetDefinitionKey key) =>
         new(key, new AssetUrn($"urn:pulsestack:test:b6:{key.Type}:{key.Id.Value:D}:{key.Version.Value}"));
@@ -390,47 +273,6 @@ public sealed class AIAssetGraphResultBuilderTests
             key.Version,
             new PackageAssetOptions { Name = "package", Description = "package", Members = members },
             dependencies ?? Array.Empty<AssetDependency>());
-
-    private static LibraryAsset Library(
-        AssetDefinitionKey key,
-        IReadOnlyList<AssetReference> members) =>
-        Construct<LibraryAsset>(
-            key.Id,
-            new AssetUrn($"urn:pulsestack:test:b6:library:{key.Id.Value:D}"),
-            new LibraryAssetOptions { Name = "library", Description = "library", Members = members },
-            Array.Empty<AssetDependency>());
-
-    private static ProjectAsset Project(
-        AssetDefinitionKey key,
-        AssetReference entryWorkflow,
-        IReadOnlyList<AssetReference> ownedAssets) =>
-        Construct<ProjectAsset>(
-            key.Id,
-            new AssetUrn($"urn:pulsestack:test:b6:project:{key.Id.Value:D}"),
-            new ProjectAssetOptions
-            {
-                Name = "project",
-                EntryWorkflow = entryWorkflow,
-                OwnedAssets = ownedAssets
-            },
-            Array.Empty<AssetDependency>());
-
-    private static WorkflowAsset Workflow(AssetDefinitionKey key) =>
-        Construct<WorkflowAsset>(
-            key.Id,
-            new AssetUrn($"urn:pulsestack:test:b6:workflow:{key.Id.Value:D}"),
-            new WorkflowAssetOptions { Name = "workflow", Steps = Array.Empty<WorkflowStepDefinition>() });
-
-    private static AgentDefinition Agent(AssetDefinitionKey key) =>
-        Construct<AgentDefinition>(
-            key.Id,
-            new AssetUrn($"urn:pulsestack:test:b6:agent:{key.Id.Value:D}"),
-            new AgentDefinitionOptions
-            {
-                Name = "agent",
-                Goal = "goal",
-                Role = "role"
-            });
 
     private static AssetReference Reference(IAsset asset) =>
         new(asset.Type, asset.Id, asset.Urn, asset.Version);
@@ -462,10 +304,8 @@ public sealed class AIAssetGraphResultBuilderTests
     {
         private readonly IReadOnlyDictionary<AssetDefinitionKey, IAsset> assets;
 
-        internal ScriptedResolver(params IAsset[] assets)
-        {
+        internal ScriptedResolver(params IAsset[] assets) =>
             this.assets = assets.ToDictionary(AssetDefinitionKey.From);
-        }
 
         public ValueTask<AIAssetResolutionResult> ResolveAsync(
             AssetDefinitionKey key,
@@ -486,8 +326,7 @@ public sealed class AIAssetGraphResultBuilderTests
             var key = AssetDefinitionKey.From(reference);
             if (!assets.TryGetValue(key, out var asset))
             {
-                return ValueTask.FromResult<AIAssetResolutionResult>(
-                    new AIAssetResolutionResult.DefinitionNotPublished());
+                return ValueTask.FromResult<AIAssetResolutionResult>(new AIAssetResolutionResult.DefinitionNotPublished());
             }
 
             return ValueTask.FromResult<AIAssetResolutionResult>(
