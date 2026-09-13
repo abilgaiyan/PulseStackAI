@@ -75,16 +75,66 @@ public sealed class AIAssetGraphFailureCoordinatorTests
         var earlier = RequiredUnavailable(root, Relationship(root, Key(AssetType.Tool, 2), 0, "Members[0]"));
         var later = RequiredUnavailable(root, Relationship(root, Key(AssetType.Tool, 3), 1, "Members[1]"));
 
-        var first = new AIAssetGraphFailureCoordinator();
+        var first = new AIAssetGraphFailureCoordinator(root);
         first.Observe(later);
         first.Observe(earlier);
 
-        var second = new AIAssetGraphFailureCoordinator();
+        var second = new AIAssetGraphFailureCoordinator(root);
         second.Observe(earlier);
         second.Observe(later);
 
         first.Commit().Should().BeSameAs(earlier);
         second.Commit().Should().BeSameAs(earlier);
+    }
+
+    [Fact]
+    public void Coordinator_ShouldAcceptMatchingRootCandidate()
+    {
+        var root = Key(AssetType.Package, 1);
+        var failure = RequiredUnavailable(root, Relationship(root, Key(AssetType.Tool, 2), 0, "Members[0]"));
+        var coordinator = new AIAssetGraphFailureCoordinator(root);
+
+        coordinator.Observe(failure);
+
+        coordinator.RootKey.Should().Be(root);
+        coordinator.Commit().Should().BeSameAs(failure);
+    }
+
+    [Fact]
+    public void Coordinator_ShouldRejectDifferentRootBeforeAffectingCandidate()
+    {
+        var root = Key(AssetType.Package, 1);
+        var otherRoot = Key(AssetType.Project, 2);
+        var valid = RequiredUnavailable(root, Relationship(root, Key(AssetType.Tool, 3), 1, "Members[1]"));
+        var foreign = RequiredUnavailable(otherRoot, Relationship(otherRoot, Key(AssetType.Workflow, 4), 0, "OwnedAssets[0]"));
+        var coordinator = new AIAssetGraphFailureCoordinator(root);
+        coordinator.Observe(valid);
+
+        Action act = () => coordinator.Observe(foreign);
+
+        act.Should().Throw<ArgumentException>();
+        coordinator.Commit().Should().BeSameAs(valid);
+    }
+
+    [Fact]
+    public void SeparateCoordinators_ShouldSelectFailuresIndependentlyPerRoot()
+    {
+        var packageRoot = Key(AssetType.Package, 1);
+        var projectRoot = Key(AssetType.Project, 2);
+        var packageFailure = RequiredUnavailable(
+            packageRoot,
+            Relationship(packageRoot, Key(AssetType.Tool, 3), 0, "Members[0]"));
+        var projectFailure = RequiredUnavailable(
+            projectRoot,
+            Relationship(projectRoot, Key(AssetType.Workflow, 4), 0, "OwnedAssets[0]"));
+        var packageCoordinator = new AIAssetGraphFailureCoordinator(packageRoot);
+        var projectCoordinator = new AIAssetGraphFailureCoordinator(projectRoot);
+
+        packageCoordinator.Observe(packageFailure);
+        projectCoordinator.Observe(projectFailure);
+
+        packageCoordinator.Commit().Should().BeSameAs(packageFailure);
+        projectCoordinator.Commit().Should().BeSameAs(projectFailure);
     }
 
     [Theory]
@@ -100,7 +150,7 @@ public sealed class AIAssetGraphFailureCoordinatorTests
         AIAssetGraphLoadResult identity = lineage
             ? LineageConflict(path, relationship)
             : ReferenceConflict(path, relationship);
-        var coordinator = new AIAssetGraphFailureCoordinator();
+        var coordinator = new AIAssetGraphFailureCoordinator(root);
 
         coordinator.Observe(unavailable);
         coordinator.Observe(identity);
@@ -118,7 +168,7 @@ public sealed class AIAssetGraphFailureCoordinatorTests
         var path = Path(root, enter, close);
         var unavailable = RequiredUnavailable(path, close);
         var cycle = Cycle(path, close, active, 1);
-        var coordinator = new AIAssetGraphFailureCoordinator();
+        var coordinator = new AIAssetGraphFailureCoordinator(root);
 
         coordinator.Observe(cycle);
         coordinator.Observe(unavailable);
@@ -134,7 +184,7 @@ public sealed class AIAssetGraphFailureCoordinatorTests
         var laterRelationship = Relationship(root, Key(AssetType.Tool, 3), 1, "Members[1]");
         var earlierUnavailable = RequiredUnavailable(root, earlierRelationship);
         var laterIdentity = ReferenceConflict(Path(root, laterRelationship), laterRelationship);
-        var coordinator = new AIAssetGraphFailureCoordinator();
+        var coordinator = new AIAssetGraphFailureCoordinator(root);
 
         coordinator.Observe(laterIdentity);
         coordinator.Observe(earlierUnavailable);
@@ -148,7 +198,7 @@ public sealed class AIAssetGraphFailureCoordinatorTests
         var root = Key(AssetType.Package, 1);
         var failure = new AIAssetGraphLoadResult.RootDefinitionUnavailable(
             new AIAssetGraphRootDefinitionUnavailableContext(root));
-        var coordinator = new AIAssetGraphFailureCoordinator();
+        var coordinator = new AIAssetGraphFailureCoordinator(root);
 
         coordinator.Observe(failure);
         var committed = coordinator.Commit();
@@ -164,7 +214,7 @@ public sealed class AIAssetGraphFailureCoordinatorTests
         var root = Key(AssetType.Package, 1);
         var first = RequiredUnavailable(root, Relationship(root, Key(AssetType.Tool, 2), 1, "Members[1]"));
         var wouldHaveWonBeforeCommit = RequiredUnavailable(root, Relationship(root, Key(AssetType.Tool, 3), 0, "Members[0]"));
-        var coordinator = new AIAssetGraphFailureCoordinator();
+        var coordinator = new AIAssetGraphFailureCoordinator(root);
         coordinator.Observe(first);
 
         coordinator.Commit().Should().BeSameAs(first);
@@ -177,7 +227,8 @@ public sealed class AIAssetGraphFailureCoordinatorTests
     [Fact]
     public async Task PredecessorException_ShouldRemainUnwrappedWithoutCommittedGraphFailure()
     {
-        var coordinator = new AIAssetGraphFailureCoordinator();
+        var root = Key(AssetType.Package, 1);
+        var coordinator = new AIAssetGraphFailureCoordinator(root);
         var predecessor = new InvalidOperationException("predecessor-authority");
 
         Func<Task> act = () => Task.Run(() => coordinator.PreservePredecessorFailure(predecessor));
@@ -191,7 +242,7 @@ public sealed class AIAssetGraphFailureCoordinatorTests
     {
         var root = Key(AssetType.Package, 1);
         var failure = RequiredUnavailable(root, Relationship(root, Key(AssetType.Tool, 2), 0, "Members[0]"));
-        var coordinator = new AIAssetGraphFailureCoordinator();
+        var coordinator = new AIAssetGraphFailureCoordinator(root);
         coordinator.Observe(failure);
         coordinator.Commit();
 
@@ -205,7 +256,7 @@ public sealed class AIAssetGraphFailureCoordinatorTests
     {
         var root = Key(AssetType.Package, 1);
         var failure = RequiredUnavailable(root, Relationship(root, Key(AssetType.Tool, 2), 0, "Members[0]"));
-        var coordinator = new AIAssetGraphFailureCoordinator();
+        var coordinator = new AIAssetGraphFailureCoordinator(root);
         coordinator.Observe(failure);
         using var cts = new CancellationTokenSource();
         cts.Cancel();
@@ -222,7 +273,7 @@ public sealed class AIAssetGraphFailureCoordinatorTests
     {
         var root = Key(AssetType.Package, 1);
         var failure = RequiredUnavailable(root, Relationship(root, Key(AssetType.Tool, 2), 0, "Members[0]"));
-        var coordinator = new AIAssetGraphFailureCoordinator();
+        var coordinator = new AIAssetGraphFailureCoordinator(root);
         coordinator.Observe(failure);
         coordinator.Commit();
         using var cts = new CancellationTokenSource();
@@ -237,7 +288,7 @@ public sealed class AIAssetGraphFailureCoordinatorTests
         var root = Key(AssetType.Package, 1);
         var earlier = RequiredUnavailable(root, Relationship(root, Key(AssetType.Tool, 2), 0, "Members[0]"));
         var later = RequiredUnavailable(root, Relationship(root, Key(AssetType.Tool, 3), 1, "Members[1]"));
-        var coordinator = new AIAssetGraphFailureCoordinator();
+        var coordinator = new AIAssetGraphFailureCoordinator(root);
 
         var slowEarlier = Task.Run(async () =>
         {
@@ -264,7 +315,7 @@ public sealed class AIAssetGraphFailureCoordinatorTests
         var close = Relationship(active, active, 0, "Dependencies[0]");
         var path = Path(root, enter, close);
         var cycle = Cycle(path, close, active, 1);
-        var coordinator = new AIAssetGraphFailureCoordinator();
+        var coordinator = new AIAssetGraphFailureCoordinator(root);
 
         coordinator.Observe(cycle);
         var committed = coordinator.Commit().Should().BeOfType<AIAssetGraphLoadResult.RequiredMaterializationCycle>().Subject;
