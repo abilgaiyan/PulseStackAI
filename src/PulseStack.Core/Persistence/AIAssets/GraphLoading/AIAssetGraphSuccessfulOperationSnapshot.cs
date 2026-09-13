@@ -28,7 +28,8 @@ internal sealed class AIAssetGraphSuccessfulOperationSnapshot
     internal static async ValueTask<(AIAssetGraphLoadResult? Failure, AIAssetGraphSuccessfulOperationSnapshot? Success)> CompleteAsync(
         IPersistentAIAssetResolver resolver,
         AssetDefinitionKey rootKey,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Action<AIAssetGraphLoadResult?>? afterTerminalCommit = null)
     {
         ArgumentNullException.ThrowIfNull(resolver);
         AIAssetGraphContract.EnsureValidAggregateRootKey(rootKey, nameof(rootKey));
@@ -42,23 +43,33 @@ internal sealed class AIAssetGraphSuccessfulOperationSnapshot
             if (observedFailure is not null)
             {
                 coordinator.Observe(observedFailure);
-                return (coordinator.Commit(cancellationToken), null);
+                var committedFailure = coordinator.Commit(cancellationToken)
+                    ?? throw new InvalidOperationException(
+                        "A graph-semantic failure was observed but no terminal failure was committed.");
+                afterTerminalCommit?.Invoke(committedFailure);
+                return (committedFailure, null);
             }
 
             if (operation.TerminalFailure is not null)
             {
                 coordinator.Observe(operation.TerminalFailure);
-                return (coordinator.Commit(cancellationToken), null);
+                var committedFailure = coordinator.Commit(cancellationToken)
+                    ?? throw new InvalidOperationException(
+                        "A retained graph-semantic failure was observed but no terminal failure was committed.");
+                afterTerminalCommit?.Invoke(committedFailure);
+                return (committedFailure, null);
             }
 
             // Commit is the final caller-cancellation boundary. A null return means no
             // semantic failure was selected and terminal success is now authoritative.
-            var committedFailure = coordinator.Commit(cancellationToken);
-            if (committedFailure is not null)
+            var selectedFailure = coordinator.Commit(cancellationToken);
+            if (selectedFailure is not null)
             {
-                return (committedFailure, null);
+                afterTerminalCommit?.Invoke(selectedFailure);
+                return (selectedFailure, null);
             }
 
+            afterTerminalCommit?.Invoke(null);
             return (
                 null,
                 new AIAssetGraphSuccessfulOperationSnapshot(
