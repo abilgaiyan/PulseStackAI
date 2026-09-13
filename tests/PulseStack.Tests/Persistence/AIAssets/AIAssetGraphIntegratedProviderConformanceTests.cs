@@ -41,16 +41,13 @@ public sealed class AIAssetGraphIntegratedProviderConformanceTests
         var package = await LoadSuccessAsync(loader, packageFixture.Root.Key);
 
         project.RootKey.Should().Be(projectFixture.Root.Key);
-        project.Nodes.Select(static node => node.DefinitionKey)
-            .Should().Contain(projectFixture.Definitions.Select(static definition => definition.Key));
+        AssertExactNodeIdentitySet(project, projectFixture.Definitions);
 
         library.RootKey.Should().Be(libraryFixture.Root.Key);
-        library.Nodes.Select(static node => node.DefinitionKey)
-            .Should().Contain(libraryFixture.Definitions.Select(static definition => definition.Key));
+        AssertExactNodeIdentitySet(library, libraryFixture.Definitions);
 
         package.RootKey.Should().Be(packageFixture.Root.Key);
-        package.Nodes.Select(static node => node.DefinitionKey)
-            .Should().Contain(packageFixture.Definitions.Select(static definition => definition.Key));
+        AssertExactNodeIdentitySet(package, packageFixture.Definitions);
     }
 
     [Fact]
@@ -227,6 +224,21 @@ public sealed class AIAssetGraphIntegratedProviderConformanceTests
     {
         var result = await loader.LoadAsync(rootKey);
         return result.Should().BeOfType<AIAssetGraphLoadResult.Success>().Subject.Graph;
+    }
+
+    private static void AssertExactNodeIdentitySet(
+        AIAssetGraph graph,
+        IReadOnlyList<Definition> expectedDefinitions)
+    {
+        var actualKeys = graph.Nodes
+            .Select(static node => node.DefinitionKey)
+            .ToArray();
+        var expectedKeys = expectedDefinitions
+            .Select(static definition => definition.Key)
+            .ToArray();
+
+        actualKeys.Should().HaveCount(expectedKeys.Length);
+        actualKeys.Should().BeEquivalentTo(expectedKeys);
     }
 
     private static AggregateFixture CreateProjectFixture()
