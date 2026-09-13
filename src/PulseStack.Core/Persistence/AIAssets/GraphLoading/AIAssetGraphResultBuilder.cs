@@ -4,8 +4,8 @@ using PulseStack.Abstractions.Persistence.AIAssets.GraphLoading;
 namespace PulseStack.Core.Persistence.AIAssets.GraphLoading;
 
 /// <summary>
-/// B.6 success-only authority that validates completed operation state and constructs the
-/// normalized, detached caller-facing graph. It does not select semantic failures.
+/// B.6 success-only authority that validates a completion-bound operation snapshot and constructs
+/// the normalized, detached caller-facing graph. It does not select semantic failures.
 /// </summary>
 internal sealed class AIAssetGraphResultBuilder
 {
@@ -18,22 +18,24 @@ internal sealed class AIAssetGraphResultBuilder
         this.rootKey = rootKey;
     }
 
-    internal AIAssetGraph Build(
-        IEnumerable<AIAssetGraphNode> materializedNodes,
-        IEnumerable<AIAssetGraphRelationship> observedRelationships)
+    internal AIAssetGraph Build(AIAssetGraphSuccessfulOperationSnapshot successfulOperation)
     {
-        ArgumentNullException.ThrowIfNull(materializedNodes);
-        ArgumentNullException.ThrowIfNull(observedRelationships);
+        ArgumentNullException.ThrowIfNull(successfulOperation);
 
-        var nodes = materializedNodes.ToArray();
-        var relationships = observedRelationships.ToArray();
+        if (successfulOperation.RootKey != rootKey)
+        {
+            throw new InvalidOperationException(
+                "The successful operation snapshot root must match the graph result builder root authority.");
+        }
+
+        var nodes = successfulOperation.MaterializedNodes.ToArray();
+        var relationships = successfulOperation.ObservedRelationships.ToArray();
 
         ValidateNodes(nodes);
         ValidateRelationships(nodes, relationships);
         ValidateAuthoredRelationshipCompleteness(nodes, relationships);
         ValidateRequiredReachability(nodes, relationships);
 
-        // AIAssetGraph owns the frozen normalization and detached read-only snapshots.
         return new AIAssetGraph(rootKey, nodes, relationships);
     }
 
@@ -95,8 +97,6 @@ internal sealed class AIAssetGraphResultBuilder
                 throw new InvalidOperationException("Completed B.6 operation state contains an unsupported relationship class.");
             }
 
-            // DerivedProjection and OpaqueEnvelopeReference have no public graph-relationship
-            // enum values; any future extension must not silently enter schema-v1 success output.
             if (relationship.RelationshipClass is not (
                 AIAssetGraphRelationshipClass.DistinguishedStructural
                 or AIAssetGraphRelationshipClass.InternalOwnership
