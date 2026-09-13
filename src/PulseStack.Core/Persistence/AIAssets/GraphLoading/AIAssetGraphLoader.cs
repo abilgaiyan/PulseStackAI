@@ -12,9 +12,14 @@ internal sealed class AIAssetGraphLoader : IAIAssetGraphLoader
     private readonly IPersistentAIAssetResolver resolver;
     private readonly AIAssetGraphLoaderExecutionHooks? executionHooks;
 
+    public AIAssetGraphLoader(IPersistentAIAssetResolver resolver)
+        : this(resolver, executionHooks: null)
+    {
+    }
+
     internal AIAssetGraphLoader(
         IPersistentAIAssetResolver resolver,
-        AIAssetGraphLoaderExecutionHooks? executionHooks = null)
+        AIAssetGraphLoaderExecutionHooks? executionHooks)
     {
         ArgumentNullException.ThrowIfNull(resolver);
         this.resolver = resolver;
