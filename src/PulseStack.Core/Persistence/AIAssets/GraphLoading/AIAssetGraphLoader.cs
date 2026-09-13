@@ -10,11 +10,15 @@ namespace PulseStack.Core.Persistence.AIAssets.GraphLoading;
 internal sealed class AIAssetGraphLoader : IAIAssetGraphLoader
 {
     private readonly IPersistentAIAssetResolver resolver;
+    private readonly AIAssetGraphLoaderExecutionHooks? executionHooks;
 
-    internal AIAssetGraphLoader(IPersistentAIAssetResolver resolver)
+    internal AIAssetGraphLoader(
+        IPersistentAIAssetResolver resolver,
+        AIAssetGraphLoaderExecutionHooks? executionHooks = null)
     {
         ArgumentNullException.ThrowIfNull(resolver);
         this.resolver = resolver;
+        this.executionHooks = executionHooks;
     }
 
     public async ValueTask<AIAssetGraphLoadResult> LoadAsync(
@@ -28,7 +32,8 @@ internal sealed class AIAssetGraphLoader : IAIAssetGraphLoader
         var completion = await AIAssetGraphSuccessfulOperationSnapshot.CompleteAsync(
             resolver,
             rootKey,
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            executionHooks?.AfterTerminalCommit).ConfigureAwait(false);
 
         if (completion.Failure is not null)
         {
@@ -39,7 +44,19 @@ internal sealed class AIAssetGraphLoader : IAIAssetGraphLoader
             ?? throw new InvalidOperationException(
                 "Graph loading completed without either a terminal failure or a success snapshot.");
 
+        executionHooks?.BeforeGraphConstruction?.Invoke();
         var graph = new AIAssetGraphResultBuilder(rootKey).Build(snapshot);
         return new AIAssetGraphLoadResult.Success(graph);
     }
+}
+
+/// <summary>
+/// Internal B.7 proof seam. Production composition does not require hooks; tests use them to
+/// observe the exact terminal-commit boundary without changing public API or frozen semantics.
+/// </summary>
+internal sealed class AIAssetGraphLoaderExecutionHooks
+{
+    internal Action<AIAssetGraphLoadResult?>? AfterTerminalCommit { get; init; }
+
+    internal Action? BeforeGraphConstruction { get; init; }
 }
