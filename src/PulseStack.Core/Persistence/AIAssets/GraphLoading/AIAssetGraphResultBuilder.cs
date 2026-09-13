@@ -10,6 +10,7 @@ namespace PulseStack.Core.Persistence.AIAssets.GraphLoading;
 internal sealed class AIAssetGraphResultBuilder
 {
     private readonly AssetDefinitionKey rootKey;
+    private readonly AIAssetGraphRelationshipEnumerator relationshipEnumerator = new();
 
     internal AIAssetGraphResultBuilder(AssetDefinitionKey rootKey)
     {
@@ -29,6 +30,8 @@ internal sealed class AIAssetGraphResultBuilder
 
         ValidateNodes(nodes);
         ValidateRelationships(nodes, relationships);
+        ValidateAuthoredRelationshipCompleteness(nodes, relationships);
+        ValidateRequiredReachability(nodes, relationships);
 
         // AIAssetGraph owns the frozen normalization and detached read-only snapshots.
         return new AIAssetGraph(rootKey, nodes, relationships);
@@ -137,4 +140,92 @@ internal sealed class AIAssetGraphResultBuilder
             }
         }
     }
+
+    private void ValidateAuthoredRelationshipCompleteness(
+        IReadOnlyList<AIAssetGraphNode> nodes,
+        IReadOnlyList<AIAssetGraphRelationship> relationships)
+    {
+        var actualBySource = relationships
+            .GroupBy(static relationship => relationship.SourceKey)
+            .ToDictionary(
+                static group => group.Key,
+                static group => group.OrderBy(static relationship => relationship.LocalOrdinal).ToArray());
+
+        foreach (var node in nodes)
+        {
+            var expected = relationshipEnumerator.Enumerate(node.Asset);
+            actualBySource.TryGetValue(node.DefinitionKey, out var actual);
+            actual ??= Array.Empty<AIAssetGraphRelationship>();
+
+            if (expected.Count != actual.Length)
+            {
+                throw new InvalidOperationException(
+                    "Completed B.6 operation state does not contain every authoritative relationship authored by a materialized source definition.");
+            }
+
+            for (var index = 0; index < expected.Count; index++)
+            {
+                if (!RelationshipEquivalent(expected[index], actual[index]))
+                {
+                    throw new InvalidOperationException(
+                        "Completed B.6 operation state does not exactly preserve the authoritative authored relationship occurrences for a materialized source definition.");
+                }
+            }
+        }
+    }
+
+    private void ValidateRequiredReachability(
+        IReadOnlyList<AIAssetGraphNode> nodes,
+        IReadOnlyList<AIAssetGraphRelationship> relationships)
+    {
+        var requiredBySource = relationships
+            .Where(static relationship =>
+                relationship.MaterializationAuthority == AIAssetGraphMaterializationAuthority.Required)
+            .GroupBy(static relationship => relationship.SourceKey)
+            .ToDictionary(static group => group.Key, static group => group.ToArray());
+
+        var reached = new HashSet<AssetDefinitionKey> { rootKey };
+        var queue = new Queue<AssetDefinitionKey>();
+        queue.Enqueue(rootKey);
+
+        while (queue.Count > 0)
+        {
+            var sourceKey = queue.Dequeue();
+            if (!requiredBySource.TryGetValue(sourceKey, out var outgoing))
+            {
+                continue;
+            }
+
+            foreach (var relationship in outgoing)
+            {
+                var targetKey = AssetDefinitionKey.From(relationship.TargetReference);
+                if (reached.Add(targetKey))
+                {
+                    queue.Enqueue(targetKey);
+                }
+            }
+        }
+
+        if (reached.Count != nodes.Count
+            || nodes.Any(node => !reached.Contains(node.DefinitionKey)))
+        {
+            throw new InvalidOperationException(
+                "Completed B.6 operation state contains a materialized node outside the root required-materialization closure.");
+        }
+    }
+
+    private static bool RelationshipEquivalent(
+        AIAssetGraphRelationship left,
+        AIAssetGraphRelationship right) =>
+        left.SourceKey == right.SourceKey
+        && left.TargetReference.Type == right.TargetReference.Type
+        && left.TargetReference.Id == right.TargetReference.Id
+        && left.TargetReference.Urn == right.TargetReference.Urn
+        && left.TargetReference.Version == right.TargetReference.Version
+        && left.RelationshipClass == right.RelationshipClass
+        && left.MaterializationAuthority == right.MaterializationAuthority
+        && left.BoundaryRole == right.BoundaryRole
+        && left.DependencyRequired == right.DependencyRequired
+        && left.LocalOrdinal == right.LocalOrdinal
+        && string.Equals(left.AuthoredPath, right.AuthoredPath, StringComparison.Ordinal);
 }
