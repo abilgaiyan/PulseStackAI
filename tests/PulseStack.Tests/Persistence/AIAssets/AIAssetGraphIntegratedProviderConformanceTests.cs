@@ -111,7 +111,7 @@ public sealed class AIAssetGraphIntegratedProviderConformanceTests
         var result = await loader.LoadAsync(missingRoot);
 
         var failure = result.Should().BeOfType<AIAssetGraphLoadResult.RootDefinitionUnavailable>().Subject;
-        failure.Code.Should().Be("AAG001");
+        failure.Context.Code.Should().Be("AAG001");
         failure.Context.RootKey.Should().Be(missingRoot);
         failure.Context.CanonicalPath.Segments.Should().BeEmpty();
     }
@@ -128,7 +128,7 @@ public sealed class AIAssetGraphIntegratedProviderConformanceTests
         var result = await provider.GetRequiredService<IAIAssetGraphLoader>().LoadAsync(root.Key);
 
         var failure = result.Should().BeOfType<AIAssetGraphLoadResult.RequiredDefinitionUnavailable>().Subject;
-        failure.Code.Should().Be("AAG002");
+        failure.Context.Code.Should().Be("AAG002");
         failure.Context.RootKey.Should().Be(root.Key);
         failure.Context.Relationship.TargetReference.Should().Be(ToAssetReference(missing));
     }
@@ -147,7 +147,7 @@ public sealed class AIAssetGraphIntegratedProviderConformanceTests
         var result = await provider.GetRequiredService<IAIAssetGraphLoader>().LoadAsync(root.Key);
 
         var failure = result.Should().BeOfType<AIAssetGraphLoadResult.ReferenceIdentityConflict>().Subject;
-        failure.Code.Should().Be("AAG003");
+        failure.Context.Code.Should().Be("AAG003");
         failure.Context.RootKey.Should().Be(root.Key);
         failure.Context.Relationship.TargetReference.Urn.Should().Be(wrongUrn);
         failure.Context.Evidence.Should().Be(AIAssetGraphReferenceIdentityConflictEvidence.PersistentResolver);
@@ -169,7 +169,7 @@ public sealed class AIAssetGraphIntegratedProviderConformanceTests
         var result = await provider.GetRequiredService<IAIAssetGraphLoader>().LoadAsync(root.Key);
 
         var failure = result.Should().BeOfType<AIAssetGraphLoadResult.RequiredMaterializationCycle>().Subject;
-        failure.Code.Should().Be("AAG005");
+        failure.Context.Code.Should().Be("AAG005");
         failure.Context.RootKey.Should().Be(root.Key);
         failure.Context.CycleEntryKey.Should().Be(a.Key);
         failure.Context.CanonicalPath.Segments.Should().HaveCount(3);
