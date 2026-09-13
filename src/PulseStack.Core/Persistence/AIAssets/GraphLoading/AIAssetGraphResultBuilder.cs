@@ -50,7 +50,7 @@ internal sealed class AIAssetGraphResultBuilder
                 "Completed B.6 operation state contains more than one node for an AssetDefinitionKey.");
         }
 
-        if (nodes.Count(static node => node.DefinitionKey == rootKey) != 1)
+        if (nodes.Count(node => node.DefinitionKey == rootKey) != 1)
         {
             throw new InvalidOperationException(
                 "Completed B.6 operation state must contain the exact aggregate root exactly once.");
