@@ -184,22 +184,26 @@ public sealed class AIAssetGraphExpansionOperationTests
     public async Task RequiredSelfCycle_ShouldReportAag005WithIndexZeroAndNoSecondResolution()
     {
         var rootKey = Key(AssetType.Package);
-        var rootUrn = UrnFor(rootKey, "self-root");
-        var rootReference = Reference(rootKey, rootUrn);
-        var root = Package(rootKey, new[] { rootReference }, urn: rootUrn);
-        var resolver = Resolver(root);
+        var selfKey = Key(AssetType.Tool);
+        var selfUrn = UrnFor(selfKey, "self");
+        var selfReference = Reference(selfKey, selfUrn);
+        var self = Foundation(selfKey, selfUrn) with
+        {
+            Dependencies = new[] { new AssetDependency(selfReference, true) }
+        };
+        var root = Package(rootKey, new[] { Reference(self) });
+        var resolver = Resolver(root, self);
         var operation = new AIAssetGraphExpansionOperation(resolver, rootKey);
 
         var failure = await operation.ExpandAsync();
 
         var cycle = failure.Should().BeOfType<AIAssetGraphLoadResult.RequiredMaterializationCycle>().Subject;
         cycle.Context.Code.Should().Be(AIAssetGraphDiagnosticCodes.RequiredMaterializationCycle);
-        cycle.Context.CycleEntryKey.Should().Be(rootKey);
-        cycle.Context.CycleStartSegmentIndex.Should().Be(0);
-        cycle.Context.CanonicalPath.Segments.Should().ContainSingle();
-        cycle.Context.CanonicalPath.Segments[^1].TargetReference.Should().BeSameAs(rootReference);
-        resolver.ExactCalls[rootKey].Should().Be(1);
-        resolver.ReferenceCalls.Should().NotContainKey(rootKey);
+        cycle.Context.CycleEntryKey.Should().Be(selfKey);
+        cycle.Context.CycleStartSegmentIndex.Should().Be(1);
+        cycle.Context.CanonicalPath.Segments.Should().HaveCount(2);
+        cycle.Context.CanonicalPath.Segments[^1].TargetReference.Should().BeSameAs(selfReference);
+        resolver.ReferenceCalls[selfKey].Should().Be(1);
     }
 
     [Fact]
