@@ -1,12 +1,14 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using PulseStack.Abstractions.Persistence.AIAssets.Catalog;
+using PulseStack.Abstractions.Persistence.AIAssets.GraphLoading;
 using PulseStack.Abstractions.Persistence.AIAssets.Mapping;
 using PulseStack.Abstractions.Persistence.AIAssets.Serialization;
 using PulseStack.Abstractions.Persistence.AIAssets.Storage;
 using PulseStack.Abstractions.Persistence.AIAssets.Validation;
 using PulseStack.Abstractions.Persistence.Storage;
 using PulseStack.Core.Persistence.AIAssets.Catalog;
+using PulseStack.Core.Persistence.AIAssets.GraphLoading;
 using PulseStack.Core.Persistence.AIAssets.Mapping;
 using PulseStack.Core.Persistence.AIAssets.Storage;
 using PulseStack.Core.Persistence.AIAssets.Validation;
@@ -24,6 +26,30 @@ public static class PersistenceServiceCollectionExtensions
 
         services.TryAddSingleton<IAIAssetDocumentCodec, AIAssetDocumentCodec>();
 
+        return services;
+    }
+
+    public static IServiceCollection AddAIAssetGraphLoading(
+        this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        var resolvers = services
+            .Where(descriptor => descriptor.ServiceType == typeof(IPersistentAIAssetResolver))
+            .ToArray();
+        if (resolvers.Length != 1 || resolvers[0].Lifetime != ServiceLifetime.Singleton)
+        {
+            throw new InvalidOperationException(
+                "Exactly one singleton IPersistentAIAssetResolver authority must be configured before AI Asset graph loading.");
+        }
+
+        if (services.Any(descriptor => descriptor.ServiceType == typeof(IAIAssetGraphLoader)))
+        {
+            throw new InvalidOperationException(
+                "AI Asset graph loading has already been configured or partially configured.");
+        }
+
+        services.AddSingleton<IAIAssetGraphLoader, AIAssetGraphLoader>();
         return services;
     }
 
