@@ -11,8 +11,17 @@ namespace PulseStack.Core.Persistence.AIAssets.GraphLoading;
 internal sealed class AIAssetGraphFailureCoordinator
 {
     private readonly object gate = new();
+    private readonly AssetDefinitionKey rootKey;
     private AIAssetGraphLoadResult? bestCandidate;
     private AIAssetGraphLoadResult? committedFailure;
+
+    internal AIAssetGraphFailureCoordinator(AssetDefinitionKey rootKey)
+    {
+        AIAssetGraphContract.EnsureValidAggregateRootKey(rootKey, nameof(rootKey));
+        this.rootKey = rootKey;
+    }
+
+    internal AssetDefinitionKey RootKey => rootKey;
 
     internal AIAssetGraphLoadResult? CommittedFailure
     {
@@ -29,6 +38,7 @@ internal sealed class AIAssetGraphFailureCoordinator
     {
         ArgumentNullException.ThrowIfNull(failure);
         EnsureSemanticFailure(failure);
+        EnsureMatchingRoot(failure);
 
         lock (gate)
         {
@@ -92,6 +102,26 @@ internal sealed class AIAssetGraphFailureCoordinator
 
         ExceptionDispatchInfo.Capture(exception).Throw();
         throw new InvalidOperationException("Unreachable predecessor failure continuation.");
+    }
+
+    private void EnsureMatchingRoot(AIAssetGraphLoadResult result)
+    {
+        var observedRoot = result switch
+        {
+            AIAssetGraphLoadResult.RootDefinitionUnavailable value => value.Context.RootKey,
+            AIAssetGraphLoadResult.RequiredDefinitionUnavailable value => value.Context.RootKey,
+            AIAssetGraphLoadResult.ReferenceIdentityConflict value => value.Context.RootKey,
+            AIAssetGraphLoadResult.LineageIdentityConflict value => value.Context.RootKey,
+            AIAssetGraphLoadResult.RequiredMaterializationCycle value => value.Context.RootKey,
+            _ => throw new ArgumentException("A graph success result has no failure context.", nameof(result))
+        };
+
+        if (observedRoot != rootKey)
+        {
+            throw new ArgumentException(
+                "The observed graph-semantic failure must belong to this coordinator's exact graph-load RootKey.",
+                nameof(result));
+        }
     }
 
     private static void EnsureSemanticFailure(AIAssetGraphLoadResult result)
