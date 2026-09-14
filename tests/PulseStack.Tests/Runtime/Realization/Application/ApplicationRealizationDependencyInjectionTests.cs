@@ -94,6 +94,29 @@ public sealed class ApplicationRealizationDependencyInjectionTests
             scopeA.ServiceProvider.GetRequiredService<IWorkflowComposer>());
     }
 
+    [Fact]
+    public void FocusedApplicationRealizationRegistrations_ShouldValidateOnBuildAndScopes()
+    {
+        var services = new ServiceCollection();
+        services.AddPulseStack();
+        services.AddScoped<IApplicationRealizationChainFactory, ApplicationRealizationChainFactory>();
+        services.AddScoped<IApplicationRealizer, ApplicationRealizer>();
+
+        using var provider = services.BuildServiceProvider(
+            new ServiceProviderOptions
+            {
+                ValidateOnBuild = true,
+                ValidateScopes = true
+            });
+
+        using var scope = provider.CreateScope();
+
+        Assert.IsType<ApplicationRealizationChainFactory>(
+            scope.ServiceProvider.GetRequiredService<IApplicationRealizationChainFactory>());
+        Assert.IsType<ApplicationRealizer>(
+            scope.ServiceProvider.GetRequiredService<IApplicationRealizer>());
+    }
+
     private sealed class CustomChainFactory : IApplicationRealizationChainFactory
     {
         public IWorkflowComposer Create(IAssetResolver assetResolver) =>
