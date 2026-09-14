@@ -8,6 +8,7 @@ using PulseStack.Agents.Runtime.Realization;
 using PulseStack.Core.DependencyInjection;
 using PulseStack.Core.Runtime.Realization.Application;
 using PulseStack.Core.Runtime.Realization.Composition;
+using PulseStack.Core.Runtime.Realization.Resolution;
 using Xunit;
 
 namespace PulseStack.Tests.Runtime.Realization.Application;
