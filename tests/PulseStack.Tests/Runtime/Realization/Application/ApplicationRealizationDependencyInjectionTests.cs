@@ -150,7 +150,7 @@ public sealed class ApplicationRealizationDependencyInjectionTests
             throw new NotSupportedException();
     }
 
-    private class DependencyStubProxy : DispatchProxy
+    public class DependencyStubProxy : DispatchProxy
     {
         protected override object? Invoke(
             MethodInfo? targetMethod,
