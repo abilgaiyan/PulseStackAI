@@ -1,11 +1,17 @@
+using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using PulseStack.Abstractions.Persistence.AIAssets.GraphLoading;
+using PulseStack.Abstractions.Providers;
 using PulseStack.Abstractions.Runtime.Realization.Application;
+using PulseStack.Abstractions.Runtime.Realization.Binding;
 using PulseStack.Abstractions.Runtime.Realization.Composition;
+using PulseStack.Abstractions.Runtime.Realization.Evaluation;
 using PulseStack.Abstractions.Runtime.Realization.Resolution;
+using PulseStack.Abstractions.Tools;
 using PulseStack.Agents.DependencyInjection;
 using PulseStack.Agents.Runtime.Realization;
 using PulseStack.Core.DependencyInjection;
+using PulseStack.Core.Runtime.Realization;
 using PulseStack.Core.Runtime.Realization.Application;
 using PulseStack.Core.Runtime.Realization.Composition;
 using PulseStack.Core.Runtime.Realization.Resolution;
@@ -98,7 +104,16 @@ public sealed class ApplicationRealizationDependencyInjectionTests
     public void FocusedApplicationRealizationRegistrations_ShouldValidateOnBuildAndScopes()
     {
         var services = new ServiceCollection();
-        services.AddPulseStack();
+
+        services.AddSingleton(new ModelRealizer(CreateStub<IProviderResolver>()));
+        services.AddSingleton(new PromptRealizer());
+        services.AddSingleton(CreateStub<IToolBindingResolver>());
+        services.AddSingleton(CreateStub<IKnowledgeBindingResolver>());
+        services.AddSingleton(CreateStub<IMemoryBindingResolver>());
+        services.AddSingleton(CreateStub<IPolicyBindingResolver>());
+        services.AddScoped(_ => CreateStub<IToolExecutor>());
+        services.AddSingleton(CreateStub<IConditionBindingResolver>());
+        services.AddSingleton(CreateStub<IWorkflowValueEvaluator>());
         services.AddScoped<IApplicationRealizationChainFactory, ApplicationRealizationChainFactory>();
         services.AddScoped<IApplicationRealizer, ApplicationRealizer>();
 
@@ -117,6 +132,10 @@ public sealed class ApplicationRealizationDependencyInjectionTests
             scope.ServiceProvider.GetRequiredService<IApplicationRealizer>());
     }
 
+    private static T CreateStub<T>()
+        where T : class =>
+        DispatchProxy.Create<T, DependencyStubProxy>();
+
     private sealed class CustomChainFactory : IApplicationRealizationChainFactory
     {
         public IWorkflowComposer Create(IAssetResolver assetResolver) =>
@@ -129,5 +148,13 @@ public sealed class ApplicationRealizationDependencyInjectionTests
             AIAssetGraph graph,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+    }
+
+    private class DependencyStubProxy : DispatchProxy
+    {
+        protected override object? Invoke(
+            MethodInfo? targetMethod,
+            object?[]? args) =>
+            throw new NotSupportedException("Dependency stub is for DI validation only.");
     }
 }
