@@ -24,16 +24,13 @@ public sealed class ApplicationRealizationIntegratedConformanceTests
     public async Task ProjectGraph_ShouldRealizeEntryWorkflowThroughDiResolvedApplicationRealizer()
     {
         var model = CreateModelAsset();
-        var agent = new AgentDefinitionFactory().Create(
-            new AgentDefinitionOptions
-            {
-                Name = "Integrated Agent",
-                Goal = "Prove integrated application realization",
-                Role = "Worker",
-                Model = Reference(model)
-            });
-        var workflow = CreateWorkflow(agent);
+        var agent = CreateAgent(
+            "Integrated Agent",
+            model,
+            goal: "Prove integrated application realization");
+        var workflow = CreateWorkflow("Integrated Workflow", agent);
         var project = CreateProject(
+            "Integrated Project",
             Reference(workflow),
             Reference(workflow),
             Reference(agent),
@@ -72,17 +69,14 @@ public sealed class ApplicationRealizationIntegratedConformanceTests
                 Name = "Integrated Prompt",
                 SystemInstructions = "Use the graph-scoped prompt."
             });
-        var agent = new AgentDefinitionFactory().Create(
-            new AgentDefinitionOptions
-            {
-                Name = "Resolver Continuity Agent",
-                Goal = "Prove graph-scoped nested resolution",
-                Role = "Worker",
-                Model = Reference(model),
-                Prompt = Reference(prompt)
-            });
-        var workflow = CreateWorkflow(agent);
+        var agent = CreateAgent(
+            "Resolver Continuity Agent",
+            model,
+            Reference(prompt),
+            "Prove graph-scoped nested resolution");
+        var workflow = CreateWorkflow("Integrated Workflow", agent);
         var project = CreateProject(
+            "Integrated Project",
             Reference(workflow),
             Reference(workflow),
             Reference(agent),
@@ -118,16 +112,13 @@ public sealed class ApplicationRealizationIntegratedConformanceTests
     public async Task MissingGraphModel_ShouldNotFallbackToAmbientResolver()
     {
         var model = CreateModelAsset();
-        var agent = new AgentDefinitionFactory().Create(
-            new AgentDefinitionOptions
-            {
-                Name = "No Fallback Agent",
-                Goal = "Prove missing graph definitions cannot use ambient resolution",
-                Role = "Worker",
-                Model = Reference(model)
-            });
-        var workflow = CreateWorkflow(agent);
+        var agent = CreateAgent(
+            "No Fallback Agent",
+            model,
+            goal: "Prove missing graph definitions cannot use ambient resolution");
+        var workflow = CreateWorkflow("Integrated Workflow", agent);
         var project = CreateProject(
+            "Integrated Project",
             Reference(workflow),
             Reference(workflow),
             Reference(agent),
@@ -168,19 +159,187 @@ public sealed class ApplicationRealizationIntegratedConformanceTests
         Assert.Equal(0, providerResolver.Calls);
     }
 
-    private static WorkflowAsset CreateWorkflow(AgentDefinition agent) =>
+    [Fact]
+    public async Task SeparateOperationsOnSameScopedRealizer_ShouldRemainGraphIsolated()
+    {
+        var modelA = CreateModelAsset();
+        var agentA = CreateAgent("Graph A Agent", modelA);
+        var workflowA = CreateWorkflow("Graph A Workflow", agentA);
+        var projectA = CreateProject(
+            "Graph A Project",
+            Reference(workflowA),
+            Reference(workflowA),
+            Reference(agentA),
+            Reference(modelA));
+        var graphA = Graph(projectA, workflowA, agentA, modelA);
+
+        var modelB = CreateModelAsset();
+        var agentB = CreateAgent("Graph B Agent", modelB);
+        var workflowB = CreateWorkflow("Graph B Workflow", agentB);
+        var projectB = CreateProject(
+            "Graph B Project",
+            Reference(workflowB),
+            Reference(workflowB),
+            Reference(agentB),
+            Reference(modelB));
+        var graphB = Graph(projectB, workflowB, agentB, modelB);
+
+        var ambient = RecordingAmbientAssetResolver.Hostile();
+        var services = new ServiceCollection();
+        services.AddScoped<IAssetResolver>(_ => ambient);
+        services.AddSingleton<IProviderResolver, StubProviderResolver>();
+        services.AddPulseStack();
+        services.AddPulseStackAgents();
+
+        await using var provider = services.BuildServiceProvider(
+            new ServiceProviderOptions
+            {
+                ValidateScopes = true
+            });
+        await using var scope = provider.CreateAsyncScope();
+
+        var realizer = scope.ServiceProvider.GetRequiredService<IApplicationRealizer>();
+
+        var resultA = Assert.IsType<ApplicationRealizationResult.Success>(
+            await realizer.RealizeAsync(graphA));
+        var resultB = Assert.IsType<ApplicationRealizationResult.Success>(
+            await realizer.RealizeAsync(graphB));
+
+        var runA = Assert.IsType<RunStep>(Assert.Single(resultA.Workflow.Steps));
+        var runB = Assert.IsType<RunStep>(Assert.Single(resultB.Workflow.Steps));
+
+        Assert.Equal("Graph A Workflow", resultA.Workflow.Name);
+        Assert.Equal("Graph A Agent", runA.Agent.Name);
+        Assert.NotEqual("Graph B Workflow", resultA.Workflow.Name);
+        Assert.NotEqual("Graph B Agent", runA.Agent.Name);
+
+        Assert.Equal("Graph B Workflow", resultB.Workflow.Name);
+        Assert.Equal("Graph B Agent", runB.Agent.Name);
+        Assert.NotEqual("Graph A Workflow", resultB.Workflow.Name);
+        Assert.NotEqual("Graph A Agent", runB.Agent.Name);
+
+        Assert.Equal(0, ambient.Calls);
+    }
+
+    [Fact]
+    public async Task RepeatedAgentReference_ShouldCreateDistinctRuntimeAgents()
+    {
+        var model = CreateModelAsset();
+        var agent = CreateAgent("Repeated Agent", model);
+        var workflow = CreateWorkflow("Repeated Agent Workflow", agent, agent);
+        var project = CreateProject(
+            "Repeated Agent Project",
+            Reference(workflow),
+            Reference(workflow),
+            Reference(agent),
+            Reference(model));
+        var graph = Graph(project, workflow, agent, model);
+        var ambient = RecordingAmbientAssetResolver.Hostile();
+
+        var services = new ServiceCollection();
+        services.AddScoped<IAssetResolver>(_ => ambient);
+        services.AddSingleton<IProviderResolver, StubProviderResolver>();
+        services.AddPulseStack();
+        services.AddPulseStackAgents();
+
+        await using var provider = services.BuildServiceProvider(
+            new ServiceProviderOptions
+            {
+                ValidateScopes = true
+            });
+        await using var scope = provider.CreateAsyncScope();
+
+        var realizer = scope.ServiceProvider.GetRequiredService<IApplicationRealizer>();
+        var success = Assert.IsType<ApplicationRealizationResult.Success>(
+            await realizer.RealizeAsync(graph));
+
+        var runs = success.Workflow.Steps
+            .Select(Assert.IsType<RunStep>)
+            .ToArray();
+
+        Assert.Equal(2, runs.Length);
+        Assert.Equal("Repeated Agent", runs[0].Agent.Name);
+        Assert.Equal("Repeated Agent", runs[1].Agent.Name);
+        Assert.NotSame(runs[0].Agent, runs[1].Agent);
+        Assert.Equal(0, ambient.Calls);
+    }
+
+    [Fact]
+    public async Task RepeatedRealizationOfSameGraph_ShouldCreateFreshWorkflowAndAgents()
+    {
+        var model = CreateModelAsset();
+        var agent = CreateAgent("Fresh Agent", model);
+        var workflow = CreateWorkflow("Fresh Workflow", agent);
+        var project = CreateProject(
+            "Fresh Project",
+            Reference(workflow),
+            Reference(workflow),
+            Reference(agent),
+            Reference(model));
+        var graph = Graph(project, workflow, agent, model);
+        var ambient = RecordingAmbientAssetResolver.Hostile();
+
+        var services = new ServiceCollection();
+        services.AddScoped<IAssetResolver>(_ => ambient);
+        services.AddSingleton<IProviderResolver, StubProviderResolver>();
+        services.AddPulseStack();
+        services.AddPulseStackAgents();
+
+        await using var provider = services.BuildServiceProvider(
+            new ServiceProviderOptions
+            {
+                ValidateScopes = true
+            });
+        await using var scope = provider.CreateAsyncScope();
+
+        var realizer = scope.ServiceProvider.GetRequiredService<IApplicationRealizer>();
+
+        var first = Assert.IsType<ApplicationRealizationResult.Success>(
+            await realizer.RealizeAsync(graph));
+        var second = Assert.IsType<ApplicationRealizationResult.Success>(
+            await realizer.RealizeAsync(graph));
+
+        var firstRun = Assert.IsType<RunStep>(Assert.Single(first.Workflow.Steps));
+        var secondRun = Assert.IsType<RunStep>(Assert.Single(second.Workflow.Steps));
+
+        Assert.NotSame(first.Workflow, second.Workflow);
+        Assert.NotSame(firstRun.Agent, secondRun.Agent);
+        Assert.Equal("Fresh Workflow", first.Workflow.Name);
+        Assert.Equal("Fresh Workflow", second.Workflow.Name);
+        Assert.Equal("Fresh Agent", firstRun.Agent.Name);
+        Assert.Equal("Fresh Agent", secondRun.Agent.Name);
+        Assert.Equal(0, ambient.Calls);
+    }
+
+    private static AgentDefinition CreateAgent(
+        string name,
+        ModelAsset model,
+        AssetReference? prompt = null,
+        string goal = "Prove integrated application realization") =>
+        new AgentDefinitionFactory().Create(
+            new AgentDefinitionOptions
+            {
+                Name = name,
+                Goal = goal,
+                Role = "Worker",
+                Model = Reference(model),
+                Prompt = prompt
+            });
+
+    private static WorkflowAsset CreateWorkflow(
+        string name,
+        params AgentDefinition[] agents) =>
         new WorkflowAssetFactory().Create(
             new WorkflowAssetOptions
             {
-                Name = "Integrated Workflow",
+                Name = name,
                 Description = "MS-010.3F integrated realization proof",
-                Steps =
-                [
-                    new RunStepDefinition
+                Steps = agents
+                    .Select(static agent => (WorkflowStepDefinition)new RunStepDefinition
                     {
                         Agent = Reference(agent)
-                    }
-                ]
+                    })
+                    .ToArray()
             });
 
     private static AIAssetGraph Graph(IAsset root, params IAsset[] additional)
@@ -195,12 +354,13 @@ public sealed class ApplicationRealizationIntegratedConformanceTests
     }
 
     private static ProjectAsset CreateProject(
+        string name,
         AssetReference entryWorkflow,
         params AssetReference[] ownedAssets)
     {
         var options = new ProjectAssetOptions
         {
-            Name = "Integrated Project",
+            Name = name,
             EntryWorkflow = entryWorkflow,
             OwnedAssets = ownedAssets
         };
@@ -216,10 +376,11 @@ public sealed class ApplicationRealizationIntegratedConformanceTests
                     && parameters[2].ParameterType == typeof(ProjectAssetOptions);
             });
 
+        var id = AssetId.New();
         return (ProjectAsset)constructor.Invoke(
             [
-                AssetId.New(),
-                new AssetUrn("urn:pulsestack:project:integrated-project"),
+                id,
+                new AssetUrn($"urn:pulsestack:project:{id}"),
                 options,
                 null
             ]);
