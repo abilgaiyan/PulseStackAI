@@ -8,7 +8,9 @@ using PulseStack.Abstractions.Models;
 using PulseStack.Abstractions.Persistence.AIAssets.GraphLoading;
 using PulseStack.Abstractions.Providers;
 using PulseStack.Abstractions.Runtime.Realization.Application;
+using PulseStack.Abstractions.Runtime.Realization.Binding;
 using PulseStack.Abstractions.Runtime.Realization.Resolution;
+using PulseStack.Abstractions.Tools;
 using PulseStack.Abstractions.Workflows.Definitions;
 using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Agents.DependencyInjection;
@@ -311,11 +313,198 @@ public sealed class ApplicationRealizationIntegratedConformanceTests
         Assert.Equal(0, ambient.Calls);
     }
 
+    [Fact]
+    public async Task NestedProviderFailure_ShouldPropagateExactExceptionInstance()
+    {
+        var model = CreateModelAsset();
+        var agent = CreateAgent("Provider Failure Agent", model);
+        var workflow = CreateWorkflow("Provider Failure Workflow", agent);
+        var project = CreateProject(
+            "Provider Failure Project",
+            Reference(workflow),
+            Reference(workflow),
+            Reference(agent),
+            Reference(model));
+        var graph = Graph(project, workflow, agent, model);
+        var ambient = RecordingAmbientAssetResolver.Hostile();
+        var expected = new InvalidOperationException(
+            "MS-010.3F.4 provider failure sentinel.");
+        var providerResolver = new ThrowingProviderResolver(expected);
+
+        var services = new ServiceCollection();
+        services.AddScoped<IAssetResolver>(_ => ambient);
+        services.AddSingleton<IProviderResolver>(providerResolver);
+        services.AddPulseStack();
+        services.AddPulseStackAgents();
+
+        await using var provider = services.BuildServiceProvider(
+            new ServiceProviderOptions
+            {
+                ValidateScopes = true
+            });
+        await using var scope = provider.CreateAsyncScope();
+
+        var realizer = scope.ServiceProvider.GetRequiredService<IApplicationRealizer>();
+
+        var actual = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => realizer.RealizeAsync(graph));
+
+        Assert.Same(expected, actual);
+        Assert.Equal(1, providerResolver.Calls);
+        Assert.Equal(0, ambient.Calls);
+    }
+
+    [Fact]
+    public async Task NestedToolBindingFailure_ShouldPropagateExactExceptionInstance()
+    {
+        var model = CreateModelAsset();
+        var tool = CreateToolAsset("Binding Failure Tool");
+        var agent = CreateAgent(
+            "Binding Failure Agent",
+            model,
+            tools: [Reference(tool)]);
+        var workflow = CreateWorkflow("Binding Failure Workflow", agent);
+        var project = CreateProject(
+            "Binding Failure Project",
+            Reference(workflow),
+            Reference(workflow),
+            Reference(agent),
+            Reference(model),
+            Reference(tool));
+        var graph = Graph(project, workflow, agent, model, tool);
+        var ambient = RecordingAmbientAssetResolver.Hostile();
+        var expected = new InvalidOperationException(
+            "MS-010.3F.4 tool binding failure sentinel.");
+        var bindingResolver = new ThrowingToolBindingResolver(expected);
+        var providerResolver = new StubProviderResolver();
+
+        var services = new ServiceCollection();
+        services.AddScoped<IAssetResolver>(_ => ambient);
+        services.AddSingleton<IProviderResolver>(providerResolver);
+        services.AddSingleton<IToolBindingResolver>(bindingResolver);
+        services.AddPulseStack();
+        services.AddPulseStackAgents();
+
+        await using var provider = services.BuildServiceProvider(
+            new ServiceProviderOptions
+            {
+                ValidateScopes = true
+            });
+        await using var scope = provider.CreateAsyncScope();
+
+        var realizer = scope.ServiceProvider.GetRequiredService<IApplicationRealizer>();
+
+        var actual = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => realizer.RealizeAsync(graph));
+
+        Assert.Same(expected, actual);
+        Assert.Same(tool, bindingResolver.LastAsset);
+        Assert.Equal(1, bindingResolver.Calls);
+        Assert.Equal(1, providerResolver.Calls);
+        Assert.Equal(0, ambient.Calls);
+    }
+
+    [Fact]
+    public async Task AlreadyCancelledOperation_ShouldStayOnCancellationChannel()
+    {
+        var model = CreateModelAsset();
+        var tool = CreateToolAsset("Cancelled Boundary Tool");
+        var agent = CreateAgent(
+            "Cancelled Boundary Agent",
+            model,
+            tools: [Reference(tool)]);
+        var workflow = CreateWorkflow("Cancelled Boundary Workflow", agent);
+        var project = CreateProject(
+            "Cancelled Boundary Project",
+            Reference(workflow),
+            Reference(workflow),
+            Reference(agent),
+            Reference(model),
+            Reference(tool));
+        var graph = Graph(project, workflow, agent, model, tool);
+        var ambient = RecordingAmbientAssetResolver.Hostile();
+        var providerResolver = new StubProviderResolver();
+        var bindingResolver = new ThrowingToolBindingResolver(
+            new InvalidOperationException(
+                "Binding must not be reached for an already-cancelled operation."));
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        var services = new ServiceCollection();
+        services.AddScoped<IAssetResolver>(_ => ambient);
+        services.AddSingleton<IProviderResolver>(providerResolver);
+        services.AddSingleton<IToolBindingResolver>(bindingResolver);
+        services.AddPulseStack();
+        services.AddPulseStackAgents();
+
+        await using var provider = services.BuildServiceProvider(
+            new ServiceProviderOptions
+            {
+                ValidateScopes = true
+            });
+        await using var scope = provider.CreateAsyncScope();
+
+        var realizer = scope.ServiceProvider.GetRequiredService<IApplicationRealizer>();
+
+        var actual = await Assert.ThrowsAsync<OperationCanceledException>(
+            () => realizer.RealizeAsync(graph, cancellation.Token));
+
+        Assert.Equal(cancellation.Token, actual.CancellationToken);
+        Assert.Equal(0, providerResolver.Calls);
+        Assert.Equal(0, bindingResolver.Calls);
+        Assert.Equal(0, ambient.Calls);
+    }
+
+    [Fact]
+    public async Task NestedCancellation_ShouldPropagateExactExceptionAndToken()
+    {
+        var model = CreateModelAsset();
+        var agent = CreateAgent("Nested Cancellation Agent", model);
+        var workflow = CreateWorkflow("Nested Cancellation Workflow", agent);
+        var project = CreateProject(
+            "Nested Cancellation Project",
+            Reference(workflow),
+            Reference(workflow),
+            Reference(agent),
+            Reference(model));
+        var graph = Graph(project, workflow, agent, model);
+        var ambient = RecordingAmbientAssetResolver.Hostile();
+        using var cancellation = new CancellationTokenSource();
+        var expected = new OperationCanceledException(
+            "MS-010.3F.4 nested cancellation sentinel.",
+            cancellation.Token);
+        var providerResolver = new ThrowingProviderResolver(expected);
+
+        var services = new ServiceCollection();
+        services.AddScoped<IAssetResolver>(_ => ambient);
+        services.AddSingleton<IProviderResolver>(providerResolver);
+        services.AddPulseStack();
+        services.AddPulseStackAgents();
+
+        await using var provider = services.BuildServiceProvider(
+            new ServiceProviderOptions
+            {
+                ValidateScopes = true
+            });
+        await using var scope = provider.CreateAsyncScope();
+
+        var realizer = scope.ServiceProvider.GetRequiredService<IApplicationRealizer>();
+
+        var actual = await Assert.ThrowsAsync<OperationCanceledException>(
+            () => realizer.RealizeAsync(graph, cancellation.Token));
+
+        Assert.Same(expected, actual);
+        Assert.Equal(cancellation.Token, actual.CancellationToken);
+        Assert.Equal(1, providerResolver.Calls);
+        Assert.Equal(0, ambient.Calls);
+    }
+
     private static AgentDefinition CreateAgent(
         string name,
         ModelAsset model,
         AssetReference? prompt = null,
-        string goal = "Prove integrated application realization") =>
+        string goal = "Prove integrated application realization",
+        IReadOnlyCollection<AssetReference>? tools = null) =>
         new AgentDefinitionFactory().Create(
             new AgentDefinitionOptions
             {
@@ -323,7 +512,8 @@ public sealed class ApplicationRealizationIntegratedConformanceTests
                 Goal = goal,
                 Role = "Worker",
                 Model = Reference(model),
-                Prompt = prompt
+                Prompt = prompt,
+                Tools = tools ?? []
             });
 
     private static WorkflowAsset CreateWorkflow(
@@ -397,6 +587,15 @@ public sealed class ApplicationRealizationIntegratedConformanceTests
                 "stub-model"));
     }
 
+    private static ToolAsset CreateToolAsset(string name) =>
+        new ToolAssetFactory().Create(
+            new ToolAssetOptions
+            {
+                Name = name,
+                Description = "MS-010.3F binding conformance tool",
+                Category = "Conformance"
+            });
+
     private static AssetReference Reference(IAsset asset) =>
         new(asset.Type, asset.Id, asset.Urn, asset.Version);
 
@@ -410,7 +609,9 @@ public sealed class ApplicationRealizationIntegratedConformanceTests
         {
         }
 
-        private RecordingAmbientAssetResolver(bool throwOnResolve, params IAsset[] assets)
+        private RecordingAmbientAssetResolver(
+            bool throwOnResolve,
+            params IAsset[] assets)
         {
             _throwOnResolve = throwOnResolve;
             _assets = assets.ToDictionary(AssetDefinitionKey.From);
@@ -466,6 +667,45 @@ public sealed class ApplicationRealizationIntegratedConformanceTests
             }
 
             return _factory;
+        }
+    }
+
+    private sealed class ThrowingProviderResolver : IProviderResolver
+    {
+        private readonly Exception _exception;
+
+        public ThrowingProviderResolver(Exception exception)
+        {
+            _exception = exception;
+        }
+
+        public int Calls { get; private set; }
+
+        public IChatClientFactory Resolve(string provider)
+        {
+            Calls++;
+            throw _exception;
+        }
+    }
+
+    private sealed class ThrowingToolBindingResolver : IToolBindingResolver
+    {
+        private readonly Exception _exception;
+
+        public ThrowingToolBindingResolver(Exception exception)
+        {
+            _exception = exception;
+        }
+
+        public int Calls { get; private set; }
+
+        public ToolAsset? LastAsset { get; private set; }
+
+        public ITool Resolve(ToolAsset asset)
+        {
+            Calls++;
+            LastAsset = asset;
+            throw _exception;
         }
     }
 
