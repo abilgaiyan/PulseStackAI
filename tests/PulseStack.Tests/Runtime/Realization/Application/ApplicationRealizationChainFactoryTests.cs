@@ -109,12 +109,12 @@ public sealed class ApplicationRealizationChainFactoryTests
     {
         public int Calls { get; private set; }
 
-        public Task<PulseStack.Abstractions.Assets.IAsset?> ResolveAsync(
+        public ValueTask<PulseStack.Abstractions.Assets.IAsset?> ResolveAsync(
             PulseStack.Abstractions.Assets.AssetReference reference,
             CancellationToken cancellationToken = default)
         {
             Calls++;
-            return Task.FromResult<PulseStack.Abstractions.Assets.IAsset?>(null);
+            return ValueTask.FromResult<PulseStack.Abstractions.Assets.IAsset?>(null);
         }
     }
 
