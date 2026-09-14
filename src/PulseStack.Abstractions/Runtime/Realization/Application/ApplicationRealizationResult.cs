@@ -2,13 +2,13 @@ using PulseStack.Abstractions.Workflows;
 
 namespace PulseStack.Abstractions.Runtime.Realization.Application;
 
-public abstract record ApplicationRealizationResult
+public abstract class ApplicationRealizationResult
 {
     private ApplicationRealizationResult()
     {
     }
 
-    public sealed record Success : ApplicationRealizationResult
+    public sealed class Success : ApplicationRealizationResult
     {
         public Success(Workflow workflow)
         {
@@ -19,7 +19,7 @@ public abstract record ApplicationRealizationResult
         public Workflow Workflow { get; }
     }
 
-    public sealed record UnsupportedRoot : ApplicationRealizationResult
+    public sealed class UnsupportedRoot : ApplicationRealizationResult
     {
         public UnsupportedRoot(ApplicationRealizationUnsupportedRootContext context)
         {
@@ -30,7 +30,7 @@ public abstract record ApplicationRealizationResult
         public ApplicationRealizationUnsupportedRootContext Context { get; }
     }
 
-    public sealed record EntryWorkflowUnresolved : ApplicationRealizationResult
+    public sealed class EntryWorkflowUnresolved : ApplicationRealizationResult
     {
         public EntryWorkflowUnresolved(ApplicationRealizationEntryWorkflowUnresolvedContext context)
         {
@@ -41,7 +41,7 @@ public abstract record ApplicationRealizationResult
         public ApplicationRealizationEntryWorkflowUnresolvedContext Context { get; }
     }
 
-    public sealed record EntryWorkflowTypeIncoherent : ApplicationRealizationResult
+    public sealed class EntryWorkflowTypeIncoherent : ApplicationRealizationResult
     {
         public EntryWorkflowTypeIncoherent(
             ApplicationRealizationEntryWorkflowTypeIncoherentContext context)
