@@ -8,6 +8,7 @@ using PulseStack.Abstractions.Models;
 using PulseStack.Abstractions.Persistence.AIAssets.GraphLoading;
 using PulseStack.Abstractions.Providers;
 using PulseStack.Abstractions.Runtime.Realization.Application;
+using PulseStack.Abstractions.Workflows.Definitions;
 using PulseStack.Abstractions.Workflows.Steps;
 using PulseStack.Agents.DependencyInjection;
 using PulseStack.Core.Assets;
