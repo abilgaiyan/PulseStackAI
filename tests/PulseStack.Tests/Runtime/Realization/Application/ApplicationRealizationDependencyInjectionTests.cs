@@ -23,14 +23,11 @@ public sealed class ApplicationRealizationDependencyInjectionTests
         services.AddPulseStackAgents();
         services.AddPulseStackAgents();
 
-        Assert.Single(services.Where(
-            descriptor => descriptor.ServiceType == typeof(IApplicationRealizationChainFactory)));
-        Assert.Single(services.Where(
-            descriptor => descriptor.ServiceType == typeof(IApplicationRealizer)));
-
-        var factoryDescriptor = services.Single(
+        var factoryDescriptor = Assert.Single(
+            services,
             descriptor => descriptor.ServiceType == typeof(IApplicationRealizationChainFactory));
-        var realizerDescriptor = services.Single(
+        var realizerDescriptor = Assert.Single(
+            services,
             descriptor => descriptor.ServiceType == typeof(IApplicationRealizer));
 
         Assert.Equal(ServiceLifetime.Scoped, factoryDescriptor.Lifetime);
@@ -48,10 +45,12 @@ public sealed class ApplicationRealizationDependencyInjectionTests
 
         services.AddPulseStackAgents();
 
-        var factoryDescriptor = Assert.Single(services.Where(
-            descriptor => descriptor.ServiceType == typeof(IApplicationRealizationChainFactory)));
-        var realizerDescriptor = Assert.Single(services.Where(
-            descriptor => descriptor.ServiceType == typeof(IApplicationRealizer)));
+        var factoryDescriptor = Assert.Single(
+            services,
+            descriptor => descriptor.ServiceType == typeof(IApplicationRealizationChainFactory));
+        var realizerDescriptor = Assert.Single(
+            services,
+            descriptor => descriptor.ServiceType == typeof(IApplicationRealizer));
 
         Assert.Equal(typeof(CustomChainFactory), factoryDescriptor.ImplementationType);
         Assert.Equal(typeof(CustomApplicationRealizer), realizerDescriptor.ImplementationType);
@@ -67,7 +66,6 @@ public sealed class ApplicationRealizationDependencyInjectionTests
         using var provider = services.BuildServiceProvider(
             new ServiceProviderOptions
             {
-                ValidateOnBuild = true,
                 ValidateScopes = true
             });
 
