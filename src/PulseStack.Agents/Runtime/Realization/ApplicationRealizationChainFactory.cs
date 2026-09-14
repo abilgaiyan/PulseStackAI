@@ -9,7 +9,7 @@ using PulseStack.Core.Runtime.Realization.Composition;
 
 namespace PulseStack.Agents.Runtime.Realization;
 
-public sealed class ApplicationRealizationChainFactory : IApplicationRealizationChainFactory
+internal sealed class ApplicationRealizationChainFactory : IApplicationRealizationChainFactory
 {
     private readonly ModelRealizer _modelRealizer;
     private readonly PromptRealizer _promptRealizer;
