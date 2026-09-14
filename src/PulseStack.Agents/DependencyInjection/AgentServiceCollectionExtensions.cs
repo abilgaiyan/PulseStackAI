@@ -1,10 +1,12 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using PulseStack.Abstractions.Agents;
+using PulseStack.Abstractions.Runtime.Realization.Application;
 using PulseStack.Abstractions.Runtime.Realization.Composition;
 using PulseStack.Agents.Runtime.Diagnostics;
 using PulseStack.Agents.Runtime;
 using PulseStack.Agents.Runtime.Realization;
+using PulseStack.Core.Runtime.Realization.Application;
 
 namespace PulseStack.Agents.DependencyInjection;
 
@@ -21,6 +23,12 @@ public static class AgentServiceCollectionExtensions
         services.TryAddSingleton<IAgentRuntime, AgentRuntime>();
 
         services.TryAddScoped<IAgentComposer, AgentComposer>();
+
+        services.TryAddScoped<IApplicationRealizationChainFactory,
+                              ApplicationRealizationChainFactory>();
+
+        services.TryAddScoped<IApplicationRealizer,
+                              ApplicationRealizer>();
 
         services.TryAddSingleton<PipelineRuntime>();
 
