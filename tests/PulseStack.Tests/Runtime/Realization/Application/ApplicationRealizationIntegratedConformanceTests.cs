@@ -499,6 +499,69 @@ public sealed class ApplicationRealizationIntegratedConformanceTests
         Assert.Equal(0, ambient.Calls);
     }
 
+    [Fact]
+    public async Task Realization_ShouldNotExecuteRuntimeCollaborators()
+    {
+        var model = CreateModelAsset();
+        var toolAsset = CreateToolAsset("Execution Boundary Tool");
+        var agent = CreateAgent(
+            "Execution Boundary Agent",
+            model,
+            tools: [Reference(toolAsset)]);
+        var workflow = CreateWorkflow("Execution Boundary Workflow", agent);
+        var project = CreateProject(
+            "Execution Boundary Project",
+            Reference(workflow),
+            Reference(workflow),
+            Reference(agent),
+            Reference(model),
+            Reference(toolAsset));
+        var graph = Graph(project, workflow, agent, model, toolAsset);
+
+        var ambient = RecordingAmbientAssetResolver.Hostile();
+        var agentRuntime = new RecordingAgentRuntime();
+        var chatClient = new RecordingChatClient();
+        var providerResolver = new RecordingProviderResolver(chatClient);
+        var boundTool = new RecordingTool("execution-boundary-tool");
+        var bindingResolver = new RecordingToolBindingResolver(boundTool);
+        var toolExecutor = new RecordingToolExecutor();
+
+        var services = new ServiceCollection();
+        services.AddScoped<IAssetResolver>(_ => ambient);
+        services.AddSingleton<IAgentRuntime>(agentRuntime);
+        services.AddSingleton<IProviderResolver>(providerResolver);
+        services.AddSingleton<IToolBindingResolver>(bindingResolver);
+        services.AddScoped<IToolExecutor>(_ => toolExecutor);
+        services.AddPulseStack();
+        services.AddPulseStackAgents();
+
+        await using var provider = services.BuildServiceProvider(
+            new ServiceProviderOptions
+            {
+                ValidateScopes = true
+            });
+        await using var scope = provider.CreateAsyncScope();
+
+        var realizer = scope.ServiceProvider.GetRequiredService<IApplicationRealizer>();
+        var result = await realizer.RealizeAsync(graph);
+
+        var success = Assert.IsType<ApplicationRealizationResult.Success>(result);
+        var run = Assert.IsType<RunStep>(Assert.Single(success.Workflow.Steps));
+
+        Assert.Equal("Execution Boundary Workflow", success.Workflow.Name);
+        Assert.Equal("Execution Boundary Agent", run.Agent.Name);
+        Assert.Equal(1, providerResolver.Calls);
+        Assert.Equal(1, bindingResolver.Calls);
+        Assert.Same(toolAsset, bindingResolver.LastAsset);
+
+        Assert.Equal(0, agentRuntime.RunCalls);
+        Assert.Equal(0, agentRuntime.StreamCalls);
+        Assert.Equal(0, chatClient.Calls);
+        Assert.Equal(0, toolExecutor.Calls);
+        Assert.Equal(0, boundTool.ExecutionCalls);
+        Assert.Equal(0, ambient.Calls);
+    }
+
     private static AgentDefinition CreateAgent(
         string name,
         ModelAsset model,
@@ -688,6 +751,31 @@ public sealed class ApplicationRealizationIntegratedConformanceTests
         }
     }
 
+    private sealed class RecordingProviderResolver : IProviderResolver
+    {
+        private readonly IChatClientFactory _factory;
+
+        public RecordingProviderResolver(IChatClient client)
+        {
+            _factory = new RecordingChatClientFactory(client);
+        }
+
+        public int Calls { get; private set; }
+
+        public IChatClientFactory Resolve(string provider)
+        {
+            Calls++;
+
+            if (provider != "Stub")
+            {
+                throw new InvalidOperationException(
+                    $"Unexpected provider '{provider}'.");
+            }
+
+            return _factory;
+        }
+    }
+
     private sealed class ThrowingToolBindingResolver : IToolBindingResolver
     {
         private readonly Exception _exception;
@@ -709,6 +797,125 @@ public sealed class ApplicationRealizationIntegratedConformanceTests
         }
     }
 
+    private sealed class RecordingToolBindingResolver : IToolBindingResolver
+    {
+        private readonly ITool _tool;
+
+        public RecordingToolBindingResolver(ITool tool)
+        {
+            _tool = tool;
+        }
+
+        public int Calls { get; private set; }
+
+        public ToolAsset? LastAsset { get; private set; }
+
+        public ITool Resolve(ToolAsset asset)
+        {
+            Calls++;
+            LastAsset = asset;
+            return _tool;
+        }
+    }
+
+    private sealed class RecordingAgentRuntime : IAgentRuntime
+    {
+        public int RunCalls { get; private set; }
+
+        public int StreamCalls { get; private set; }
+
+        public Task<AgentResponse> RunAsync(
+            PipelineContext context,
+            CancellationToken cancellationToken = default)
+        {
+            RunCalls++;
+            return Task.FromException<AgentResponse>(
+                new InvalidOperationException(
+                    "MS-010.3F.5 realization must not invoke IAgentRuntime.RunAsync."));
+        }
+
+        public IAsyncEnumerable<string> StreamAsync(
+            string input,
+            CancellationToken cancellationToken = default)
+        {
+            StreamCalls++;
+            throw new InvalidOperationException(
+                "MS-010.3F.5 realization must not invoke IAgentRuntime.StreamAsync.");
+        }
+    }
+
+    private sealed class RecordingToolExecutor : IToolExecutor
+    {
+        public int Calls { get; private set; }
+
+        public Task<IToolExecutionResult> ExecuteAsync(
+            ITool tool,
+            ToolExecutionContext context,
+            CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            return Task.FromException<IToolExecutionResult>(
+                new InvalidOperationException(
+                    "MS-010.3F.5 realization must not execute tools."));
+        }
+    }
+
+    private sealed class RecordingTool : ITool
+    {
+        public RecordingTool(string name)
+        {
+            Name = name;
+            Descriptor = new ToolDescriptor
+            {
+                Name = name,
+                Description = "MS-010.3F.5 execution-boundary tool"
+            };
+        }
+
+        public string Name { get; }
+
+        public string Description => "MS-010.3F.5 execution-boundary tool";
+
+        public string Category => "Conformance";
+
+        public IReadOnlyCollection<string> Tags => [];
+
+        public ToolDescriptor Descriptor { get; }
+
+        public int ExecutionCalls { get; private set; }
+
+        public Task<IToolExecutionResult> ExecuteAsync(
+            ToolExecutionContext context,
+            CancellationToken cancellationToken = default)
+        {
+            ExecutionCalls++;
+            return Task.FromException<IToolExecutionResult>(
+                new InvalidOperationException(
+                    "MS-010.3F.5 realization must not invoke bound tools."));
+        }
+    }
+
+    private sealed class RecordingChatClientFactory : IChatClientFactory
+    {
+        private readonly IChatClient _client;
+
+        public RecordingChatClientFactory(IChatClient client)
+        {
+            _client = client;
+        }
+
+        public IChatClient Create(string model)
+        {
+            if (model != "stub-model")
+            {
+                throw new InvalidOperationException(
+                    $"Unexpected model '{model}'.");
+            }
+
+            return _client;
+        }
+    }
+
     private sealed class StubChatClientFactory : IChatClientFactory
     {
         private readonly IChatClient _client = new StubChatClient();
@@ -722,6 +929,40 @@ public sealed class ApplicationRealizationIntegratedConformanceTests
             }
 
             return _client;
+        }
+    }
+
+    private sealed class RecordingChatClient : IChatClient
+    {
+        public int Calls { get; private set; }
+
+        public Task<ChatResponse> GetResponseAsync(
+            IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null,
+            CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            return Task.FromException<ChatResponse>(
+                new InvalidOperationException(
+                    "MS-010.3F.5 realization must not call the chat client."));
+        }
+
+        public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+            IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null,
+            CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            throw new InvalidOperationException(
+                "MS-010.3F.5 realization must not stream from the chat client.");
+        }
+
+        public object? GetService(
+            Type serviceType,
+            object? serviceKey = null) => null;
+
+        public void Dispose()
+        {
         }
     }
 
