@@ -16,18 +16,32 @@ public sealed class ApplicationRealizationContractTests
     public void ResultAlgebra_ShouldExposeExactlyTheFrozenClosedVariants()
     {
         var baseType = typeof(ApplicationRealizationResult);
-        var variants = baseType
+        var authorizedVariants = new[]
+        {
+            typeof(ApplicationRealizationResult.EntryWorkflowTypeIncoherent),
+            typeof(ApplicationRealizationResult.EntryWorkflowUnresolved),
+            typeof(ApplicationRealizationResult.Success),
+            typeof(ApplicationRealizationResult.UnsupportedRoot)
+        }
+        .OrderBy(static type => type.FullName, StringComparer.Ordinal)
+        .ToArray();
+
+        var publicNestedVariants = baseType
             .GetNestedTypes(BindingFlags.Public)
             .Where(type => type.BaseType == baseType)
-            .Select(type => type.Name)
-            .OrderBy(static name => name, StringComparer.Ordinal)
+            .OrderBy(static type => type.FullName, StringComparer.Ordinal)
             .ToArray();
 
-        variants.Should().Equal(
-            nameof(ApplicationRealizationResult.EntryWorkflowTypeIncoherent),
-            nameof(ApplicationRealizationResult.EntryWorkflowUnresolved),
-            nameof(ApplicationRealizationResult.Success),
-            nameof(ApplicationRealizationResult.UnsupportedRoot));
+        publicNestedVariants.Should().Equal(authorizedVariants);
+        authorizedVariants.Should().OnlyContain(static type => type.IsSealed);
+
+        var allDerivedTypes = baseType.Assembly
+            .GetTypes()
+            .Where(type => type != baseType && baseType.IsAssignableFrom(type))
+            .OrderBy(static type => type.FullName, StringComparer.Ordinal)
+            .ToArray();
+
+        allDerivedTypes.Should().Equal(authorizedVariants);
 
         var constructors = baseType.GetConstructors(
             BindingFlags.Instance | BindingFlags.NonPublic);
@@ -62,17 +76,20 @@ public sealed class ApplicationRealizationContractTests
         context.RootKey.Should().Be(rootKey);
     }
 
-    [Theory]
-    [InlineData(AssetType.Project)]
-    [InlineData(AssetType.Workflow)]
-    [InlineData(AssetType.Agent)]
-    [InlineData(AssetType.Provider)]
-    public void UnsupportedRootContext_ShouldRejectOtherRootTypes(AssetType type)
+    [Fact]
+    public void UnsupportedRootContext_ShouldRejectEveryUnauthorizedRootType()
     {
-        var action = () => new ApplicationRealizationUnsupportedRootContext(
-            DefinitionKey(type));
+        var rejectedTypes = Enum.GetValues<AssetType>()
+            .Where(type => type is not (AssetType.Library or AssetType.Package))
+            .Append((AssetType)int.MaxValue);
 
-        action.Should().Throw<ArgumentException>();
+        foreach (var type in rejectedTypes)
+        {
+            var action = () => new ApplicationRealizationUnsupportedRootContext(
+                DefinitionKey(type));
+
+            action.Should().Throw<ArgumentException>();
+        }
     }
 
     [Fact]
@@ -124,38 +141,46 @@ public sealed class ApplicationRealizationContractTests
         incoherent.EntryWorkflow.Should().BeSameAs(entryWorkflow);
     }
 
-    [Theory]
-    [InlineData(AssetType.Library)]
-    [InlineData(AssetType.Package)]
-    [InlineData(AssetType.Workflow)]
-    public void EntryWorkflowContexts_ShouldRejectNonProjectRoot(AssetType rootType)
+    [Fact]
+    public void EntryWorkflowContexts_ShouldRejectEveryNonProjectRootType()
     {
-        var rootKey = DefinitionKey(rootType);
         var entryWorkflow = Reference(AssetType.Workflow);
+        var rejectedRootTypes = Enum.GetValues<AssetType>()
+            .Where(type => type != AssetType.Project)
+            .Append((AssetType)int.MaxValue);
 
-        new Action(() => new ApplicationRealizationEntryWorkflowUnresolvedContext(
-            rootKey,
-            entryWorkflow)).Should().Throw<ArgumentException>();
-        new Action(() => new ApplicationRealizationEntryWorkflowTypeIncoherentContext(
-            rootKey,
-            entryWorkflow)).Should().Throw<ArgumentException>();
+        foreach (var rootType in rejectedRootTypes)
+        {
+            AssertEntryContextRejected(
+                DefinitionKey(rootType),
+                entryWorkflow);
+        }
     }
 
     [Fact]
     public void EntryWorkflowContexts_ShouldRejectStructurallyInvalidProjectRoot()
     {
-        var rootKey = new AssetDefinitionKey(
-            AssetType.Project,
-            AssetId.Empty,
-            new AssetVersion("1.0.0"));
         var entryWorkflow = Reference(AssetType.Workflow);
+        var invalidRoots = new[]
+        {
+            new AssetDefinitionKey(
+                AssetType.Project,
+                AssetId.Empty,
+                new AssetVersion("1.0.0")),
+            new AssetDefinitionKey(
+                AssetType.Project,
+                AssetId.New(),
+                null!),
+            new AssetDefinitionKey(
+                AssetType.Project,
+                AssetId.New(),
+                new AssetVersion(" "))
+        };
 
-        new Action(() => new ApplicationRealizationEntryWorkflowUnresolvedContext(
-            rootKey,
-            entryWorkflow)).Should().Throw<ArgumentException>();
-        new Action(() => new ApplicationRealizationEntryWorkflowTypeIncoherentContext(
-            rootKey,
-            entryWorkflow)).Should().Throw<ArgumentException>();
+        foreach (var rootKey in invalidRoots)
+        {
+            AssertEntryContextRejected(rootKey, entryWorkflow);
+        }
     }
 
     [Fact]
@@ -171,21 +196,18 @@ public sealed class ApplicationRealizationContractTests
             null!)).Should().Throw<ArgumentNullException>();
     }
 
-    [Theory]
-    [InlineData(AssetType.Agent)]
-    [InlineData(AssetType.Project)]
-    [InlineData(AssetType.Provider)]
-    public void EntryWorkflowContexts_ShouldRejectNonWorkflowReference(AssetType type)
+    [Fact]
+    public void EntryWorkflowContexts_ShouldRejectEveryNonWorkflowReferenceType()
     {
         var rootKey = DefinitionKey(AssetType.Project);
-        var reference = Reference(type);
+        var rejectedReferenceTypes = Enum.GetValues<AssetType>()
+            .Where(type => type != AssetType.Workflow)
+            .Append((AssetType)int.MaxValue);
 
-        new Action(() => new ApplicationRealizationEntryWorkflowUnresolvedContext(
-            rootKey,
-            reference)).Should().Throw<ArgumentException>();
-        new Action(() => new ApplicationRealizationEntryWorkflowTypeIncoherentContext(
-            rootKey,
-            reference)).Should().Throw<ArgumentException>();
+        foreach (var type in rejectedReferenceTypes)
+        {
+            AssertEntryContextRejected(rootKey, Reference(type));
+        }
     }
 
     [Fact]
@@ -269,7 +291,8 @@ public sealed class ApplicationRealizationContractTests
     [Fact]
     public void ChainFactoryContract_ShouldRequireExplicitResolverAndExposeNoContainerTypes()
     {
-        var method = typeof(IApplicationRealizationChainFactory).GetMethod(
+        var factoryType = typeof(IApplicationRealizationChainFactory);
+        var method = factoryType.GetMethod(
             nameof(IApplicationRealizationChainFactory.Create));
 
         method.Should().NotBeNull();
@@ -277,8 +300,76 @@ public sealed class ApplicationRealizationContractTests
         method.GetParameters().Select(static parameter => parameter.ParameterType)
             .Should().Equal(typeof(IAssetResolver));
 
-        typeof(IApplicationRealizationChainFactory).AssemblyQualifiedName
-            .Should().NotContain("Microsoft.Extensions.DependencyInjection");
+        var forbiddenTypeNames = new HashSet<string>(StringComparer.Ordinal)
+        {
+            typeof(IServiceProvider).FullName!,
+            "Microsoft.Extensions.DependencyInjection.IServiceCollection",
+            "Microsoft.Extensions.DependencyInjection.IServiceScope"
+        };
+
+        var exposedTypes = GetCompletePublicSurfaceTypes(factoryType)
+            .SelectMany(FlattenTypeShape)
+            .Where(static type => type.FullName is not null)
+            .ToArray();
+
+        exposedTypes.Should().NotContain(
+            type => forbiddenTypeNames.Contains(type.FullName!),
+            "portable realization-chain factory APIs must not expose DI/container types");
+    }
+
+    private static IEnumerable<Type> GetCompletePublicSurfaceTypes(Type interfaceType)
+    {
+        foreach (var contractType in new[] { interfaceType }.Concat(interfaceType.GetInterfaces()))
+        {
+            foreach (var method in contractType.GetMethods())
+            {
+                yield return method.ReturnType;
+
+                foreach (var parameter in method.GetParameters())
+                {
+                    yield return parameter.ParameterType;
+                }
+            }
+
+            foreach (var property in contractType.GetProperties())
+            {
+                yield return property.PropertyType;
+
+                foreach (var parameter in property.GetIndexParameters())
+                {
+                    yield return parameter.ParameterType;
+                }
+            }
+
+            foreach (var @event in contractType.GetEvents())
+            {
+                if (@event.EventHandlerType is not null)
+                {
+                    yield return @event.EventHandlerType;
+                }
+            }
+        }
+    }
+
+    private static IEnumerable<Type> FlattenTypeShape(Type type)
+    {
+        yield return type;
+
+        if (type.HasElementType && type.GetElementType() is { } elementType)
+        {
+            foreach (var nestedType in FlattenTypeShape(elementType))
+            {
+                yield return nestedType;
+            }
+        }
+
+        foreach (var genericArgument in type.GetGenericArguments())
+        {
+            foreach (var nestedType in FlattenTypeShape(genericArgument))
+            {
+                yield return nestedType;
+            }
+        }
     }
 
     private static AssetDefinitionKey DefinitionKey(AssetType type) =>
