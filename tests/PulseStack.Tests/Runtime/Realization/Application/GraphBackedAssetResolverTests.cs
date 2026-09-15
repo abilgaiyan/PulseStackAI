@@ -221,7 +221,7 @@ public sealed class GraphBackedAssetResolverTests
     }
 
     [Fact]
-    public void ResolveAsync_ShouldCompleteSynchronouslyForInMemoryLookup()
+    public async Task ResolveAsync_ShouldCompleteSynchronouslyForInMemoryLookup()
     {
         var root = Asset(AssetType.Project, "root");
         var resolver = Resolver(root);
@@ -229,7 +229,7 @@ public sealed class GraphBackedAssetResolverTests
         var result = resolver.ResolveAsync(Reference(root));
 
         result.IsCompletedSuccessfully.Should().BeTrue();
-        result.Result.Should().BeSameAs(root);
+        (await result).Should().BeSameAs(root);
     }
 
     private static GraphBackedAssetResolver Resolver(params StubAsset[] assets)
