@@ -10,13 +10,15 @@ public abstract class ApplicationRealizationResult
 
     public sealed class Success : ApplicationRealizationResult
     {
-        public Success(Workflow workflow)
+        public Success(RealizedApplication application)
         {
-            ArgumentNullException.ThrowIfNull(workflow);
-            Workflow = workflow;
+            ArgumentNullException.ThrowIfNull(application);
+            Application = application;
         }
 
-        public Workflow Workflow { get; }
+        public RealizedApplication Application { get; }
+
+        public Workflow Workflow => Application.Workflow;
     }
 
     public sealed class UnsupportedRoot : ApplicationRealizationResult
