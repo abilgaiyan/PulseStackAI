@@ -1,4 +1,4 @@
-using System.Collections;
+using System.Collections.Generic;
 using System.Reflection;
 using FluentAssertions;
 using PulseStack.Abstractions.Assets;
@@ -18,7 +18,6 @@ public sealed class ApplicationInvocationContractTests
         var project = Reference(AssetType.Project);
         var entryWorkflow = Reference(AssetType.Workflow);
         var workflow = new Workflow("entry");
-
         var constructors = typeof(RealizedApplication).GetConstructors(
             BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 
@@ -26,7 +25,6 @@ public sealed class ApplicationInvocationContractTests
         constructors[0].IsAssembly.Should().BeTrue();
 
         var application = ConstructRealizedApplication(project, entryWorkflow, workflow);
-
         application.Project.Should().BeSameAs(project);
         application.EntryWorkflow.Should().BeSameAs(entryWorkflow);
         application.Workflow.Should().BeSameAs(workflow);
@@ -61,8 +59,12 @@ public sealed class ApplicationInvocationContractTests
         request.Items["Key"].Should().BeSameAs(shared);
         request.Items.Should().ContainKey("key").WhoseValue.Should().BeNull();
         request.Items.Should().NotContainKey("later");
-        request.Items.Should().NotBeAssignableTo<IDictionary<string, object?>>();
-        request.Items.Should().NotBeAssignableTo<IDictionary>();
+
+        var mutableView = request.Items.Should()
+            .BeAssignableTo<IDictionary<string, object?>>().Subject;
+        new Action(() => mutableView.Add("forbidden", 1))
+            .Should().Throw<NotSupportedException>();
+        request.Items.Should().NotContainKey("forbidden");
     }
 
     [Theory]
@@ -81,11 +83,7 @@ public sealed class ApplicationInvocationContractTests
 
         foreach (var key in new[] { "", " " })
         {
-            var items = new Dictionary<string, object?>(StringComparer.Ordinal)
-            {
-                [key] = null
-            };
-
+            var items = new Dictionary<string, object?>(StringComparer.Ordinal) { [key] = null };
             new Action(() => new ApplicationInvocationRequest("input", items))
                 .Should().Throw<ArgumentException>();
         }
@@ -95,10 +93,12 @@ public sealed class ApplicationInvocationContractTests
     public void Request_ShouldExposeEmptyReadOnlyItemsWhenOmitted()
     {
         var request = new ApplicationInvocationRequest("input");
-
         request.Items.Should().BeEmpty();
-        request.Items.Should().NotBeAssignableTo<IDictionary<string, object?>>();
-        request.Items.Should().NotBeAssignableTo<IDictionary>();
+
+        var mutableView = request.Items.Should()
+            .BeAssignableTo<IDictionary<string, object?>>().Subject;
+        new Action(() => mutableView.Add("forbidden", 1))
+            .Should().Throw<NotSupportedException>();
     }
 
     [Fact]
@@ -110,12 +110,7 @@ public sealed class ApplicationInvocationContractTests
         var second = new StepExecutionResult { StepName = "second", Success = false };
         var source = new List<StepExecutionResult> { first, second };
 
-        var result = new ApplicationInvocationResult(
-            project,
-            entryWorkflow,
-            false,
-            "final",
-            source);
+        var result = new ApplicationInvocationResult(project, entryWorkflow, false, "final", source);
         source.Clear();
 
         result.Project.Should().BeSameAs(project);
@@ -124,8 +119,12 @@ public sealed class ApplicationInvocationContractTests
         result.FinalOutput.Should().Be("final");
         result.Steps.Should().Equal(first, second);
         result.Steps[0].Should().BeSameAs(first);
-        result.Steps.Should().NotBeAssignableTo<IList<StepExecutionResult>>();
-        result.Steps.Should().NotBeAssignableTo<IList>();
+
+        var mutableView = result.Steps.Should()
+            .BeAssignableTo<IList<StepExecutionResult>>().Subject;
+        new Action(() => mutableView.Add(new StepExecutionResult()))
+            .Should().Throw<NotSupportedException>();
+        result.Steps.Should().Equal(first, second);
     }
 
     [Fact]
@@ -135,35 +134,24 @@ public sealed class ApplicationInvocationContractTests
         var workflow = Reference(AssetType.Workflow);
         var steps = Array.Empty<StepExecutionResult>();
 
-        new Action(() => new ApplicationInvocationResult(Reference(AssetType.Workflow), workflow, true, "output", steps))
-            .Should().Throw<ArgumentException>();
-        new Action(() => new ApplicationInvocationResult(project, Reference(AssetType.Agent), true, "output", steps))
-            .Should().Throw<ArgumentException>();
-        new Action(() => new ApplicationInvocationResult(MalformedReference(AssetType.Project), workflow, true, "output", steps))
-            .Should().Throw<ArgumentException>();
-        new Action(() => new ApplicationInvocationResult(project, MalformedReference(AssetType.Workflow), true, "output", steps))
-            .Should().Throw<ArgumentException>();
-        new Action(() => new ApplicationInvocationResult(project, workflow, true, null!, steps))
-            .Should().Throw<ArgumentNullException>();
-        new Action(() => new ApplicationInvocationResult(project, workflow, true, "output", null!))
-            .Should().Throw<ArgumentNullException>();
-        new Action(() => new ApplicationInvocationResult(project, workflow, true, "output", new StepExecutionResult[] { null! }))
-            .Should().Throw<ArgumentException>();
+        new Action(() => new ApplicationInvocationResult(Reference(AssetType.Workflow), workflow, true, "output", steps)).Should().Throw<ArgumentException>();
+        new Action(() => new ApplicationInvocationResult(project, Reference(AssetType.Agent), true, "output", steps)).Should().Throw<ArgumentException>();
+        new Action(() => new ApplicationInvocationResult(MalformedReference(AssetType.Project), workflow, true, "output", steps)).Should().Throw<ArgumentException>();
+        new Action(() => new ApplicationInvocationResult(project, MalformedReference(AssetType.Workflow), true, "output", steps)).Should().Throw<ArgumentException>();
+        new Action(() => new ApplicationInvocationResult(project, workflow, true, null!, steps)).Should().Throw<ArgumentNullException>();
+        new Action(() => new ApplicationInvocationResult(project, workflow, true, "output", null!)).Should().Throw<ArgumentNullException>();
+        new Action(() => new ApplicationInvocationResult(project, workflow, true, "output", new StepExecutionResult[] { null! })).Should().Throw<ArgumentException>();
     }
 
     [Fact]
     public void Invoker_ShouldExposeExactlyOneFrozenOperation()
     {
         var methods = typeof(IApplicationInvoker).GetMethods();
-
         methods.Should().ContainSingle();
         methods[0].Name.Should().Be(nameof(IApplicationInvoker.InvokeAsync));
         methods[0].ReturnType.Should().Be(typeof(Task<ApplicationInvocationResult>));
         methods[0].GetParameters().Select(static parameter => parameter.ParameterType)
-            .Should().Equal(
-                typeof(RealizedApplication),
-                typeof(ApplicationInvocationRequest),
-                typeof(CancellationToken));
+            .Should().Equal(typeof(RealizedApplication), typeof(ApplicationInvocationRequest), typeof(CancellationToken));
     }
 
     private static RealizedApplication ConstructRealizedApplication(
@@ -173,7 +161,6 @@ public sealed class ApplicationInvocationContractTests
     {
         var constructor = typeof(RealizedApplication).GetConstructors(
             BindingFlags.Instance | BindingFlags.NonPublic).Single();
-
         return (RealizedApplication)constructor.Invoke([project, entryWorkflow, workflow]);
     }
 
@@ -183,22 +170,13 @@ public sealed class ApplicationInvocationContractTests
         Workflow workflow)
     {
         var action = () => ConstructRealizedApplication(project, entryWorkflow, workflow);
-
         action.Should().Throw<TargetInvocationException>()
             .Which.InnerException.Should().BeAssignableTo<ArgumentException>();
     }
 
     private static AssetReference Reference(AssetType type) =>
-        new(
-            type,
-            AssetId.New(),
-            new AssetUrn($"urn:pulsestack:{type.ToString().ToLowerInvariant()}:test"),
-            new AssetVersion("1.0.0"));
+        new(type, AssetId.New(), new AssetUrn($"urn:pulsestack:{type.ToString().ToLowerInvariant()}:test"), new AssetVersion("1.0.0"));
 
     private static AssetReference MalformedReference(AssetType type) =>
-        new(
-            type,
-            AssetId.Empty,
-            new AssetUrn($"urn:pulsestack:{type.ToString().ToLowerInvariant()}:test"),
-            new AssetVersion("1.0.0"));
+        new(type, AssetId.Empty, new AssetUrn($"urn:pulsestack:{type.ToString().ToLowerInvariant()}:test"), new AssetVersion("1.0.0"));
 }
