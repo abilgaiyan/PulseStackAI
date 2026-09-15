@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using FluentAssertions;
@@ -65,6 +66,29 @@ public sealed class ApplicationInvocationContractTests
         new Action(() => mutableView.Add("forbidden", 1))
             .Should().Throw<NotSupportedException>();
         request.Items.Should().NotContainKey("forbidden");
+    }
+
+    [Fact]
+    public void Request_ShouldUseOrdinalSnapshotSemanticsRegardlessOfSourceComparer()
+    {
+        var source = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Key"] = 1
+        };
+
+        var request = new ApplicationInvocationRequest("input", source);
+
+        request.Items.Should().ContainKey("Key");
+        request.Items.ContainsKey("key").Should().BeFalse();
+    }
+
+    [Fact]
+    public void Request_ShouldRejectSourceThatEnumeratesDuplicateOrdinalKeys()
+    {
+        IReadOnlyDictionary<string, object?> source = new DuplicateOrdinalKeyDictionary();
+
+        new Action(() => new ApplicationInvocationRequest("input", source))
+            .Should().Throw<ArgumentException>();
     }
 
     [Theory]
@@ -179,4 +203,44 @@ public sealed class ApplicationInvocationContractTests
 
     private static AssetReference MalformedReference(AssetType type) =>
         new(type, AssetId.Empty, new AssetUrn($"urn:pulsestack:{type.ToString().ToLowerInvariant()}:test"), new AssetVersion("1.0.0"));
+
+    private sealed class DuplicateOrdinalKeyDictionary : IReadOnlyDictionary<string, object?>
+    {
+        private static readonly KeyValuePair<string, object?>[] Entries =
+        [
+            new("duplicate", 1),
+            new("duplicate", 2)
+        ];
+
+        public object? this[string key] => throw new KeyNotFoundException();
+
+        public IEnumerable<string> Keys => Entries.Select(static entry => entry.Key);
+
+        public IEnumerable<object?> Values => Entries.Select(static entry => entry.Value);
+
+        public int Count => Entries.Length;
+
+        public bool ContainsKey(string key) =>
+            Entries.Any(entry => StringComparer.Ordinal.Equals(entry.Key, key));
+
+        public IEnumerator<KeyValuePair<string, object?>> GetEnumerator() =>
+            ((IEnumerable<KeyValuePair<string, object?>>)Entries).GetEnumerator();
+
+        public bool TryGetValue(string key, out object? value)
+        {
+            foreach (var entry in Entries)
+            {
+                if (StringComparer.Ordinal.Equals(entry.Key, key))
+                {
+                    value = entry.Value;
+                    return true;
+                }
+            }
+
+            value = null;
+            return false;
+        }
+
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+    }
 }
