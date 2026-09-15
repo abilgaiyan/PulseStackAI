@@ -51,13 +51,25 @@ public sealed class ApplicationRealizationContractTests
     }
 
     [Fact]
-    public void Success_ShouldRequireAndPreserveExistingWorkflow()
+    public void Success_ShouldRequireAndPreserveRealizedApplicationAsSolePositivePayload()
     {
         var workflow = new Workflow("entry");
+        var application = CreateRealizedApplication(workflow);
 
-        var result = new ApplicationRealizationResult.Success(workflow);
+        var result = new ApplicationRealizationResult.Success(application);
 
+        result.Application.Should().BeSameAs(application);
+        result.Workflow.Should().BeSameAs(application.Workflow);
         result.Workflow.Should().BeSameAs(workflow);
+
+        var constructors = typeof(ApplicationRealizationResult.Success)
+            .GetConstructors(BindingFlags.Instance | BindingFlags.Public);
+        constructors.Should().ContainSingle();
+        constructors[0].GetParameters().Select(static parameter => parameter.ParameterType)
+            .Should().Equal(typeof(RealizedApplication));
+        constructors.Should().NotContain(constructor =>
+            constructor.GetParameters().Select(static parameter => parameter.ParameterType)
+                .SequenceEqual(new[] { typeof(Workflow) }));
 
         var action = () => new ApplicationRealizationResult.Success(null!);
         action.Should().Throw<ArgumentNullException>();
@@ -381,6 +393,16 @@ public sealed class ApplicationRealizationContractTests
             AssetId.New(),
             new AssetUrn($"urn:pulsestack:{type.ToString().ToLowerInvariant()}:test"),
             new AssetVersion("1.0.0"));
+
+    private static RealizedApplication CreateRealizedApplication(Workflow workflow)
+    {
+        var constructor = typeof(RealizedApplication)
+            .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
+            .Single();
+
+        return (RealizedApplication)constructor.Invoke(
+            [Reference(AssetType.Project), Reference(AssetType.Workflow), workflow]);
+    }
 
     private static void AssertEntryContextRejected(
         AssetDefinitionKey rootKey,

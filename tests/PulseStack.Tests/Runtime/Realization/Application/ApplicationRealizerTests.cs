@@ -122,7 +122,13 @@ public sealed class ApplicationRealizerTests
         var result = await realizer.RealizeAsync(graph, token);
 
         var success = Assert.IsType<ApplicationRealizationResult.Success>(result);
-        Assert.Same(returnedWorkflow, success.Workflow);
+        Assert.Equal(project.Type, success.Application.Project.Type);
+        Assert.Equal(project.Id, success.Application.Project.Id);
+        Assert.Equal(project.Urn, success.Application.Project.Urn);
+        Assert.Equal(project.Version, success.Application.Project.Version);
+        Assert.Same(entry, success.Application.EntryWorkflow);
+        Assert.Same(returnedWorkflow, success.Application.Workflow);
+        Assert.Same(success.Application.Workflow, success.Workflow);
         Assert.Equal(1, factory.Calls);
         Assert.NotNull(factory.Resolver);
         Assert.IsType<GraphBackedAssetResolver>(factory.Resolver);
