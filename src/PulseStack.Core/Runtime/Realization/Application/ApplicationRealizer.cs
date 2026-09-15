@@ -66,7 +66,16 @@ public sealed class ApplicationRealizer : IApplicationRealizer
         var workflow = await composer
             .ComposeAsync(workflowAsset, cancellationToken)
             .ConfigureAwait(false);
+        var projectReference = new AssetReference(
+            project.Type,
+            project.Id,
+            project.Urn,
+            project.Version);
+        var application = new RealizedApplication(
+            projectReference,
+            entryWorkflow,
+            workflow);
 
-        return new ApplicationRealizationResult.Success(workflow);
+        return new ApplicationRealizationResult.Success(application);
     }
 }
