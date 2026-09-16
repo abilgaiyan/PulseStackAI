@@ -89,7 +89,8 @@ public sealed class ApplicationInvocationDependencyInjectionTests
     {
         var services = new ServiceCollection();
         services.AddSingleton<IWorkflowRuntime, StubWorkflowRuntime>();
-        services.AddPulseStackAgents();
+        services.AddSingleton<ApplicationInvocationCoordinationAuthority>();
+        services.AddSingleton<IApplicationInvoker, ApplicationInvoker>();
 
         return services.BuildServiceProvider(
             new ServiceProviderOptions
