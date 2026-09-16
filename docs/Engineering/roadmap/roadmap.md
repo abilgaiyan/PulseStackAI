@@ -23,6 +23,8 @@ Runtime Realization
     ↓
 AI Asset Platform
     ↓
+Application Realization & Invocation
+    ↓
 Platform Capabilities
     ↓
 Ecosystem
@@ -172,35 +174,32 @@ Phase 3 also established:
 
 MS-008 is complete: declarative Agent and Workflow definitions can now be transformed into executable runtime objects without embedding provider or infrastructure concerns in the Application Language.
 
-Deferred from MS-008:
+Deferred from MS-008 and subsequently delivered where noted:
 
 - full WorkflowBuilder migration to declarative authoring
 - Workflow persistence schema migration to the new definition model
 - advanced Condition expression language
 - nested Workflow Asset references
-- Application realization
+- ~~Application realization~~ — delivered by MS-010.1–MS-010.3
 - Knowledge retrieval orchestration / RAG
 - Policy evaluation and enforcement engine
 - persistent or shared Memory providers
 
 ---
 
-## MS-009 — AI Asset Platform Implementation
+## ✅ MS-009 — AI Asset Platform Implementation
 
-MS-009 moves from runtime execution to authoring-side Asset management. It is delivered through independently reviewed increments rather than as one indivisible implementation step.
+MS-009 moved from runtime execution to authoring-side Asset management through independently reviewed increments.
 
 ```text
 MS-009.1–MS-009.9
-    implemented according to their individual closure records
+    CLOSED / FROZEN
 
 MS-009.9
     aggregate declarative graph loading complete
-
-broader MS-009
-    governed by the next repository/roadmap boundary
 ```
 
-Work completed through MS-009.9 establishes the schema-v1 AI Asset persistence platform needed for portable definition storage and declarative loading, including persistence contracts and mappings, canonical serialization, serialized storage/loading, persistent catalog and exact resolution, and aggregate declarative graph loading.
+MS-009 establishes the schema-v1 AI Asset persistence platform needed for portable definition storage and declarative loading, including asset persistence contracts and mappings, canonical serialization, serialized storage/loading, persistent catalog and exact resolution, and aggregate declarative graph loading.
 
 ### ✅ MS-009.9 — Aggregate Declarative Graph Loading
 
@@ -219,16 +218,91 @@ persistent exact resolution
         ↓
 multi-definition declarative graph loading
         ↓
-future runtime realization
-
-MS-009.9 ends at AIAssetGraph.
+AIAssetGraph
 ```
 
-The graph-loading layer is above `IPersistentAIAssetResolver`. Storage and catalog providers remain graph-unaware. Required declarative relationships form the materialized closure; optional requirements are preserved but do not initiate expansion. Runtime realization, activation, binding, instantiation, registration, and execution remain outside MS-009.9.
+The graph-loading layer is above `IPersistentAIAssetResolver`. Storage and catalog providers remain graph-unaware. Required declarative relationships form the materialized closure; optional requirements are preserved but do not initiate expansion.
+
+MS-009.9 itself ends at `AIAssetGraph`; runtime realization, activation, binding, instantiation, registration, and execution remain outside that slice. MS-010 subsequently consumes the graph boundary for application realization and portable invocation.
 
 The integrated closure proof covers public in-memory and file-backed persistence/catalog composition, file-backed recomposition, convergent graph loading, supported aggregate roots, deterministic normalized graph equivalence, and real persistent-resolver semantic failures that are reachable without violating lower-layer invariants.
 
-MS-009.9 does **not** declare all possible MS-009 work complete. The next MS-009 boundary must be established separately from current repository and roadmap evidence and explicitly authorized before implementation.
+---
+
+## ✅ MS-010 — Application Realization & Invocation
+
+MS-010 connects persisted declarative application graphs to the existing realization and workflow-runtime capabilities without creating a second execution engine or a new persistence model.
+
+The delivered path is:
+
+```text
+AIAssetGraph
+    ↓
+Project application realization
+    ↓
+RealizedApplication
+    ↓
+portable application invocation
+    ↓
+IWorkflowRuntime
+    ↓
+ApplicationInvocationResult
+```
+
+### ✅ MS-010.1 — Compatibility Trace
+
+Established that application realization should remain thin coordination over the existing Agent and Workflow realization authorities rather than introducing a new runtime application aggregate.
+
+### ✅ MS-010.2 — Application Realization Contract
+
+Established the Project-root application realization boundary, graph-backed resolution, entry-Workflow selection, resolver continuity, result/failure semantics, snapshot semantics, provenance, and the non-execution realization boundary.
+
+### ✅ MS-010.3 — Integrated Application Realization
+
+Implemented and proved graph-to-runtime application realization over existing realization infrastructure.
+
+The realized application preserves:
+
+```text
+Project provenance
+Entry Workflow provenance
+Executable Workflow
+```
+
+Integrated conformance proves positive realization, resolver continuity, operation isolation, repeated-reference semantics, failure/cancellation preservation, and execution-boundary separation.
+
+### ✅ MS-010.4 — Portable Application Invocation
+
+MS-010.4 establishes a stable invocation boundary over an already-realized Project application.
+
+```text
+RealizedApplication
+    ↓
+IApplicationInvoker
+    ↓
+fresh PipelineContext
+    ↓
+IWorkflowRuntime
+    ↓
+ApplicationInvocationResult
+```
+
+Completed capabilities include:
+
+- portable invocation request and result contracts;
+- realization-success handoff through `RealizedApplication`;
+- fresh invocation-context projection;
+- completed workflow-result projection with Project and entry-Workflow provenance;
+- failure and cancellation preservation;
+- sequential reuse of a realized application;
+- exact-object exclusivity for overlapping invocation;
+- provider-owned invocation coordination;
+- immediate non-waiting contention rejection;
+- structured ownership release and recovery;
+- invocation-private release-invariant diagnostics;
+- provider composition and whole-boundary conformance.
+
+MS-010.4 intentionally begins at `RealizedApplication`. A future persisted-Project → graph-load → realize → invoke coordinator would be an outer application-operation boundary and is not required for portable invocation closure.
 
 ---
 
@@ -246,7 +320,7 @@ These capabilities build upon the Asset Platform and Runtime Platform:
 
 # Runtime Capability Tracks
 
-The following capabilities should evolve as focused runtime/platform tracks rather than expanding MS-008 indefinitely:
+The following capabilities should evolve as focused runtime/platform tracks rather than expanding MS-008 or MS-010 indefinitely:
 
 - Knowledge retrieval and RAG
 - Policy evaluation and governance enforcement
@@ -294,7 +368,13 @@ AI Application Language
 AI Asset Model
         │
         ▼
-Runtime Realization
+Persistence / Aggregate Loading
+        │
+        ▼
+Application Realization
+        │
+        ▼
+Portable Invocation
         │
         ▼
 Execution Runtime
@@ -328,4 +408,4 @@ PulseStackAI is designed to keep those worlds independent.
 
 # Guiding Principle
 
-> **Describe the intent. Compose the capabilities. Let the runtime realize the application.**
+> **Describe the intent. Compose the capabilities. Let the runtime realize and invoke the application.**
