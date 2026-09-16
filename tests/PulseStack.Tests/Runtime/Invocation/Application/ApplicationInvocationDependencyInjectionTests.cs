@@ -1,7 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using PulseStack.Abstractions.Runtime.Invocation.Application;
+using PulseStack.Abstractions.Runtime.Pipeline;
+using PulseStack.Abstractions.Workflows;
 using PulseStack.Agents.DependencyInjection;
-using PulseStack.Core.DependencyInjection;
 using PulseStack.Core.Runtime.Invocation.Application;
 using Xunit;
 
@@ -50,17 +51,7 @@ public sealed class ApplicationInvocationDependencyInjectionTests
     [Fact]
     public void ApplicationInvocationServices_ShouldBeSharedAcrossRootAndChildScopes()
     {
-        var services = new ServiceCollection();
-        services.AddPulseStack();
-        services.AddPulseStackAgents();
-        services.AddPulseStackWorkflows();
-
-        using var provider = services.BuildServiceProvider(
-            new ServiceProviderOptions
-            {
-                ValidateOnBuild = true,
-                ValidateScopes = true
-            });
+        using var provider = CreateProvider();
         using var scopeA = provider.CreateScope();
         using var scopeB = provider.CreateScope();
 
@@ -96,9 +87,8 @@ public sealed class ApplicationInvocationDependencyInjectionTests
     private static ServiceProvider CreateProvider()
     {
         var services = new ServiceCollection();
-        services.AddPulseStack();
+        services.AddSingleton<IWorkflowRuntime, StubWorkflowRuntime>();
         services.AddPulseStackAgents();
-        services.AddPulseStackWorkflows();
 
         return services.BuildServiceProvider(
             new ServiceProviderOptions
@@ -106,6 +96,15 @@ public sealed class ApplicationInvocationDependencyInjectionTests
                 ValidateOnBuild = true,
                 ValidateScopes = true
             });
+    }
+
+    private sealed class StubWorkflowRuntime : IWorkflowRuntime
+    {
+        public Task<WorkflowExecutionResult> ExecuteAsync(
+            Workflow workflow,
+            PipelineContext context,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 
     private sealed class CustomApplicationInvoker : IApplicationInvoker
