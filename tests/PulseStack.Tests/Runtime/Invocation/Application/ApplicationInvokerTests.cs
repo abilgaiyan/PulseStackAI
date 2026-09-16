@@ -139,12 +139,14 @@ public sealed class ApplicationInvokerTests
     }
 
     [Fact]
-    public async Task InvokeAsync_ShouldReleaseOwnershipAfterCancellation()
+    public async Task InvokeAsync_ShouldReleaseOwnershipAfterAdmittedCancellation()
     {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var runtime = new StubWorkflowRuntime
         {
             Handler = async (_, _, cancellationToken) =>
             {
+                entered.TrySetResult();
                 await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
                 return Success("unreachable");
             }
@@ -153,16 +155,18 @@ public sealed class ApplicationInvokerTests
         var application = Application();
         var request = new ApplicationInvocationRequest("input");
         using var cancellation = new CancellationTokenSource();
+
+        var invocation = invoker.InvokeAsync(application, request, cancellation.Token);
+        await entered.Task;
         cancellation.Cancel();
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            () => invoker.InvokeAsync(application, request, cancellation.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => invocation);
 
         runtime.Handler = (_, _, _) => Task.FromResult(Success("recovered"));
         var recovered = await invoker.InvokeAsync(application, request);
 
         Assert.Equal("recovered", recovered.FinalOutput);
-        Assert.Equal(1, runtime.CallCount);
+        Assert.Equal(2, runtime.CallCount);
     }
 
     [Fact]
