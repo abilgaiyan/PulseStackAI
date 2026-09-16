@@ -57,12 +57,16 @@ public sealed class ApplicationInvocationCoordinationAuthorityTests
     public void TryAcquire_ShouldUseConcreteObjectIdentity()
     {
         var authority = new ApplicationInvocationCoordinationAuthority();
-        var first = Application("shared");
-        var second = Application("shared");
+        var project = Reference(AssetType.Project, "shared");
+        var entryWorkflow = Reference(AssetType.Workflow, "shared");
+        var workflow = new Workflow("entry");
+        var first = Application(project, entryWorkflow, workflow);
+        var second = Application(project, entryWorkflow, workflow);
 
         Assert.NotSame(first, second);
-        Assert.Equal(first.Project, second.Project);
-        Assert.Equal(first.EntryWorkflow, second.EntryWorkflow);
+        Assert.Same(first.Project, second.Project);
+        Assert.Same(first.EntryWorkflow, second.EntryWorkflow);
+        Assert.Same(first.Workflow, second.Workflow);
 
         Assert.True(authority.TryAcquire(first, out var firstOwnership));
         Assert.True(authority.TryAcquire(second, out var secondOwnership));
@@ -146,19 +150,24 @@ public sealed class ApplicationInvocationCoordinationAuthorityTests
         }
     }
 
-    private static RealizedApplication Application(string identity = "application")
+    private static RealizedApplication Application(string identity = "application") =>
+        Application(
+            Reference(AssetType.Project, identity),
+            Reference(AssetType.Workflow, identity),
+            new Workflow("entry"));
+
+    private static AssetReference Reference(AssetType type, string identity) =>
+        new(
+            type,
+            AssetId.New(),
+            new AssetUrn($"urn:pulsestack:{type.ToString().ToLowerInvariant()}:{identity}"),
+            new AssetVersion("1.0.0"));
+
+    private static RealizedApplication Application(
+        AssetReference project,
+        AssetReference entryWorkflow,
+        Workflow workflow)
     {
-        var project = new AssetReference(
-            AssetType.Project,
-            AssetId.New(),
-            new AssetUrn($"urn:pulsestack:project:{identity}"),
-            new AssetVersion("1.0.0"));
-        var entryWorkflow = new AssetReference(
-            AssetType.Workflow,
-            AssetId.New(),
-            new AssetUrn($"urn:pulsestack:workflow:{identity}"),
-            new AssetVersion("1.0.0"));
-        var workflow = new Workflow("entry");
         var constructor = typeof(RealizedApplication).GetConstructors(
             BindingFlags.Instance | BindingFlags.NonPublic).Single();
 
