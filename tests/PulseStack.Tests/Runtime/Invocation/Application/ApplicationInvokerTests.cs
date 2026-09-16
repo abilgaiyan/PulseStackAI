@@ -206,6 +206,141 @@ public sealed class ApplicationInvokerTests
         Assert.Equal(2, runtime.CallCount);
     }
 
+    [Fact]
+    public async Task InvokeAsync_ShouldEnforceExclusivityAcrossInvokersSharingAuthority()
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var runtime = new StubWorkflowRuntime
+        {
+            Handler = async (_, _, cancellationToken) =>
+            {
+                entered.TrySetResult();
+                await release.Task.WaitAsync(cancellationToken);
+                return Success("first");
+            }
+        };
+        var authority = new ApplicationInvocationCoordinationAuthority();
+        var firstInvoker = new ApplicationInvoker(runtime, authority);
+        var secondInvoker = new ApplicationInvoker(runtime, authority);
+        var application = Application();
+        var request = new ApplicationInvocationRequest("input");
+
+        var first = firstInvoker.InvokeAsync(application, request);
+        await entered.Task;
+
+        var contention = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => secondInvoker.InvokeAsync(application, request));
+
+        Assert.Contains("active invocation", contention.Message, StringComparison.Ordinal);
+        Assert.Equal(1, runtime.CallCount);
+
+        release.TrySetResult();
+        var firstResult = await first;
+
+        Assert.Equal("first", firstResult.FinalOutput);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_ShouldAllowSuccessfulSequentialReuse()
+    {
+        var invocation = 0;
+        var runtime = new StubWorkflowRuntime
+        {
+            Handler = (_, _, _) =>
+                Task.FromResult(Success(Interlocked.Increment(ref invocation) == 1 ? "first" : "second"))
+        };
+        var invoker = Invoker(runtime);
+        var application = Application();
+        var request = new ApplicationInvocationRequest("input");
+
+        var first = await invoker.InvokeAsync(application, request);
+        var second = await invoker.InvokeAsync(application, request);
+
+        Assert.Equal("first", first.FinalOutput);
+        Assert.Equal("second", second.FinalOutput);
+        Assert.Equal(2, runtime.CallCount);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_ShouldAdmitExactlyOneConcurrentContenderAndRecover()
+    {
+        const int contenderCount = 32;
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var runtime = new StubWorkflowRuntime
+        {
+            Handler = async (_, _, cancellationToken) =>
+            {
+                entered.TrySetResult();
+                await release.Task.WaitAsync(cancellationToken);
+                return Success("admitted");
+            }
+        };
+        var invoker = Invoker(runtime);
+        var application = Application();
+        var request = new ApplicationInvocationRequest("input");
+        using var gate = new ManualResetEventSlim(false);
+
+        var contenders = Enumerable.Range(0, contenderCount)
+            .Select(_ => Task.Run(async () =>
+            {
+                gate.Wait();
+                try
+                {
+                    var result = await invoker.InvokeAsync(application, request);
+                    return (Result: result, Failure: (Exception?)null);
+                }
+                catch (Exception exception)
+                {
+                    return (Result: (ApplicationInvocationResult?)null, Failure: exception);
+                }
+            }))
+            .ToArray();
+
+        gate.Set();
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await WaitUntilAsync(
+            () => contenders.Count(static contender => contender.IsCompleted) == contenderCount - 1,
+            TimeSpan.FromSeconds(5));
+
+        Assert.Equal(1, runtime.CallCount);
+        Assert.Equal(contenderCount - 1, contenders.Count(static contender => contender.IsCompleted));
+
+        release.TrySetResult();
+        var outcomes = await Task.WhenAll(contenders);
+
+        var admitted = Assert.Single(outcomes, static outcome => outcome.Result is not null);
+        Assert.Equal("admitted", admitted.Result!.FinalOutput);
+        Assert.Equal(
+            contenderCount - 1,
+            outcomes.Count(static outcome => outcome.Failure is InvalidOperationException));
+        Assert.DoesNotContain(
+            outcomes,
+            static outcome => outcome.Failure is not null && outcome.Failure is not InvalidOperationException);
+
+        runtime.Handler = (_, _, _) => Task.FromResult(Success("recovered"));
+        var recovered = await invoker.InvokeAsync(application, request);
+
+        Assert.Equal("recovered", recovered.FinalOutput);
+        Assert.Equal(2, runtime.CallCount);
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> predicate, TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (!predicate())
+        {
+            if (DateTime.UtcNow >= deadline)
+            {
+                throw new TimeoutException("Timed out waiting for invocation contenders to complete.");
+            }
+
+            await Task.Delay(10);
+        }
+    }
+
     private static ApplicationInvoker Invoker(StubWorkflowRuntime runtime) =>
         new(runtime, new ApplicationInvocationCoordinationAuthority());
 
