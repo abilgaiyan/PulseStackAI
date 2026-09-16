@@ -96,25 +96,29 @@ Business intent should remain independent of the technologies that execute it.
 
 This separation allows applications to evolve without being rewritten every time the AI ecosystem changes.
 
+```text
 PulseStackAI
 
-──────────────────────────
-
 Language
-
-↓
-
+   ↓
 Assets
-
-↓
-
+   ↓
+Persistence
+   ↓
+Realization
+   ↓
+Invocation
+   ↓
 Runtime
+```
 
 | Pillar | Responsibility |
 | --- | --- |
 | **AI Application Language** | Expresses business intent. |
 | **AI Asset Model** | Defines reusable business capabilities. |
-| **Runtime** | Realizes and executes those capabilities. |
+| **Asset Platform** | Persists, resolves, and loads declarative applications. |
+| **Realization** | Transforms accepted declarative graphs into executable runtime objects. |
+| **Invocation & Runtime** | Invokes realized applications through the existing execution runtime. |
 
 ---
 
@@ -132,7 +136,13 @@ Application Language
 AI Asset Model
         │
         ▼
-Runtime Realization
+Persistence / Aggregate Loading
+        │
+        ▼
+Application Realization
+        │
+        ▼
+Portable Invocation
         │
         ▼
 Execution Runtime
@@ -148,8 +158,10 @@ Each layer answers a different question.
 | **Domain** | What problem are we solving? |
 | **AI Asset Model** | What reusable concepts exist? |
 | **Application Language** | How do we express business intent? |
-| **Asset Configuration** | Which implementation do we choose? |
-| **Runtime** | How is business intent executed? |
+| **Asset Platform** | How are definitions stored, resolved, and loaded? |
+| **Realization** | How does a declarative application become executable? |
+| **Invocation** | How is an already-realized application invoked portably? |
+| **Runtime** | How is the realized workflow executed? |
 
 Keeping these responsibilities separate makes applications easier to understand, test, maintain, and evolve.
 
@@ -230,22 +242,30 @@ AI Asset Model
 
 ↓
 
-Runtime
-
-↓
-
 Persistence
 
 ↓
 
-Packages
+Aggregate Loading
+
+↓
+
+Application Realization
+
+↓
+
+Portable Invocation
+
+↓
+
+Runtime
 
 ↓
 
 Roadmap
 ```
 
-Together these documents describe the complete architecture of PulseStackAI—from business intent to execution.
+Together these documents describe the architecture of PulseStackAI from business intent through portable execution.
 
 ---
 
@@ -283,71 +303,142 @@ Just the business process.
 
 The Runtime takes care of everything else.
 
-> The current builder API predates the declarative Workflow Asset model. Migrating this authoring surface to emit declarative definitions is intentionally deferred beyond MS-008; the business-first grammar remains the design target.
+> The current builder API predates the declarative Workflow Asset model. Migrating this authoring surface to emit declarative definitions remains future developer-experience work; the business-first grammar remains the design target.
 
 ---
 
 # Project Status
 
-## Completed
+## Completed Foundation
 
-- ✅ MS-001 — Core Foundation
-- ✅ MS-002 — Agent Runtime
-- ✅ MS-003 — Workflow Runtime
-- ✅ MS-004 — Workflow Persistence
-- ✅ MS-005 — Workflow Packages
-- ✅ MS-006 — AI Asset Model & Application Language
-- ✅ MS-007 — Runtime Realization Architecture
-- ✅ MS-008 — Runtime Realization Implementation
-  - ✅ Phase 1 — Runtime Realization Foundation
-  - ✅ Phase 2 — Agent Asset Realization
-  - ✅ Phase 3 — Workflow Realization
+- ✅ **MS-001 — Core Foundation**
+- ✅ **MS-002 — Agent Runtime**
+- ✅ **MS-003 — Workflow Runtime**
+- ✅ **MS-004 — Workflow Persistence**
+- ✅ **MS-005 — Workflow Packages**
+- ✅ **MS-006 — AI Asset Model & Application Language**
+- ✅ **MS-007 — Runtime Realization Architecture**
+- ✅ **MS-008 — Runtime Realization Implementation**
+- ✅ **MS-009 — AI Asset Platform Implementation through Aggregate Graph Loading**
+- ✅ **MS-010 — Application Realization & Invocation**
 
-MS-008 closes the realization path:
+The current framework foundation now supports the following architectural path:
 
 ```text
-WorkflowAsset
-    ↓
-WorkflowStepDefinition
-    ↓
-Agent references
-    ↓
-Agent realization
-    ↓
-Executable Workflow graph
-    ↓
+AI Asset Definitions
+        ↓
+Canonical Serialization
+        ↓
+Persistent Storage
+        ↓
+Catalog / Exact Resolution
+        ↓
+Aggregate Graph Loading
+        ↓
+AIAssetGraph
+        ↓
+Application Realization
+        ↓
+RealizedApplication
+        ↓
+Portable Invocation
+        ↓
 IWorkflowRuntime
+        ↓
+ApplicationInvocationResult
 ```
 
-Declarative Workflow grammar now realizes `Run`, `Parallel`, `If`, `Retry`, `ForEach`, and `Switch` into the existing execution runtime without exposing provider or infrastructure concerns in the Application Language.
+### ✅ MS-009 — AI Asset Platform
 
-## MS-009 — AI Asset Platform Implementation
+MS-009 established the schema-v1 AI Asset persistence platform needed for portable definition storage and declarative loading.
 
-MS-009 is active and is being delivered through independently reviewed and frozen increments. **MS-009.1 through MS-009.9 are implemented according to their individual closure records; this does not declare the broader MS-009 milestone complete.**
+Completed capabilities include:
 
-Completed work through MS-009.9 includes the schema-v1 persistence foundation for AI Assets, canonical serialization, serialized storage/loading, persistent catalog and exact resolution, and aggregate declarative graph loading.
+- persistence contracts and mappings for supported AI Assets;
+- canonical serialization;
+- serialized storage and loading;
+- persistent catalog publication and exact resolution;
+- aggregate declarative graph loading for Project, Library, and Package roots.
 
-### ✅ MS-009.9 — Aggregate Declarative Graph Loading
-
-MS-009.9 adds provider-neutral multi-definition declarative loading for persisted Project, Library, and Package roots.
+Its aggregate-loading boundary is:
 
 ```text
 persistent exact resolution
         ↓
 multi-definition declarative graph loading
         ↓
-future runtime realization
-
-MS-009.9 ends at AIAssetGraph.
+AIAssetGraph
 ```
 
-The graph loader operates above `IPersistentAIAssetResolver`. It preserves authored aggregate and declarative relationships, expands the required closure, preserves optional requirements without expanding them, and remains independent of storage/catalog provider implementation. Runtime realization, activation, binding, and execution are outside this capability.
+Storage and catalog providers remain graph-unaware. Required declarative relationships form the materialized closure while optional requirements are preserved without initiating expansion.
 
-The next MS-009 boundary will be established separately from repository and roadmap evidence rather than inferred from MS-009.9 closure.
+### ✅ MS-010 — Application Realization & Invocation
 
-Later platform capabilities include Planner, Human Approval, Scheduling, Distributed Runtime, Visual Designer, and Marketplace.
+MS-010 consumes the accepted `AIAssetGraph` boundary and connects it to the existing realization and execution infrastructure.
 
-PulseStackAI is evolving from a workflow runtime into a complete domain-driven AI Application Engineering Platform.
+```text
+AIAssetGraph
+    ↓
+Project application realization
+    ↓
+RealizedApplication
+    ↓
+portable application invocation
+    ↓
+IWorkflowRuntime
+    ↓
+ApplicationInvocationResult
+```
+
+MS-010.1–MS-010.3 established and implemented Project-root application realization over the existing Agent and Workflow realization authorities.
+
+MS-010.4 established portable invocation over an already-realized application, including:
+
+- invocation request and result contracts;
+- fresh invocation-context projection;
+- Project and entry-Workflow provenance;
+- failure and cancellation preservation;
+- sequential reuse;
+- exact-object exclusivity for overlapping invocation;
+- provider-owned invocation coordination;
+- structured release and recovery;
+- provider composition and whole-boundary conformance.
+
+MS-010.4 intentionally begins at `RealizedApplication`. Persisted Project → graph load → realize → invoke coordination is a separate future application-operation boundary rather than unfinished invocation work.
+
+---
+
+# What Comes Next
+
+The framework has reached the point where the next phase should increasingly be driven by real application usage.
+
+The leading usability boundary is a portable application operation that coordinates the already-existing capabilities:
+
+```text
+persisted Project identity
+        ↓
+aggregate graph loading
+        ↓
+application realization
+        ↓
+portable invocation
+        ↓
+application result
+```
+
+After that boundary is established, the goal is to exercise the framework through a canonical end-to-end application using persisted declarative assets and let real application requirements drive subsequent capabilities.
+
+Focused future capability tracks include:
+
+- Knowledge retrieval and RAG
+- Policy evaluation and governance enforcement
+- persistent and shared Memory
+- Human Approval
+- Scheduling
+- provider integrations
+- observability and diagnostics expansion
+
+Longer-term platform capabilities include Planner, Distributed Runtime, Asset Registry / Distribution, Visual Designer, and Marketplace.
 
 ---
 
@@ -379,7 +470,11 @@ Think in Business Intent.
 
 Compose AI Assets.
 
+Persist and Load Declaratively.
+
 Realize Through Runtime.
+
+Invoke Portably.
 
 Hide Technology.
 
@@ -393,12 +488,10 @@ Build for Change.
 
 PulseStackAI isn't another AI SDK.
 
-It's a language for building AI-powered business applications.
+It's a language and runtime architecture for building AI-powered business applications around reusable, provider-independent capabilities.
 
-We believe developers should think in business capabilities—not providers, prompts, or orchestration.
+Developers should think in business capabilities—not providers, prompts, or orchestration plumbing.
 
-Describe the intent. Compose the capabilities. Let the runtime realize the application.
+> **Describe the intent. Compose the capabilities. Let the runtime realize and invoke the application.**
 
 If you're looking for a better way to build AI-powered business applications, welcome.
-
-Let's build software that speaks the language of the business first—and let the technology follow.
