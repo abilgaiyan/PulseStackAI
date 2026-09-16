@@ -1,10 +1,12 @@
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using FluentAssertions;
 using PulseStack.Abstractions.Assets;
 using PulseStack.Abstractions.Persistence.AIAssets.GraphLoading;
 using PulseStack.Abstractions.Runtime.Application;
 using PulseStack.Abstractions.Runtime.Invocation.Application;
 using PulseStack.Abstractions.Runtime.Realization.Application;
+using PulseStack.Abstractions.Workflows;
 using Xunit;
 
 namespace PulseStack.Tests.Runtime.Application;
@@ -142,75 +144,28 @@ public sealed class ApplicationOperationContractTests
 
     private static AIAssetGraphLoadResult.Success CreateLoadSuccess()
     {
-        var graphType = typeof(AIAssetGraph);
-        var constructor = graphType.GetConstructors(
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-            .Single();
-        var parameters = constructor.GetParameters();
-        var arguments = parameters
-            .Select(parameter => CreateArgument(parameter.ParameterType))
-            .ToArray();
-        var graph = (AIAssetGraph)constructor.Invoke(arguments);
+        // This test only needs a non-null Success payload so that LoadOutcome can
+        // prove it rejects the upstream positive variant. Graph construction
+        // semantics remain owned and tested by the graph-loading contract.
+        var graph = (AIAssetGraph)RuntimeHelpers.GetUninitializedObject(typeof(AIAssetGraph));
         return new AIAssetGraphLoadResult.Success(graph);
     }
 
     private static ApplicationRealizationResult.Success CreateRealizationSuccess()
     {
-        var realizedType = typeof(RealizedApplication);
-        var constructor = realizedType.GetConstructors(
+        var constructor = typeof(RealizedApplication).GetConstructors(
             BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
             .Single();
-        var parameters = constructor.GetParameters();
-        var arguments = parameters
-            .Select(parameter => CreateArgument(parameter.ParameterType))
-            .ToArray();
-        var application = (RealizedApplication)constructor.Invoke(arguments);
+
+        var application = (RealizedApplication)constructor.Invoke(
+            new object[]
+            {
+                Reference(AssetType.Project),
+                Reference(AssetType.Workflow),
+                new Workflow("entry")
+            });
+
         return new ApplicationRealizationResult.Success(application);
-    }
-
-    private static object? CreateArgument(Type type)
-    {
-        if (type == typeof(AssetDefinitionKey))
-        {
-            return Key(AssetType.Project);
-        }
-
-        if (type == typeof(AssetReference))
-        {
-            return Reference(AssetType.Workflow);
-        }
-
-        if (type == typeof(PulseStack.Abstractions.Workflows.Workflow))
-        {
-            return new PulseStack.Abstractions.Workflows.Workflow("entry");
-        }
-
-        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IReadOnlyDictionary<,>))
-        {
-            return Activator.CreateInstance(typeof(Dictionary<,>).MakeGenericType(type.GetGenericArguments()));
-        }
-
-        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IReadOnlyList<>))
-        {
-            return Array.CreateInstance(type.GetGenericArguments()[0], 0);
-        }
-
-        if (type == typeof(string))
-        {
-            return "value";
-        }
-
-        if (type == typeof(bool))
-        {
-            return false;
-        }
-
-        if (type.IsValueType)
-        {
-            return Activator.CreateInstance(type);
-        }
-
-        throw new InvalidOperationException($"No contract-test argument factory exists for {type}.");
     }
 
     private static AssetDefinitionKey Key(AssetType type) =>
