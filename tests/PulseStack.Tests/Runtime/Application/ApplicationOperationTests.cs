@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using FluentAssertions;
 using PulseStack.Abstractions.Assets;
@@ -162,11 +163,20 @@ public sealed class ApplicationOperationTests
     private static ApplicationRealizationResult.Success CreateRealizationSuccess() =>
         new(RealizedApplication());
 
-    private static RealizedApplication RealizedApplication() =>
-        new(
-            Reference(AssetType.Project),
-            Reference(AssetType.Workflow),
-            new Workflow("entry"));
+    private static RealizedApplication RealizedApplication()
+    {
+        var constructor = typeof(RealizedApplication).GetConstructors(
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+            .Single();
+
+        return (RealizedApplication)constructor.Invoke(
+            new object[]
+            {
+                Reference(AssetType.Project),
+                Reference(AssetType.Workflow),
+                new Workflow("entry")
+            });
+    }
 
     private static ApplicationInvocationResult CreateInvocationResult(bool success) =>
         new(
