@@ -25,7 +25,7 @@ public sealed class AgentExecutionCompositionDependencyInjectionTests
     }
 
     [Fact]
-    public void AddPulseStackAgents_ShouldBackPublicAndInternalExecutionViewsWithOneAgentRuntime()
+    public void AddPulseStackAgents_ShouldProjectOneAgentRuntimeThroughPublicAndInternalExecutionViews()
     {
         var services = new ServiceCollection();
         services.AddPulseStackAgents();
@@ -41,7 +41,7 @@ public sealed class AgentExecutionCompositionDependencyInjectionTests
         var executionRuntime = provider.GetRequiredService<IAgentExecutionRuntime>();
 
         Assert.Same(runtime, publicRuntime);
-        Assert.Same(runtime, GetBackingRuntime(executionRuntime));
+        Assert.Same(runtime, executionRuntime);
     }
 
     [Fact]
@@ -85,13 +85,8 @@ public sealed class AgentExecutionCompositionDependencyInjectionTests
         var ownedRuntime = provider.GetRequiredService<AgentRuntime>();
         var executionRuntime = provider.GetRequiredService<IAgentExecutionRuntime>();
 
-        Assert.Same(ownedRuntime, GetBackingRuntime(executionRuntime));
+        Assert.Same(ownedRuntime, executionRuntime);
     }
-
-    private static AgentRuntime GetBackingRuntime(IAgentExecutionRuntime executionRuntime)
-        => (AgentRuntime)(typeof(AgentExecutionRuntime)
-            .GetField("_agentRuntime", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .GetValue(executionRuntime)!);
 
     private static IAgentExecutionRuntime GetExecutionRuntime(object consumer)
         => (IAgentExecutionRuntime)(consumer.GetType()
