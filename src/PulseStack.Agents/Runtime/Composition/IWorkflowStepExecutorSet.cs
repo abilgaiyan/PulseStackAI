@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using PulseStack.Abstractions.Runtime.Pipeline;
 
 namespace PulseStack.Agents.Runtime.Composition;
