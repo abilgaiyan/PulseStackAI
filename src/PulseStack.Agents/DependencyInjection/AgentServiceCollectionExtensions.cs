@@ -31,8 +31,7 @@ public static class AgentServiceCollectionExtensions
             sp.GetRequiredService<AgentRuntime>());
 
         services.TryAddSingleton<IAgentExecutionRuntime>(sp =>
-            new AgentExecutionRuntime(
-                sp.GetRequiredService<AgentRuntime>()));
+            sp.GetRequiredService<AgentRuntime>());
 
         services.TryAddScoped<IAgentComposer, AgentComposer>();
 
