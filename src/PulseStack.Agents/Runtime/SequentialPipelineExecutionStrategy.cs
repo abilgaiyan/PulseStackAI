@@ -13,6 +13,12 @@ internal sealed class SequentialPipelineExecutionStrategy
     private readonly IAgentExecutionRuntime _agentRuntime;
 
     internal SequentialPipelineExecutionStrategy(
+        AgentRuntime agentRuntime)
+        : this(new AgentExecutionRuntime(agentRuntime))
+    {
+    }
+
+    internal SequentialPipelineExecutionStrategy(
         IAgentExecutionRuntime agentRuntime)
     {
         _agentRuntime = agentRuntime ?? throw new ArgumentNullException(nameof(agentRuntime));
