@@ -49,9 +49,13 @@ public static class AgentServiceCollectionExtensions
 
         services.TryAddSingleton<PipelineRuntime>();
 
-        services.TryAddSingleton<SequentialPipelineExecutionStrategy>();
+        services.TryAddSingleton<SequentialPipelineExecutionStrategy>(sp =>
+            new SequentialPipelineExecutionStrategy(
+                sp.GetRequiredService<IAgentExecutionRuntime>()));
 
-        services.TryAddSingleton<ParallelPipelineExecutionStrategy>();
+        services.TryAddSingleton<ParallelPipelineExecutionStrategy>(sp =>
+            new ParallelPipelineExecutionStrategy(
+                sp.GetRequiredService<IAgentExecutionRuntime>()));
 
         return services;
     }
