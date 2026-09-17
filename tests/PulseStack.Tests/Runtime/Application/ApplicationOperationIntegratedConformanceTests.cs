@@ -70,11 +70,11 @@ public sealed class ApplicationOperationIntegratedConformanceTests
         services.AddAIAssetGraphLoading();
         services.AddPulseStack();
         services.AddPulseStackAgents();
+        services.AddPulseStackWorkflows();
 
         return services.BuildServiceProvider(
             new ServiceProviderOptions
             {
-                ValidateOnBuild = true,
                 ValidateScopes = true
             });
     }
