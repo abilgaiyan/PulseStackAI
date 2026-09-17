@@ -8,10 +8,10 @@ namespace PulseStack.Agents.Runtime.Composition;
 internal sealed class RunStepExecutor
     : IStepExecutor
 {
-    private readonly AgentRuntime _agentRuntime;
+    private readonly IAgentExecutionRuntime _agentRuntime;
 
     public RunStepExecutor(
-        AgentRuntime agentRuntime)
+        IAgentExecutionRuntime agentRuntime)
     {
         _agentRuntime = agentRuntime;
     }

@@ -24,7 +24,14 @@ public static class AgentServiceCollectionExtensions
         services.TryAddSingleton<IRuntimeEventDispatcher,
                                  RuntimeEventDispatcher>();
 
-        services.TryAddSingleton<IAgentRuntime, AgentRuntime>();
+        services.TryAddSingleton<AgentRuntime>(sp =>
+            new AgentRuntime(sp.GetRequiredService<IRuntimeEventDispatcher>()));
+
+        services.TryAddSingleton<IAgentRuntime>(sp =>
+            sp.GetRequiredService<AgentRuntime>());
+
+        services.TryAddSingleton<IAgentExecutionRuntime>(sp =>
+            sp.GetRequiredService<AgentRuntime>());
 
         services.TryAddScoped<IAgentComposer, AgentComposer>();
 
@@ -42,9 +49,13 @@ public static class AgentServiceCollectionExtensions
 
         services.TryAddSingleton<PipelineRuntime>();
 
-        services.TryAddSingleton<SequentialPipelineExecutionStrategy>();
+        services.TryAddSingleton<SequentialPipelineExecutionStrategy>(sp =>
+            new SequentialPipelineExecutionStrategy(
+                sp.GetRequiredService<IAgentExecutionRuntime>()));
 
-        services.TryAddSingleton<ParallelPipelineExecutionStrategy>();
+        services.TryAddSingleton<ParallelPipelineExecutionStrategy>(sp =>
+            new ParallelPipelineExecutionStrategy(
+                sp.GetRequiredService<IAgentExecutionRuntime>()));
 
         return services;
     }

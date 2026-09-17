@@ -10,10 +10,10 @@ namespace PulseStack.Agents.Runtime;
 internal sealed class SequentialPipelineExecutionStrategy
     : IPipelineExecutionStrategy
 {
-    private readonly AgentRuntime _agentRuntime;
+    private readonly IAgentExecutionRuntime _agentRuntime;
 
     internal SequentialPipelineExecutionStrategy(
-        AgentRuntime agentRuntime)
+        IAgentExecutionRuntime agentRuntime)
     {
         _agentRuntime = agentRuntime ?? throw new ArgumentNullException(nameof(agentRuntime));
     }
