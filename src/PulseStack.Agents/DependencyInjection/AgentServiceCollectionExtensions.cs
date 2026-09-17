@@ -24,7 +24,14 @@ public static class AgentServiceCollectionExtensions
         services.TryAddSingleton<IRuntimeEventDispatcher,
                                  RuntimeEventDispatcher>();
 
-        services.TryAddSingleton<IAgentRuntime, AgentRuntime>();
+        services.TryAddSingleton<AgentRuntime>(sp =>
+            new AgentRuntime(sp.GetRequiredService<IRuntimeEventDispatcher>()));
+
+        services.TryAddSingleton<IAgentRuntime>(sp =>
+            sp.GetRequiredService<AgentRuntime>());
+
+        services.TryAddSingleton<IAgentExecutionRuntime>(sp =>
+            sp.GetRequiredService<AgentRuntime>());
 
         services.TryAddScoped<IAgentComposer, AgentComposer>();
 
