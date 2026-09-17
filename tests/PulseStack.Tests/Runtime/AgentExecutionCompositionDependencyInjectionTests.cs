@@ -51,6 +51,12 @@ public sealed class AgentExecutionCompositionDependencyInjectionTests
         services.AddPulseStackAgents();
         services.AddPulseStackWorkflows();
 
+        Assert.Contains(
+            services,
+            descriptor =>
+                descriptor.ServiceType == typeof(IStepExecutor) &&
+                descriptor.ImplementationType == typeof(RunStepExecutor));
+
         using var provider = services.BuildServiceProvider(
             new ServiceProviderOptions
             {
@@ -60,11 +66,9 @@ public sealed class AgentExecutionCompositionDependencyInjectionTests
         var executionRuntime = provider.GetRequiredService<IAgentExecutionRuntime>();
         var sequential = provider.GetRequiredService<SequentialPipelineExecutionStrategy>();
         var parallel = provider.GetRequiredService<ParallelPipelineExecutionStrategy>();
-        var run = provider.GetServices<IStepExecutor>().OfType<RunStepExecutor>().Single();
 
         Assert.Same(executionRuntime, GetExecutionRuntime(sequential));
         Assert.Same(executionRuntime, GetExecutionRuntime(parallel));
-        Assert.Same(executionRuntime, GetExecutionRuntime(run));
     }
 
     [Fact]
