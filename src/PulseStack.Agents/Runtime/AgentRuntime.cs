@@ -15,7 +15,7 @@ using RuntimeToolExecutor = PulseStack.Agents.Runtime.Tools.ToolExecutor;
 
 namespace PulseStack.Agents.Runtime;
 
-public sealed class AgentRuntime : IAgentRuntime
+public sealed class AgentRuntime : IAgentRuntime, IAgentExecutionRuntime
 {
     private const int MaxToolIterations = 3;
 
@@ -237,6 +237,19 @@ public sealed class AgentRuntime : IAgentRuntime
             throw;
         }
     }
+
+    Task<AgentExecutionResult> IAgentExecutionRuntime.ExecuteAsync(
+        IAgent agent,
+        PipelineContext context,
+        AgentExecutionContext executionContext,
+        PipelineExecutionPolicy policy,
+        CancellationToken cancellationToken)
+        => ExecuteAsync(
+            agent,
+            context,
+            executionContext,
+            policy,
+            cancellationToken);
 
     internal async Task<AgentExecutionResult> ExecuteAsync(
         IAgent agent,
