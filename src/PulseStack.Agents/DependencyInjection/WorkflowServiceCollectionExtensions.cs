@@ -20,7 +20,10 @@ public static class WorkflowServiceCollectionExtensions
         this IServiceCollection services)
     {
         services.AddSingleton<IWorkflowRuntime, WorkflowRuntime>();
-        services.AddSingleton<IStepExecutorResolver, StepExecutorResolver>();
+        services.AddSingleton<IWorkflowStepExecutorSet, DeferredWorkflowStepExecutorSet>();
+        services.AddSingleton<IStepExecutorResolver>(sp =>
+            new StepExecutorResolver(
+                sp.GetRequiredService<IWorkflowStepExecutorSet>()));
 
         return services;
     }
