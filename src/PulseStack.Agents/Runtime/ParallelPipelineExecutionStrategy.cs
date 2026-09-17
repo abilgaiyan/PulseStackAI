@@ -14,6 +14,12 @@ internal sealed class ParallelPipelineExecutionStrategy
     private readonly IAgentExecutionRuntime _agentRuntime;
 
     internal ParallelPipelineExecutionStrategy(
+        AgentRuntime agentRuntime)
+        : this(new AgentExecutionRuntime(agentRuntime))
+    {
+    }
+
+    internal ParallelPipelineExecutionStrategy(
         IAgentExecutionRuntime agentRuntime)
     {
         _agentRuntime = agentRuntime ?? throw new ArgumentNullException(nameof(agentRuntime));
