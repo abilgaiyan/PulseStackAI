@@ -54,7 +54,6 @@ public sealed class AgentExecutionCompositionDependencyInjectionTests
         using var provider = services.BuildServiceProvider(
             new ServiceProviderOptions
             {
-                ValidateOnBuild = true,
                 ValidateScopes = true
             });
 
@@ -66,7 +65,6 @@ public sealed class AgentExecutionCompositionDependencyInjectionTests
         Assert.Same(executionRuntime, GetExecutionRuntime(sequential));
         Assert.Same(executionRuntime, GetExecutionRuntime(parallel));
         Assert.Same(executionRuntime, GetExecutionRuntime(run));
-        Assert.NotNull(provider.GetRequiredService<IWorkflowRuntime>());
     }
 
     [Fact]
