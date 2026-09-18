@@ -36,6 +36,31 @@ public sealed class ModelAssetFactoryTests
     }
 
     [Fact]
+    public void Create_ShouldUseExplicitIdentity_WhenProvided()
+    {
+        var options = new ModelAssetOptions("TestProvider", "test-model");
+        var factory = new ModelAssetFactory(new TestModelCatalog(options));
+        var id = new AssetId(Guid.Parse("11111111-1111-1111-1111-111111111111"));
+
+        var asset = factory.Create(id, options);
+
+        asset.Id.Should().Be(id);
+        asset.Urn.Should().Be(new AssetUrn("urn:pulsestack:model:TestProvider:test-model"));
+    }
+
+    [Fact]
+    public void Create_ShouldRejectEmptyExplicitIdentity()
+    {
+        var options = new ModelAssetOptions("TestProvider", "test-model");
+        var factory = new ModelAssetFactory(new TestModelCatalog(options));
+
+        var action = () => factory.Create(AssetId.Empty, options);
+
+        action.Should().Throw<ArgumentException>()
+            .WithMessage("*AssetId cannot be empty*");
+    }
+
+    [Fact]
     public void Create_ShouldRejectAnUnknownProviderModelCombination()
     {
         var factory = new ModelAssetFactory(new TestModelCatalog());
