@@ -5,5 +5,5 @@ namespace PulseStack.Abstractions.Workflows.Definitions;
 /// </summary>
 public abstract record WorkflowStepDefinition
 {
-    public WorkflowStepId Id { get; init; } = WorkflowStepId.New();
+    public required WorkflowStepId Id { get; init; }
 }
