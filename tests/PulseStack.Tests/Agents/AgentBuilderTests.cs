@@ -23,6 +23,30 @@ public sealed class AgentBuilderTests
     }
 
     [Fact]
+    public void Build_Should_Use_Explicit_Identity()
+    {
+        var id = new AssetId(Guid.Parse("22222222-2222-2222-2222-222222222222"));
+
+        var agent = new AgentBuilder("Assistant")
+            .WithId(id)
+            .WithGoal("Answer questions.")
+            .WithRole("Assistant")
+            .Build();
+
+        agent.Id.Should().Be(id);
+        agent.Urn.Should().Be(new AssetUrn($"urn:pulsestack:agent:{id}"));
+    }
+
+    [Fact]
+    public void WithId_Should_Reject_Empty_Identity()
+    {
+        var action = () => new AgentBuilder("Assistant").WithId(AssetId.Empty);
+
+        action.Should().Throw<ArgumentException>()
+            .WithMessage("*AssetId cannot be empty*");
+    }
+
+    [Fact]
     public void Build_Should_Set_Model_Reference()
     {
         var model = Reference(
