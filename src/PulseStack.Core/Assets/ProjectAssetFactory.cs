@@ -6,12 +6,17 @@ public sealed class ProjectAssetFactory
 {
     public ProjectAsset Create(
         ProjectAssetOptions options,
+        IReadOnlyCollection<AssetDependency>? dependencies = null) =>
+        Create(AssetId.New(), options, dependencies);
+
+    public ProjectAsset Create(
+        AssetId id,
+        ProjectAssetOptions options,
         IReadOnlyCollection<AssetDependency>? dependencies = null)
     {
+        id.EnsureValid();
         ArgumentNullException.ThrowIfNull(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.Name);
-
-        var id = AssetId.New();
 
         return new ProjectAsset(
             id,
