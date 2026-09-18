@@ -14,8 +14,12 @@ public sealed class ModelAssetFactory
         _modelCatalog = modelCatalog;
     }
 
-    public ModelAsset Create(ModelAssetOptions options)
+    public ModelAsset Create(ModelAssetOptions options) =>
+        Create(AssetId.New(), options);
+
+    public ModelAsset Create(AssetId id, ModelAssetOptions options)
     {
+        id.EnsureValid();
         ArgumentNullException.ThrowIfNull(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.Provider);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.Model);
@@ -28,7 +32,7 @@ public sealed class ModelAssetFactory
         }
 
         return new ModelAsset(
-            AssetId.New(),
+            id,
             new AssetUrn($"urn:pulsestack:model:{options.Provider}:{options.Model}"),
             options);
     }

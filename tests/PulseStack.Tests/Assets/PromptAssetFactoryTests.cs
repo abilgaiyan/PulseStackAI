@@ -29,6 +29,22 @@ public sealed class PromptAssetFactoryTests
     }
 
     [Fact]
+    public void Create_ShouldUseExplicitIdentity_WhenProvided()
+    {
+        var id = new AssetId(Guid.Parse("33333333-3333-3333-3333-333333333333"));
+        var options = new PromptAssetOptions
+        {
+            Name = "System Prompt",
+            SystemInstructions = "You are concise and helpful."
+        };
+
+        var asset = new PromptAssetFactory().Create(id, options);
+
+        asset.Id.Should().Be(id);
+        asset.Urn.Should().Be(new AssetUrn($"urn:pulsestack:prompt:{id}"));
+    }
+
+    [Fact]
     public void Create_ShouldExposeCompleteAssetContract()
     {
         var asset = new PromptAssetFactory().Create(

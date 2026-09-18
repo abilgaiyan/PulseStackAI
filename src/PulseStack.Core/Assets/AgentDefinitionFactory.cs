@@ -7,14 +7,16 @@ namespace PulseStack.Core.Assets;
 /// </summary>
 public sealed class AgentDefinitionFactory
 {
-    public AgentDefinition Create(AgentDefinitionOptions options)
+    public AgentDefinition Create(AgentDefinitionOptions options) =>
+        Create(AssetId.New(), options);
+
+    public AgentDefinition Create(AssetId id, AgentDefinitionOptions options)
     {
+        id.EnsureValid();
         ArgumentNullException.ThrowIfNull(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.Name);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.Goal);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.Role);
-
-        var id = AssetId.New();
 
         return new AgentDefinition(
             id,

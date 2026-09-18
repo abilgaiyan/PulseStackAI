@@ -40,6 +40,22 @@ public sealed class WorkflowAssetFactoryTests
     }
 
     [Fact]
+    public void Create_ShouldUseExplicitIdentity_WhenProvided()
+    {
+        var id = new AssetId(Guid.Parse("44444444-4444-4444-4444-444444444444"));
+        var options = new WorkflowAssetOptions
+        {
+            Name = "Research Workflow",
+            Steps = []
+        };
+
+        var asset = new WorkflowAssetFactory().Create(id, options);
+
+        asset.Id.Should().Be(id);
+        asset.Urn.Should().Be(new AssetUrn($"urn:pulsestack:workflow:{id}"));
+    }
+
+    [Fact]
     public void Create_ShouldCollectAgentReferences_FromNestedWorkflowSteps()
     {
         var agentId = AssetId.New();

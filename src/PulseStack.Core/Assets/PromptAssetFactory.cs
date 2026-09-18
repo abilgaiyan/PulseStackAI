@@ -7,13 +7,15 @@ namespace PulseStack.Core.Assets;
 /// </summary>
 public sealed class PromptAssetFactory
 {
-    public PromptAsset Create(PromptAssetOptions options)
+    public PromptAsset Create(PromptAssetOptions options) =>
+        Create(AssetId.New(), options);
+
+    public PromptAsset Create(AssetId id, PromptAssetOptions options)
     {
+        id.EnsureValid();
         ArgumentNullException.ThrowIfNull(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.Name);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.SystemInstructions);
-
-        var id = AssetId.New();
 
         return new PromptAsset(
             id,
