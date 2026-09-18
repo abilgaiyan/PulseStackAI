@@ -15,6 +15,7 @@ public sealed class AgentBuilder
     private readonly string _name;
     private readonly AgentDefinitionFactory _factory;
 
+    private AssetId? _id;
     private string? _goal;
     private string? _role;
     private readonly List<string> _responsibilities = [];
@@ -31,6 +32,13 @@ public sealed class AgentBuilder
 
         _name = name;
         _factory = new AgentDefinitionFactory();
+    }
+
+    public AgentBuilder WithId(AssetId id)
+    {
+        id.EnsureValid();
+        _id = id;
+        return this;
     }
 
     public AgentBuilder WithGoal(string goal)
@@ -146,6 +154,8 @@ public sealed class AgentBuilder
             Policies = _policies.ToArray()
         };
 
-        return _factory.Create(options);
+        return _id is { } id
+            ? _factory.Create(id, options)
+            : _factory.Create(options);
     }
 }
