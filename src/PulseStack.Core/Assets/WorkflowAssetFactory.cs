@@ -4,12 +4,14 @@ namespace PulseStack.Core.Assets;
 
 public sealed class WorkflowAssetFactory
 {
-    public WorkflowAsset Create(WorkflowAssetOptions options)
+    public WorkflowAsset Create(WorkflowAssetOptions options) =>
+        Create(AssetId.New(), options);
+
+    public WorkflowAsset Create(AssetId id, WorkflowAssetOptions options)
     {
+        id.EnsureValid();
         ArgumentNullException.ThrowIfNull(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.Name);
-
-        var id = AssetId.New();
 
         return new WorkflowAsset(
             id,
