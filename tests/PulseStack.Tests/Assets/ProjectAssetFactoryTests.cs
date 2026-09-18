@@ -25,6 +25,26 @@ public sealed class ProjectAssetFactoryTests
     }
 
     [Fact]
+    public void Create_ShouldUseExplicitIdentity_WhenProvided()
+    {
+        var id = new AssetId(Guid.Parse("55555555-5555-5555-5555-555555555555"));
+        var entry = Reference(AssetType.Workflow, "entry");
+
+        var project = new ProjectAssetFactory().Create(
+            id,
+            new ProjectAssetOptions
+            {
+                Name = "Factory Intelligence",
+                Description = "Project domain conformance fixture.",
+                EntryWorkflow = entry,
+                OwnedAssets = [entry]
+            });
+
+        project.Id.Should().Be(id);
+        project.Urn.Should().Be(new AssetUrn($"urn:pulsestack:project:{id}"));
+    }
+
+    [Fact]
     public void Create_ShouldSnapshotOwnedAssets()
     {
         var entry = Reference(AssetType.Workflow, "entry");
