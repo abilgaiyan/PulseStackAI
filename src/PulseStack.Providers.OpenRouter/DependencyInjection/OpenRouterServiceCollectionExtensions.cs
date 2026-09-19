@@ -4,10 +4,10 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using OpenAI;
 using PulseStack.Abstractions.Chat;
-using PulseStack.Providers.OpenRouter.Options;
-using PulseStack.Providers.OpenRouter.Factories;
 using PulseStack.Abstractions.Models;
+using PulseStack.Providers.OpenRouter.Factories;
 using PulseStack.Providers.OpenRouter.Models;
+using PulseStack.Providers.OpenRouter.Options;
 
 namespace PulseStack.Providers.OpenRouter.DependencyInjection;
 
@@ -28,6 +28,8 @@ public static class OpenRouterServiceCollectionExtensions
             options.ApiKey = apiKey;
             options.Model = model;
         });
+
+        services.TryAddSingleton<OpenRouterChatClientFactory>();
 
         services.TryAddSingleton<IChatClient>(provider =>
         {
@@ -50,16 +52,16 @@ public static class OpenRouterServiceCollectionExtensions
                 .AsIChatClient();
         });
 
-      services.AddSingleton<ChatClientFactoryRegistration>(sp =>
-        new ChatClientFactoryRegistration(
-            "OpenRouter",
-            sp.GetRequiredService<OpenRouterChatClientFactory>()));
+        services.AddSingleton<ChatClientFactoryRegistration>(sp =>
+            new ChatClientFactoryRegistration(
+                "OpenRouter",
+                sp.GetRequiredService<OpenRouterChatClientFactory>()));
 
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IModelCatalogSource,
                 OpenRouterModelCatalogSource>());
-                
+
         return services;
     }
 }
