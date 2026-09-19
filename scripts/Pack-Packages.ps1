@@ -52,13 +52,12 @@ function Get-EvaluatedVersionPrefix {
         [string] $ProjectPath
     )
 
-    $json = & dotnet msbuild $ProjectPath "-getProperty:VersionPrefix"
+    $output = & dotnet msbuild $ProjectPath "-getProperty:VersionPrefix"
     if ($LASTEXITCODE -ne 0) {
         throw "Unable to evaluate VersionPrefix through MSBuild."
     }
 
-    $evaluation = (($json | Out-String) | ConvertFrom-Json)
-    $versionPrefix = [string]$evaluation.Properties.VersionPrefix
+    $versionPrefix = (($output | Out-String).Trim())
     if ([string]::IsNullOrWhiteSpace($versionPrefix)) {
         throw "MSBuild evaluated an empty VersionPrefix."
     }
