@@ -10,6 +10,7 @@
     <ProjectReference Include="..\..\src\PulseStack.Providers.Gemini\PulseStack.Providers.Gemini.csproj" />
     <ProjectReference Include="..\..\src\PulseStack.Providers.AzureOpenAI\PulseStack.Providers.AzureOpenAI.csproj" />
     <ProjectReference Include="..\..\src\PulseStack.Providers.Ollama\PulseStack.Providers.Ollama.csproj" />
+    <ProjectReference Include="..\..\src\PulseStack.Providers.OpenRouter\PulseStack.Providers.OpenRouter.csproj" />
   </ItemGroup>
 
   <ItemGroup>
