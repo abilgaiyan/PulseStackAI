@@ -1,8 +1,50 @@
 <Project>
   <!-- See https://aka.ms/dotnet/msbuild/customize for more details on customizing your build -->
   <PropertyGroup>
-
     <ArtifactsPath>$(MSBuildThisFileDirectory)artifacts</ArtifactsPath>
 
+    <!--
+      PulseStackAI package contract.
+
+      VersionPrefix is the repository-owned base version. Selecting this value does
+      not authorize production or publication of the corresponding stable package.
+
+      Deterministic development package identities are derived by the separately
+      authorized package-production operation as:
+        $(VersionPrefix)-dev.<commit-identifier>
+
+      That operation must use one effective PackageVersion for the complete package
+      set and record the full source commit as RepositoryCommit.
+
+      Package production requires a clean committed working tree. Slice 1 declares
+      that requirement only; operational enforcement belongs to Slice 2.
+    -->
+    <VersionPrefix>1.0.4</VersionPrefix>
+
+    <Authors>PulseStackAI Contributors</Authors>
+    <RepositoryUrl>https://github.com/abilgaiyan/PulseStackAI</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+  <!--
+    Initial package-production boundary. This is a development/distribution
+    declaration, not a permanent public NuGet taxonomy decision.
+  -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'PulseStack.Abstractions'
+                         Or '$(MSBuildProjectName)' == 'PulseStack.Core'
+                         Or '$(MSBuildProjectName)' == 'PulseStack.Agents'
+                         Or '$(MSBuildProjectName)' == 'PulseStack.Tools'
+                         Or '$(MSBuildProjectName)' == 'PulseStack.Providers.OpenAI'
+                         Or '$(MSBuildProjectName)' == 'PulseStack.Providers.AzureOpenAI'
+                         Or '$(MSBuildProjectName)' == 'PulseStack.Providers.Ollama'
+                         Or '$(MSBuildProjectName)' == 'PulseStack.Providers.Gemini'
+                         Or '$(MSBuildProjectName)' == 'PulseStack.Providers.Groq'
+                         Or '$(MSBuildProjectName)' == 'PulseStack.Providers.OpenRouter'">
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'PulseStack.Tests'
+                         Or '$(MSBuildProjectName)' == 'PulseStack.Showcase'">
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
 </Project>
