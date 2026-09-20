@@ -1,89 +1,24 @@
 # Architecture Overview
 
-> **PulseStackAI is a Domain-Driven AI Application Engineering Platform.**
->
-> It separates **business intent** from **runtime execution**, allowing developers to build intelligent applications using a provider-independent language while the runtime manages realization, orchestration, resilience, and infrastructure.
+> **PulseStackAI separates declarative AI application definition from persistence, realization, and runtime execution.**
 
----
+This document is the canonical high-level architecture map for the current framework. It describes implemented boundaries and how they relate. Detailed language contracts, API usage, and historical milestone decisions belong in specifications, guides, and engineering records respectively.
 
-# Overview
+## Architectural principle
 
-PulseStackAI is organized around a simple architectural idea:
+Developers describe an application using AI Assets. PulseStackAI can persist and publish those definitions, resolve a persisted application graph, realize that graph into existing runtime objects, and execute the application's entry workflow through the runtime.
 
-> **Developers describe what an intelligent business application is.**
->
-> **The runtime determines how that application is realized and executed.**
+Definition and execution remain separate concerns:
 
-Rather than exposing provider-specific APIs, prompts, or orchestration loops, PulseStackAI introduces a layered architecture that separates application definition from execution.
+- **Definition** describes application identity, composition, references, and workflow intent.
+- **Persistence and resolution** make those definitions durable and discoverable.
+- **Realization** converts an accepted declarative graph into the runtime representation required for execution.
+- **Execution** runs the realized workflow through the workflow and agent runtimes.
+- **Provider integrations** supply concrete AI-provider behavior behind framework composition boundaries.
 
-This separation allows business applications to evolve independently of AI models, providers, protocols, and infrastructure.
+The framework has provider boundaries, but this overview does not claim that every persisted asset is provider-neutral. For example, the current Model Asset contract identifies both a provider and a model.
 
----
-
-# Architectural Vision
-
-Every AI application consists of two fundamentally different concerns.
-
-## Definition
-
-Defines:
-
-- Business intent
-- Business capabilities
-- AI Assets
-- Application composition
-
-Definition answers:
-
-> **What should the application do?**
-
-## Realization
-
-Responsible for:
-
-- Runtime composition
-- Execution
-- Provider interaction
-- Tool invocation
-- Memory access
-- Observability
-- Governance
-
-Realization answers:
-
-> **How is the application executed?**
-
-This separation is the foundation of the PulseStackAI architecture.
-
----
-
-# Architectural Domains
-
-The platform is organized into four major architectural domains.
-
-```text
-Business Domain
-        │
-        ▼
-Authoring Domain
-        │
-        ▼
-Runtime Domain
-        │
-        ▼
-Infrastructure Domain
-```
-
-| Domain | Responsibility |
-| --- | --- |
-| **Business Domain** | Expresses business intent and business capabilities. |
-| **Authoring Domain** | Defines AI Applications using the Application Language and AI Asset Model. |
-| **Runtime Domain** | Realizes AI Assets into executable business applications. |
-| **Infrastructure Domain** | Provides providers, persistence, networking, storage, and observability. |
-
----
-
-# Architecture at a Glance
+## Architecture at a glance
 
 ```text
 Business Intent
@@ -95,319 +30,254 @@ AI Application Language
 AI Asset Model
         │
         ▼
-Runtime Realization
+Persistence & Publication
         │
         ▼
-Execution Runtime
+Catalog & Resolution
+        │
+        ▼
+Aggregate Graph Loading
+        │
+        ▼
+Application Realization
+        │
+        ▼
+Application Operation
+        │
+        ▼
+Workflow Runtime
         │
         ▼
 Provider Infrastructure
 ```
 
-| Layer | Question |
-| --- | --- |
-| **Business Intent** | What business problem are we solving? |
-| **AI Application Language** | How do we express the application? |
-| **AI Asset Model** | Which reusable capabilities exist? |
-| **Runtime Realization** | How are assets transformed into execution? |
-| **Execution Runtime** | How is the application executed? |
-| **Provider Infrastructure** | Which technologies perform the work? |
+These boundaries form an architectural lifecycle. They do not imply that an application developer must call every stage manually.
 
----
+## AI Application Language and AI Asset Model
 
-# Core Architectural Concepts
+The application language expresses business intent by composing reusable AI Assets. The current asset vocabulary includes Project, Library, Package, Workflow, Agent, Prompt, Tool, Knowledge, Memory, Policy, Provider, and Model asset types.
 
-## Business Intent
+A **Project Asset** is the persisted application root used by the integrated application-operation boundary. Its current public definition identifies an entry Workflow and its owned assets.
 
-Business intent represents the work an organization wants to accomplish.
+A **Workflow Asset** contains declarative workflow-step definitions. Realization later converts accepted declarative definitions into the runtime `Workflow` representation consumed by `IWorkflowRuntime`.
 
-Examples include:
+Individual asset types do not necessarily have equivalent runtime behavior. The existence of a declarative asset type should not be read as a claim that every possible language behavior for that asset is implemented.
 
-- Review a contract
-- Approve an invoice
-- Research a customer
-- Summarize a meeting
+## Persistence and publication
 
-Business intent remains independent of implementation technologies.
+Canonical AI Asset persistence is separate from runtime execution.
 
-## AI Application Language
+The current persistence path maps declarative assets to canonical AI Asset documents, validates and serializes them, and writes their serialized representation through storage authorities. Publication records definitions in the AI Asset catalog so they can subsequently be resolved.
 
-The AI Application Language allows developers to express business intent using a provider-independent vocabulary.
-
-Instead of programming infrastructure, developers compose intelligent applications from reusable concepts.
-
-## AI Asset Model
-
-The AI Asset Model defines the reusable building blocks of every application.
+At a high level:
 
 ```text
 AI Asset
-
-├── Prompt
-├── Tool
-├── Knowledge
-├── Memory
-├── Policy
-├── Model
-│
-├── Agent
-├── Workflow
-│
-├── Package
-├── Library
-└── Project
+   │
+   ▼
+AIAssetDocument
+   │
+   ▼
+Validation / Canonical Serialization
+   │
+   ▼
+Serialized AI Asset Storage
+   │
+   ▼
+Catalog Publication
 ```
 
-Every application is composed from AI Assets.
+PulseStackAI also contains earlier workflow-specific persistence contracts such as `WorkflowDocument` and workflow stores. Those contracts are not the canonical persisted-application path described here. Current persisted application composition uses the AI Asset persistence, catalog, and graph-loading boundaries.
 
-## Runtime Realization
+### Two meanings of "package"
 
-The Runtime transforms declarative AI Assets into executable behavior.
+PulseStackAI uses the word **package** in two distinct contexts:
 
-It is responsible for:
+- A **Package Asset** is an AI Asset representing a distribution boundary for related AI Asset definitions.
+- A **NuGet package** is a binary distribution artifact used to consume PulseStackAI framework assemblies.
 
-- Asset realization
-- Workflow execution
-- Agent coordination
-- Tool invocation
-- Context propagation
-- Policy enforcement
-- Observability
+They are separate architectural concepts. Framework NuGet production and distribution do not replace or redefine the Package Asset model.
 
-The runtime executes applications.
+## Catalog, resolution, and aggregate graph loading
 
-It does not define them.
+Persistence stores definitions; the catalog makes published definitions resolvable.
 
-## Provider Infrastructure
-
-Provider integrations remain isolated behind common abstractions.
-
-This enables applications to switch providers without changing application logic.
-
-Examples include:
-
-- OpenAI
-- Azure OpenAI
-- Ollama
-- Anthropic
-- MCP *(future)*
-- A2A *(future)*
-
----
-
-# Solution Architecture
+For a persisted application, `IAIAssetGraphLoader` accepts a root `AssetDefinitionKey` and loads the aggregate AI Asset graph required by that root. This is the boundary between individually persisted definitions and an accepted application graph suitable for realization.
 
 ```text
-PulseStack.Abstractions
+Project AssetDefinitionKey
         │
         ▼
-PulseStack.Core
+Catalog / Persistent Resolution
         │
         ▼
-PulseStack.Agents
+IAIAssetGraphLoader
         │
         ▼
-PulseStack.Providers.*
-        │
-        ▼
-Applications & Samples
+AIAssetGraph
 ```
 
-Each layer depends only on abstractions, preserving clean architectural boundaries.
+Graph loading is not workflow execution. It reconstructs the declarative application aggregate that realization consumes.
 
----
+## Application realization
 
-# Layer Responsibilities
-
-## PulseStack.Abstractions
-
-Defines the public language of the platform.
-
-Examples include:
-
-- AI Assets
-- Application Language
-- Workflows
-- Agents
-- Runtime Contracts
-- Persistence Contracts
-
-## PulseStack.Core
-
-Provides foundational platform services.
-
-Responsibilities include:
-
-- Dependency Injection
-- Runtime Services
-- Persistence
-- Validation
-- Serialization
-- Shared Infrastructure
-
-## PulseStack.Agents
-
-Implements the execution engine.
-
-Responsibilities include:
-
-- Runtime Realization integration
-- Workflow Runtime
-- Step Executors
-- Agent Runtime
-- Execution Context
-- Runtime Events
-
-## PulseStack.Providers
-
-Implements integrations with external AI technologies.
-
-Each provider package remains isolated from the runtime architecture.
-
----
-
-# Runtime Realization
-
-The Runtime bridges application definition and execution.
+`IApplicationRealizer` coordinates realization of an accepted `AIAssetGraph` without executing it.
 
 ```text
-AI Application
-
-↓
-
-AI Assets
-
-↓
-
-Runtime Realization
-
-↓
-
-Execution Runtime
-
-↓
-
-Providers
+AIAssetGraph
+      │
+      ▼
+IApplicationRealizer
+      │
+      ▼
+RealizedApplication
 ```
 
-Applications remain declarative.
+Realization resolves and composes the application into the existing runtime representation. A realized application identifies the Project and entry Workflow required by portable invocation.
 
-The Runtime performs realization and execution.
+Realization is deliberately distinct from both persistence and execution.
 
----
+## Application operation: the normal persisted-application boundary
 
-# Persistence & Packaging
+For normal execution of a persisted Project application, consumers use `IApplicationOperation` rather than manually reproducing the graph-loading, realization, and invocation sequence.
 
-Persistence and packaging are independent architectural capabilities.
+```csharp
+var result = await applicationOperation.ExecuteAsync(
+    projectKey,
+    request,
+    cancellationToken);
+```
+
+The public contract accepts the persisted Project's `AssetDefinitionKey`, an `ApplicationInvocationRequest`, and an optional cancellation token, and returns an `ApplicationOperationResult`.
+
+Internally, the current operation coordinates the existing authorities:
 
 ```text
-AI Assets
-
-↓
-
-Documents
-
-↓
-
-Validation
-
-↓
-
-Serialization
-
-↓
-
-Storage
-
-↓
-
-Packages
+Project AssetDefinitionKey
+        │
+        ▼
+IAIAssetGraphLoader
+        │
+        ▼
+IApplicationRealizer
+        │
+        ▼
+IApplicationInvoker
+        │
+        ▼
+ApplicationOperationResult
 ```
 
-This architecture enables applications to be versioned, shared, transported, and restored without affecting execution.
+`ApplicationOperationResult` preserves the stage that produced the terminal non-exceptional outcome: graph loading, realization, or invocation.
 
----
+The operation is coordination, not a second execution engine. Actual workflow execution remains owned by the invocation/runtime path.
 
-# Extension Points
+## Invocation and workflow runtime
 
-Developers can extend the platform by implementing custom:
+`IApplicationInvoker` accepts a `RealizedApplication` and an `ApplicationInvocationRequest`. The invocation boundary projects that request into runtime execution and hands the realized entry Workflow to the existing workflow runtime.
 
-- AI Assets
-- Runtime Services
-- Workflow Steps
-- Agents
-- Tools
-- Providers
-- Validators
-- Serializers
-- Stores
-- Packages
+The workflow runtime contract remains:
 
-Each extension point is exposed through well-defined abstractions.
+```csharp
+Task<WorkflowExecutionResult> ExecuteAsync(
+    Workflow workflow,
+    PipelineContext context,
+    CancellationToken cancellationToken = default);
+```
 
----
+`IWorkflowRuntime` owns workflow execution. Step executors interpret the runtime workflow structure, and run steps coordinate agent execution. Provider integrations supply concrete model/provider behavior required by realized agents.
 
-# Architectural Principles
+The resulting responsibility chain is therefore:
 
-> Think in Business Intent.
->
-> Compose AI Assets.
->
-> Realize Through Runtime.
->
-> Hide Technology.
->
-> Keep Providers Replaceable.
->
-> Model Before Implementation.
->
-> Document the Why.
->
-> Build for Change.
+```text
+Application Operation
+        │
+        ▼
+Application Invocation
+        │
+        ▼
+IWorkflowRuntime
+        │
+        ▼
+Workflow Step Execution
+        │
+        ▼
+Agent Runtime
+        │
+        ▼
+Provider Integration
+```
 
----
+## Architectural lifecycle versus consumer API
 
-# Architecture Roadmap
+The complete lifecycle is useful for understanding framework architecture:
 
-## Completed
+```text
+Author
+  ↓
+Persist
+  ↓
+Publish
+  ↓
+Resolve
+  ↓
+Graph Load
+  ↓
+Realize
+  ↓
+Invoke
+  ↓
+Runtime
+  ↓
+Provider
+```
 
-- MS-001 Core Foundation
-- MS-002 Agent Runtime
-- MS-003 Workflow Runtime
-- MS-004 Workflow Persistence
-- MS-005 Workflow Packages
-- MS-006 AI Application Language & AI Asset Model
+A normal persisted-application consumer, however, enters execution at the integrated operation boundary:
 
-## Current
+```text
+Project AssetDefinitionKey
+        │
+        ▼
+IApplicationOperation.ExecuteAsync(...)
+        │
+        ▼
+ApplicationOperationResult
+```
 
-- 🚧 MS-007 Runtime Realization Architecture
+Applications may use lower-level boundaries when they specifically need those contracts, but ordinary execution does not require consumers to duplicate the coordination already owned by `IApplicationOperation`.
 
-## Future
+## Solution responsibilities
 
-- Planner
-- Human Approval
-- Scheduling
-- Distributed Runtime
-- Asset Registry
-- Visual Designer
-- Marketplace
+The current architecture is distributed across the framework packages rather than implemented by one monolithic runtime.
 
----
+- **PulseStack.Abstractions** defines AI Assets and the public persistence, graph-loading, realization, invocation, operation, workflow-runtime, and related contracts.
+- **PulseStack.Core** provides foundational asset, persistence, catalog, graph-loading, realization, invocation, and runtime services.
+- **PulseStack.Agents** provides agent/workflow execution composition and the integrated application-operation coordination.
+- **PulseStack.Tools** provides tool-related framework composition.
+- **PulseStack.Providers.*** packages provide concrete provider integrations.
 
-# Related Architecture
+External applications consume the framework through its public packages and composition APIs.
 
-This document provides the architectural map of PulseStackAI.
+## External reference application
 
-The following documents explore each architectural domain in greater depth:
+MeridianWorks is the external reference application used to validate the current consumer path. It consumes PulseStackAI through NuGet package references rather than project references and exercises the declarative application lifecycle through persistence, publication, graph loading, realization, and integrated application execution.
 
-- AI Application Language
-- AI Asset Model
-- Runtime Realization
-- Workflow Runtime
-- Workflow Persistence
-- Workflow Packages
-- Domain Model
-- Solution Structure
-- Roadmap
+MeridianWorks is evidence that the public consumer path works; it is not part of the PulseStackAI runtime and its application source is not duplicated into this architecture document.
 
-Together, these documents describe the complete PulseStackAI architecture—from business intent to runtime execution.
+## Documentation authority
+
+Different documentation families answer different questions:
+
+- **Architecture** describes boundaries that exist and how they relate.
+- **Specifications** describe authoritative language and contract semantics after reconciliation with current contracts.
+- **Guides** teach developers how to use those boundaries.
+- **Engineering records** preserve the decisions and milestone history that produced the current architecture.
+- **External reference applications** provide consumer-level proof of the documented path.
+
+Historical design documents may remain valuable engineering evidence even when they no longer describe the current public architecture.
+
+## Related documentation
+
+This overview establishes the current architecture map. Focused architecture documents cover the AI Asset model, application language, runtime realization, workflow model/runtime, extension points, and solution structure. Some older focused documents still represent earlier architectural generations and are being reconciled against this overview and the current public contracts.
+
+Engineering milestone closures, RFCs, ADRs, and roadmap records remain historical decision authority and should not be interpreted as replacements for this current architecture overview.
