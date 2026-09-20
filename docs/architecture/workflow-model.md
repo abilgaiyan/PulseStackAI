@@ -1,273 +1,260 @@
 # Workflow Model
 
-## Introduction
+> **PulseStackAI has a declarative Workflow Asset representation and a separate realized runtime Workflow representation.**
 
-Workflow Model represents the Workflow Asset within the AI Asset Model.
+This document owns the structural relationship between those representations.
 
-While the Domain Model defines the business vocabulary of the framework, the Workflow Model explains how those concepts are represented, composed, and related to one another.
+It does not define persistence mechanics or runtime execution semantics.
 
-The Workflow Model remains independent of execution and persistence. It provides the structural foundation upon which the Workflow Runtime and Persistence subsystems operate.
+## Representation map
 
-The Workflow Model answers a single question:
-
-> **How are the concepts of PulseStackAI represented?**
-
----
-
-# Design Goals
-
-The Workflow Model is designed around several principles.
-
-- Declarative
-- Composable
-- Hierarchical
-- Extensible
-- Portable
-- Independent of execution
-
-These principles allow workflows to evolve without affecting the runtime architecture.
-
----
-
-# Aggregate Root
-
-The Workflow is the aggregate root of the model.
-
-Every workflow owns:
-
-- Identity
-- Metadata
-- Workflow Steps
+The current application path crosses an explicit representation boundary:
 
 ```text
+WorkflowAsset
+    declarative AI Asset
+        ↓
+AI Asset persistence / graph loading
+        ↓
+application realization
+        ↓
 Workflow
-│
-├── Identity
-├── Metadata
-└── Steps
+    runtime representation
+        ↓
+IWorkflowRuntime
 ```
 
-All workflow behavior originates from this root.
+These objects are related, but they are not interchangeable.
 
----
+## Declarative Workflow Asset
 
-# Composition
+`WorkflowAsset` belongs to the AI Asset model.
 
-PulseStackAI follows the Composite Pattern.
-
-Every workflow consists of one or more workflow steps.
-
-Some workflow steps may themselves contain child workflow steps.
+Its authoring options contain:
 
 ```text
-Workflow
-│
-├── Run Step
-├── Conditional Step
-│      ├── True Branch
-│      └── False Branch
-│
-├── Parallel Step
-│      ├── Branch A
-│      ├── Branch B
-│      └── Branch C
-│
-└── Loop Step
-       └── Body
+WorkflowAssetOptions
+├── Name
+├── Description?
+└── Steps[]
+    └── WorkflowStepDefinition
 ```
 
-This recursive structure enables arbitrarily complex workflows while maintaining a consistent programming model.
+The Workflow Asset also carries the normal AI Asset identity, URN, version, metadata, references, and dependencies supplied by the shared Asset model.
 
----
+A Workflow Asset describes process structure. It does not carry invocation state and is not executed directly by `IWorkflowRuntime`.
 
-# Workflow Hierarchy
+## Declarative step model
 
-A workflow is itself a workflow step.
+`WorkflowStepDefinition` is the base declarative step representation.
 
-This allows workflows to be nested and composed without introducing special execution semantics.
+Every step owns a `WorkflowStepId`.
+
+Current concrete definitions are:
 
 ```text
-Workflow
-
-↓
-
-Workflow Step
-
-↓
-
-Nested Workflow
-
-↓
-
-Workflow Step
-
-↓
-
-Run Step
+WorkflowStepDefinition
+├── RunStepDefinition
+├── ConditionalStepDefinition
+├── ParallelStepDefinition
+├── RetryStepDefinition
+├── LoopStepDefinition
+└── SwitchStepDefinition
 ```
 
-This enables reusable workflow components.
+Composite definitions contain other declarative step definitions, producing a recursive definition tree.
 
----
-
-# Identity Ownership
-
-Workflow identity belongs exclusively to the workflow.
-
-Workflow steps own their own identifiers.
+Conceptually:
 
 ```text
-Workflow
-
-↓
-
-Workflow Identity
-
-Workflow Step
-
-↓
-
-Workflow Step Identity
+WorkflowAsset
+├── Run
+├── Conditional
+│   ├── Then
+│   └── Else?
+├── Parallel
+│   └── Steps[]
+├── Retry
+│   └── Step
+├── Loop
+│   └── Step
+└── Switch
+    ├── Cases[]
+    └── Default?
 ```
 
-Execution identifiers are intentionally excluded from the model.
+The exact properties of each definition remain owned by the source contracts.
 
----
+## Identity-complete durable authoring
 
-# Metadata Ownership
+A `WorkflowStepDefinition` can receive a generated default ID. Persisted applications that recreate the same logical Workflow definition need explicit identity continuity instead.
 
-Metadata is descriptive rather than behavioral.
-
-Workflow metadata belongs to the workflow.
-
-Workflow step metadata belongs to individual workflow steps.
-
-Metadata never changes workflow semantics.
-
----
-
-# Relationships
-
-The Workflow Model defines parent-child relationships.
+The durable authoring representation therefore adds:
 
 ```text
-Workflow
-│
-├── Workflow Step
-│      │
-│      ├── Workflow Step
-│      │      │
-│      │      └── Workflow Step
-│      │
-│      └── Workflow Step
+IdentityCompleteWorkflowStep
+IdentityCompleteWorkflowAssetOptions
+DurableWorkflowStep
 ```
 
-This recursive structure forms a workflow tree.
+An `IdentityCompleteWorkflowStep` wraps a declarative subtree authored through the explicit identity contract for every step in that subtree.
 
----
+`IdentityCompleteWorkflowAssetOptions` contains those identity-complete root subtrees.
 
-# Structural Rules
+`WorkflowAssetFactory` converts that authoring representation into the ordinary declarative definitions held by a `WorkflowAsset`.
 
-Every valid workflow satisfies several structural rules.
+This distinction is about **how identity completeness is established during authoring**. It does not introduce a second persisted Workflow Asset type.
 
-- A workflow has exactly one identity.
-- A workflow has exactly one metadata object.
-- A workflow contains one or more workflow steps.
-- Workflow steps belong to exactly one parent.
-- Child workflow steps inherit workflow context.
-- Workflow steps form an acyclic tree.
+## Runtime Workflow
 
-These rules are enforced by the validation subsystem.
+The runtime `Workflow` is the representation accepted by `IWorkflowRuntime`.
 
----
+It belongs to the runtime Workflow object model rather than the AI Asset definition model.
 
-# Extensibility
+The runtime model includes runtime `IWorkflowStep` objects and supports composition understood by the step executors.
 
-New workflow step types extend the model without changing existing structures.
+One important runtime relationship is:
 
-Examples include:
+```text
+Workflow : IWorkflowStep
+```
 
-- Human Approval Step
-- Delay Step
-- Event Step
-- Planner Step
-- Package Step
+That allows a realized runtime Workflow to participate as a runtime step.
 
-Because every workflow step follows the same structural model, new capabilities integrate naturally into existing workflows.
+This fact should not be projected backward onto `WorkflowAsset`: the declarative Asset is not itself a runtime `IWorkflowStep`.
 
----
+## Realization connects the models
 
-# Relationship to the Runtime
+Application Realization owns the conversion from the accepted declarative graph to runtime representation.
 
-The Workflow Model describes workflow structure.
+For the entry Workflow:
 
-The Workflow Runtime interprets that structure and executes it.
+```text
+Project.EntryWorkflow
+        ↓
+resolve WorkflowAsset from AIAssetGraph
+        ↓
+existing Workflow realization chain
+        ↓
+Workflow
+        ↓
+RealizedApplication.Workflow
+```
 
-The runtime does not modify the model.
+The realized `Workflow` is then available to application invocation and ultimately `IWorkflowRuntime`.
 
-Workflow Model
+The Workflow Model therefore does not require persistence documents or runtime execution to share one concrete representation.
 
-↓
+## Persistence relationship
 
-Configuration
+Current persisted declarative applications use the AI Asset persistence architecture.
 
-↓
+For a Workflow definition, the conceptual path is:
 
-Runtime
+```text
+WorkflowAsset
+        ↓
+AI Asset document mapping
+        ↓
+WorkflowAssetDocument / AIAssetDocument
+        ↓
+canonical serialization
+        ↓
+serialized storage
+        ↓
+catalog publication
+        ↓
+persistent resolution / graph loading
+```
 
----
+The canonical persistence authority is [Persistent Asset Platform](persistent-asset-platform.md).
 
-# Relationship to the Application Language
+PulseStackAI also contains an older Workflow-specific `WorkflowDocument` persistence generation. That representation is separate from the current AI Asset persisted-application path and is not the persistence model owned by this document.
 
+## Execution relationship
+
+The runtime representation is executed through:
+
+```csharp
+Task<WorkflowExecutionResult> ExecuteAsync(
+    Workflow workflow,
+    PipelineContext context,
+    CancellationToken cancellationToken = default);
+```
+
+That contract belongs to `IWorkflowRuntime`.
+
+The Workflow Model does not define traversal, executor selection, parallel-state behavior, retry behavior, runtime events, cancellation precedence, or result aggregation. Those semantics are owned by [Workflow Runtime](workflow-runtime.md).
+
+## Language relationship
+
+The conceptual Workflow Language describes business process structure.
+
+The durable authoring grammar turns that vocabulary into explicit-identity declarative definitions.
+
+The model then separates those definitions from the runtime representation:
+
+```text
 Workflow Language
-
-↓
-
-Defines Process
-
-↓
-
-Workflow Model
-
-↓
-
-Represents Process
-
-↓
-
-Runtime
-
-↓
-
-Executes Process
-
----
-
-# Relationship to Agent
+        ↓
+durable declarative authoring
+        ↓
+WorkflowAsset
+        ↓
+realization
+        ↓
 Workflow
+        ↓
+runtime execution
+```
 
-↓
+See:
 
-Coordinates Agents
+- [Workflow Language](workflow-language.md) for conceptual vocabulary;
+- [Workflow Language Grammar](../guides/workflow-language/grammar.md) for current durable authoring;
+- [Application Realization](runtime-realization-architecture.md) for the representation handoff;
+- [Workflow Runtime](workflow-runtime.md) for execution.
 
-Agents
+## Older runtime builder
 
-↓
+The repository also contains `Workflow.Create(...)`, `WorkflowBuilder`, and related builders that construct runtime `Workflow` objects.
 
-Compose Foundation Assets
+Those APIs remain real repository contracts. They are not erased by the declarative Workflow Asset model.
 
-# Relationship to Persistence
+Their representation target is different:
 
-Persistence serializes and reconstructs the Workflow Model.
+```text
+WorkflowBuilder
+        ↓
+Workflow
+        ↓
+IWorkflowRuntime
+```
 
-Workflow Documents preserve the structure defined by this model without introducing execution behavior.
+The canonical persisted application path instead authors a `WorkflowAsset`, persists it through the AI Asset platform, and realizes it before runtime execution.
 
----
+## Responsibility summary
 
-# Summary
+| Concept | Representation | Authority |
+| --- | --- | --- |
+| Workflow business vocabulary | conceptual language | Workflow Language |
+| Persistable declarative workflow | `WorkflowAsset` + `WorkflowStepDefinition` | AI Asset / Workflow model |
+| Explicit durable step authoring | `DurableWorkflowStep` + identity-complete wrappers | Workflow grammar |
+| Persistent application representation | `AIAssetDocument` / `WorkflowAssetDocument` path | Persistent Asset Platform |
+| Declarative-to-runtime handoff | `WorkflowAsset` → `Workflow` | Application Realization |
+| Runtime workflow | `Workflow : IWorkflowStep` | runtime object model |
+| Runtime execution | `IWorkflowRuntime` | Workflow Runtime |
 
-The Workflow Model provides the structural representation of the PulseStackAI Domain Model.
+## Scope boundary
 
-It explains how workflows are organized, how workflow steps compose recursively, and how identity, metadata, and hierarchy are represented independently of execution.
+This document does not:
 
-Subsequent architecture documents build upon this model to explain runtime execution and persistence.
+- make the older Workflow builder the canonical persisted authoring path;
+- make `WorkflowAsset` a runtime `IWorkflowStep`;
+- make the runtime `Workflow` the canonical persisted Asset representation;
+- redefine AI Asset persistence;
+- redefine realization;
+- redefine runtime execution;
+- reconcile the older `WorkflowDocument` specification.
+
+Those responsibilities remain with their owning documents.
