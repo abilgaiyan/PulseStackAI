@@ -1,332 +1,284 @@
-# The Grammar of the Workflow Language
+# Workflow Language Grammar
 
-Software developers naturally think in terms of business processes.
+> **This guide describes the current durable declarative Workflow authoring vocabulary.**
 
-They ask questions like:
+For persisted applications, Workflow authoring must preserve stable identity across process restarts. The canonical durable path therefore uses explicit Workflow-step identities and produces a `WorkflowAsset`.
 
-- What should happen first?
-- What happens next?
-- What should happen only if a condition is true?
-- Which activities can happen together?
+This guide does not teach the older `Workflow.Create(...)` / `WorkflowBuilder` surface.
 
-Traditional programming languages express these ideas through syntax.
+## Authoring boundary
 
-PulseStackAI does the same.
+The current durable authoring path is:
 
-Instead of exposing AI infrastructure, the Workflow Language allows developers to describe business intent using a small, consistent vocabulary.
-
-Everything in this document exists to answer one simple question:
-
-> **How should a workflow read?**
-
----
-
-# Design Philosophy
-
-The Workflow Language is built around a simple principle.
-
-> **Business workflows should be easy to read.**
-
-Developers should describe *what* the business process does.
-
-The framework is responsible for *how* it executes.
-
-To achieve this, PulseStackAI maintains a strict separation between three independent layers.
-
-## Workflow Language (DSL)
-
-The language developers write.
-
-This layer contains only business-oriented concepts.
-
-It intentionally avoids implementation details.
-
-## Workflow Model
-
-The internal representation of the workflow.
-
-The model transforms the language into a structured object graph that the runtime can understand.
-
-## Workflow Runtime
-
-The execution engine.
-
-The runtime coordinates workflow execution, evaluates conditions, executes agents and tools, manages state, and handles diagnostics.
-
----
-
-Implementation concepts such as **steps**, **graphs**, **execution trees**, or **ASTs** belong to the model and runtime.
-
-They do **not** belong to the Workflow Language.
-
-The language should describe business intent—not technical implementation.
-
----
-
-# The Two Builder Roles
-
-The Workflow Language is intentionally built from only two kinds of builders.
-
-Keeping the language limited to these two roles makes it easy to learn, easy to extend, and easy to reason about.
-
-## 1. Grammar Builders
-
-Grammar builders guide the developer through a valid workflow sentence.
-
-They do not author workflow steps.
-
-Instead, they control which language construct is allowed next.
-
-A grammar builder exists only to enforce the rules of the language.
-
-Example:
-
-```
-If(...)
-    ↓
-Then()
+```text
+explicit WorkflowStepId values
+        ↓
+DurableWorkflowStep.*
+        ↓
+IdentityCompleteWorkflowStep subtrees
+        ↓
+IdentityCompleteWorkflowAssetOptions
+        ↓
+WorkflowAssetFactory
+        ↓
+WorkflowAsset
 ```
 
-After `If(...)`, the only valid next keyword is `Then()`.
+The result is a declarative Workflow Asset. It is not the runtime `Workflow` consumed by `IWorkflowRuntime`.
 
-The compiler guides the developer toward a grammatically correct workflow.
+## Why explicit identity matters
 
----
+The base `WorkflowStepDefinition` contract can generate a new `WorkflowStepId` when one is not supplied.
 
-## 2. Workflow Scope Builders
+That behavior is not sufficient when an application recreates the same logical persisted definition on a later process run. Re-authoring the definition with new random step identities changes the persisted definition.
 
-Workflow scope builders represent places where business work is written.
+The durable authoring contract makes identity explicit:
 
-Whether the developer is writing:
+```text
+same logical persisted step
+        ↓
+same authored WorkflowStepId
+        ↓
+stable persisted Workflow definition
+```
 
-- the root workflow,
-- a parallel block,
-- a conditional branch,
-- or a loop,
+Asset identity and Workflow-step identity are separate. A stable Workflow Asset ID does not by itself make its nested step identities stable.
 
-the vocabulary remains exactly the same.
+## Core step vocabulary
 
-Every workflow scope exposes the same core language.
+`DurableWorkflowStep` exposes the current identity-complete declarative constructs.
+
+### Run
 
 ```csharp
-.Run(...)
-
-.If(...)
-
-.Parallel()
-
-.ForEach()
-
-.Switch()
-
-.Retry()
+var analyze = DurableWorkflowStep.Run(
+    analyzeStepId,
+    agentReference);
 ```
 
-The only difference between workflow scopes is how they package their work when `End()` is called.
+A Run definition references an Agent Asset.
 
-This consistency allows developers to learn the language once and use it everywhere.
-
----
-
-# The Universal Verb
-
-Every executable piece of business work is expressed using one simple verb.
+### Parallel
 
 ```csharp
-.Run(...)
+var checks = DurableWorkflowStep.Parallel(
+    parallelStepId,
+    "Checks",
+    new[]
+    {
+        policyCheck,
+        riskCheck
+    });
 ```
 
-`Run` intentionally describes **intent**, not implementation.
+Every child must already be an `IdentityCompleteWorkflowStep`.
 
-The work may eventually be performed by:
-
-- an AI agent
-- a tool
-- another workflow
-- a future execution component
-
-The Workflow Language never needs to know.
-
-It simply says:
-
-> **Run this work.**
-
-The runtime decides how that work is executed.
-
----
-
-# Core Grammar
-
-Every language construct follows a consistent pattern.
-
-A keyword introduces a new workflow scope.
-
-That scope is completed by calling `End()`.
-
-```
-Keyword
-
-↓
-
-Workflow Scope
-
-↓
-
-End()
-
-↓
-
-Previous Workflow Scope
-```
-
-This makes every language construct predictable and easy to understand.
-
----
-
-# Conditional Grammar
-
-Conditional execution introduces the first true sentence in the Workflow Language.
-
-```
-Workflow Scope
-
-↓
-
-If(condition)
-
-↓
-
-Then()
-
-↓
-
-Workflow Scope
-
-↓
-
-Else()   (optional)
-
-↓
-
-Workflow Scope
-
-↓
-
-End()
-
-↓
-
-Previous Workflow Scope
-```
-
----
-
-## Grammar Rules
-
-### Then is mandatory
-
-Every `If(...)` must immediately transition to `Then()`.
-
-The compiler prevents any other operation until the condition has been completed.
-
----
-
-### Else is optional
-
-Not every business rule requires an alternative path.
-
-If no alternative exists, the workflow may simply continue after `End()`.
-
----
-
-### End closes the conditional
-
-`End()` completes the conditional block and restores the previous workflow scope.
-
-The developer simply continues writing the workflow.
-
----
-
-### Workflow scopes support nesting
-
-Every workflow scope shares the same language.
-
-This means any workflow construct can be nested naturally.
-
-For example:
-
-- Parallel inside Then
-- If inside Parallel
-- Loop inside Else
-- Switch inside Loop
-
-There are no special rules.
-
-The grammar remains consistent regardless of depth.
-
----
-
-# Example
+### Conditional
 
 ```csharp
-var workflow =
-    Workflow.Create("Expense Approval")
-
-        .Run(loadExpense)
-
-        .If(requiresManagerApproval)
-
-            .Then()
-
-                .Parallel()
-
-                    .Run(notifyFinance)
-
-                    .Run(managerApproval)
-
-                .End()
-
-                .If(isHighValueExpense)
-
-                    .Then()
-
-                        .Run(vpApproval)
-
-                .End()
-
-            .Else()
-
-                .Run(autoApprove)
-
-        .End()
-
-        .Run(logCompletion)
-
-    .Build();
+var decision = DurableWorkflowStep.Conditional(
+    conditionalStepId,
+    "Approval Decision",
+    condition,
+    thenStep,
+    elseStep);
 ```
 
-Notice how the workflow reads like a business conversation.
+The `thenStep` is required. The `elseStep` is optional. Child steps must be identity-complete before they are attached.
 
-There are no execution loops.
+### Retry
 
-No infrastructure code.
+```csharp
+var retry = DurableWorkflowStep.Retry(
+    retryStepId,
+    submission,
+    maxAttempts: 3,
+    name: "Retry Submission");
+```
 
-No provider-specific concepts.
+Retry wraps one identity-complete child definition.
 
-Only business intent.
+### Loop
 
----
+```csharp
+var loop = DurableWorkflowStep.Loop(
+    loopStepId,
+    items,
+    processItem,
+    name: "ForEach Item");
+```
 
-# A Guiding Principle
+The item source is a declarative `WorkflowValueDefinition`; the body is an identity-complete step.
 
-Every new language feature should answer one question:
+### Switch
 
-> **Does this make the workflow easier to read?**
+Create each case from an identity-complete step:
 
-If the answer is yes, it belongs in the Workflow Language.
+```csharp
+var approved = DurableWorkflowStep.SwitchCase(
+    "approved",
+    approvedStep);
 
-If it exposes infrastructure, implementation details, or runtime concerns, it belongs somewhere else.
+var rejected = DurableWorkflowStep.SwitchCase(
+    "rejected",
+    rejectedStep);
+```
 
-The language exists for one purpose:
+Then author the switch itself:
 
-> **To help developers think about business workflows—not AI infrastructure.**
+```csharp
+var route = DurableWorkflowStep.Switch(
+    switchStepId,
+    selector,
+    new[]
+    {
+        approved,
+        rejected
+    },
+    defaultStep,
+    name: "Route Decision");
+```
+
+The switch owns its explicit `WorkflowStepId`; each case points to a step whose subtree is already identity-complete.
+
+## Recursive identity completeness
+
+The durable API intentionally accepts `IdentityCompleteWorkflowStep` for nested step positions.
+
+That gives the authoring contract a recursive shape:
+
+```text
+explicit ID
+   ↓
+leaf step
+   ↓
+IdentityCompleteWorkflowStep
+   ↓
+parent created only from identity-complete children
+   ↓
+IdentityCompleteWorkflowStep
+   ↓
+...
+   ↓
+identity-complete root subtree
+```
+
+This is stronger than merely assigning an ID to the root of a composite step.
+
+## Create the Workflow Asset
+
+Once the root step subtrees are identity-complete, place them in `IdentityCompleteWorkflowAssetOptions`:
+
+```csharp
+var options = new IdentityCompleteWorkflowAssetOptions
+{
+    Name = "RFQ Analysis",
+    Description = "Analyze an incoming manufacturing RFQ.",
+    Steps = new[]
+    {
+        analyze
+    }
+};
+```
+
+Create the Asset with an explicit stable `AssetId` when the definition is intended to be persisted and recreated:
+
+```csharp
+var workflow = workflowFactory.Create(
+    workflowAssetId,
+    options);
+```
+
+The factory converts the identity-complete authoring representation into the normal `WorkflowAssetOptions` / `WorkflowStepDefinition` representation carried by the resulting `WorkflowAsset`.
+
+## Conditions and values
+
+Conditional, Loop, and Switch constructs reference declarative condition/value definitions.
+
+Those definitions are inputs to the Workflow-step definitions; they are not runtime delegates embedded in the durable Workflow Asset.
+
+This keeps the persisted authoring representation separate from the older runtime builder, whose conditions, selectors, and loops can be expressed with runtime-oriented objects or delegates.
+
+## What this grammar produces
+
+The durable grammar produces a declarative tree:
+
+```text
+WorkflowAsset
+└── WorkflowStepDefinition
+    ├── Run
+    ├── Conditional
+    │   ├── Then
+    │   └── Else?
+    ├── Parallel
+    │   └── Steps[]
+    ├── Retry
+    │   └── Step
+    ├── Loop
+    │   └── Step
+    └── Switch
+        ├── Cases[]
+        └── Default?
+```
+
+This tree belongs to the Workflow Asset model.
+
+Persistence maps the Workflow Asset through the canonical AI Asset persistence path. Application realization later composes it into the runtime `Workflow` representation.
+
+## Relationship to the older builder grammar
+
+PulseStackAI still contains `WorkflowBuilder` and related grammar builders.
+
+For example, the runtime-oriented surface includes constructs such as:
+
+```text
+Workflow.Create(...)
+Run(...)
+If(...).Then()...End()
+Parallel()
+ForEach(...)
+Switch(...)
+Retry(...)
+Build()
+```
+
+Those APIs are not removed or declared invalid by this guide.
+
+They construct runtime `Workflow` objects and represent an earlier/currently separate authoring surface. They are **not** the canonical guidance for persisted declarative applications.
+
+Do not infer durable persistence identity from the builder grammar.
+
+## Next boundary
+
+After authoring a Workflow Asset, the normal persisted application path continues through the AI Asset platform:
+
+```text
+WorkflowAsset
+        ↓
+Project references Workflow
+        ↓
+map + persist
+        ↓
+publish
+        ↓
+Project AssetDefinitionKey
+        ↓
+IApplicationOperation
+```
+
+For that complete procedure, use [Build and Execute a Declarative Application](../declarative-application.md).
+
+For representation boundaries, see [Workflow Model](../../architecture/workflow-model.md). For execution behavior, see [Workflow Runtime](../../architecture/workflow-runtime.md).
+
+## Scope boundary
+
+This guide owns current durable declarative Workflow authoring grammar.
+
+It does not:
+
+- redefine AI Asset persistence;
+- define application realization;
+- define `IWorkflowRuntime` execution semantics;
+- deprecate or remove the older runtime Workflow builder;
+- reconcile the historical `WorkflowDocument` specification;
+- define future Workflow language constructs.
