@@ -1,226 +1,218 @@
 # Workflow Language
 
-> **Think in business workflows—not AI infrastructure.**
+> **Describe business process structure as declarative Workflow Assets; realize that structure separately for runtime execution.**
 
----
+## Purpose
 
-## Workflow Composition
+The Workflow Language is the business-oriented vocabulary used to describe orchestration in PulseStackAI.
 
-Workflow
+It answers questions such as:
 
-↓
+- What work should run?
+- What work can run in parallel?
+- What should happen only when a condition is satisfied?
+- What should be retried?
+- What collection should be traversed?
+- Which branch should be selected?
 
-Agent
+It does not define persistence mechanics, application realization, runtime dispatch, or provider execution.
 
-↓
-
-Foundation Assets
-
-A Workflow does not communicate.
-
-A Workflow does not reason.
-
-A Workflow does not retrieve knowledge.
-
-A Workflow does not invoke tools.
-
-Agents do.
-
-The Workflow coordinates them.
-
-Workflow
-
-↓
-
-Agent
-
-↓
-
-Prompt
-
-Tool
-
-Knowledge
-
-Memory
-
-Policy
-
-Model
-
----
-
-## Before writing code, think differently.
-
-Traditional software development teaches us to think in terms of classes, methods, APIs, and data structures.
-
-Modern AI development often teaches something even more complicated.
-
-Developers are expected to think about prompts, providers, memory, streaming, tool calls, retries, orchestration, and execution loops.
-
-These are implementation details.
-
-They are not the problem you're trying to solve.
-
-PulseStackAI asks you to think differently.
-
-Before writing a single line of code, ask yourself three simple questions.
-
----
-
-## 1. What is the intent?
-
-Every workflow begins with an objective.
-
-Not a prompt.
-
-Not a provider.
-
-Not a model.
-
-An objective.
-
-Examples:
-
-* Review this contract.
-* Approve this expense.
-* Summarize these documents.
-* Classify this support ticket.
-* Analyze this financial report.
-
-The intent defines **what the workflow is trying to accomplish**.
-
-Everything else exists to support that goal.
-
----
-
-## 2. What happens next?
-
-Business processes are simply a sequence of decisions.
-
-After one step completes, something else happens.
-
-Sometimes another agent runs.
-
-Sometimes a manager approves.
-
-Sometimes work happens in parallel.
-
-Sometimes the workflow retries.
-
-Sometimes it loops.
-
-Sometimes it ends.
-
-The Workflow Language exists to describe these transitions naturally.
-
-Think about the business process—not the execution engine.
-
----
-
-## 3. What is the current state?
-
-Every decision depends on context.
-
-What information do we have?
-
-What has already happened?
-
-What is the latest result?
-
-PulseStackAI represents this through the Pipeline Context.
-
-The context carries the current state of the workflow from one step to the next.
-
-Steps read from it.
-
-Steps contribute to it.
-
-The runtime manages it.
-
-The developer simply uses it.
-
----
-
-## Everything else is infrastructure.
-
-Notice what we didn't ask.
-
-Not:
-
-> Which provider should I use?
-
-Not:
-
-> How do I retry this HTTP request?
-
-Not:
-
-> Where do I store the conversation history?
-
-Not:
-
-> How do I execute steps in parallel?
-
-Those are runtime responsibilities.
-
-The workflow should describe business intent.
-
-The runtime should implement it.
-
----
-
-## The PulseStackAI Mental Model
-
-Every workflow can be understood by answering three questions.
+The current architecture keeps those responsibilities separate:
 
 ```text
-Intent
-
-↓
-
-Agents collaborate
-
-↓
-
-Current State
-
-↓
-
-Next Decision
+Workflow concepts
+        ↓
+declarative Workflow Asset
+        ↓
+AI Asset persistence
+        ↓
+application realization
+        ↓
+runtime Workflow
+        ↓
+IWorkflowRuntime
 ```
 
-That's it.
+## Workflow coordinates work
 
-Everything else belongs inside the framework.
+A Workflow coordinates application work. Agent Assets describe AI-capable participants and compose the other Assets they require.
 
----
+At the application level:
 
-## The Workflow Language
-
-Once you start thinking in workflows, the code becomes almost self-explanatory.
-
-```csharp
-var workflow =
-    Workflow.Create("Expense Approval")
-
-        .Run(loadExpense)
-
-        .If(
-            requiresManagerApproval,
-            managerApproval)
-
-        .Parallel(
-            fraudCheck,
-            policyValidation)
-
-        .Retry(finalSubmission)
-
-        .Build();
+```text
+Project
+  ↓
+Entry Workflow
+  ↓
+Agent references
+  ↓
+Prompt / Model / Tools / Knowledge / Memory / Policies
 ```
 
-You're no longer programming an AI system.
+A Workflow definition does not itself communicate with a model provider. Provider-backed execution occurs downstream through realization and runtime composition.
 
-You're describing a business process.
+## Think in business process structure
 
-That's the purpose of the Workflow Language.
+Before choosing runtime mechanics, identify the process.
+
+### Intent
+
+Start with the business objective:
+
+- review a contract;
+- approve an expense;
+- summarize documents;
+- classify a support request;
+- analyze an RFQ.
+
+### Transitions
+
+Then describe what happens next:
+
+- run work;
+- evaluate a condition;
+- perform branches in parallel;
+- retry work;
+- iterate over values;
+- select a switch branch.
+
+### State
+
+Runtime decisions operate over execution context, but the declarative Workflow Asset is not runtime state.
+
+That distinction is deliberate:
+
+```text
+Workflow Asset
+    describes process structure
+
+PipelineContext
+    carries invocation state during execution
+```
+
+The exact runtime behavior is owned by [Workflow Runtime](workflow-runtime.md).
+
+## Current declarative vocabulary
+
+The current declarative Workflow model is expressed through `WorkflowStepDefinition` types.
+
+The implemented step kinds are:
+
+```text
+Run
+Conditional
+Parallel
+Retry
+Loop
+Switch
+```
+
+These definitions form the structure stored inside a `WorkflowAsset`.
+
+A Workflow Asset itself contains:
+
+```text
+WorkflowAsset
+├── Asset identity
+├── Name
+├── Description
+└── Steps[]
+```
+
+The Workflow Asset is part of the AI Asset model. It is not the runtime `Workflow` object executed by `IWorkflowRuntime`.
+
+## Durable authoring and identity
+
+`WorkflowStepDefinition.Id` has a default generated identity, which is useful for ordinary in-memory definition construction.
+
+Persisted declarative applications need stronger identity continuity across application restarts. PulseStackAI therefore provides an explicit identity-complete authoring path:
+
+```text
+WorkflowStepId
+        ↓
+DurableWorkflowStep.*
+        ↓
+IdentityCompleteWorkflowStep
+        ↓
+IdentityCompleteWorkflowAssetOptions
+        ↓
+WorkflowAssetFactory
+        ↓
+WorkflowAsset
+```
+
+`DurableWorkflowStep` currently exposes explicit-identity construction for:
+
+- `Run`;
+- `Parallel`;
+- `Conditional`;
+- `Retry`;
+- `Loop`;
+- `Switch` and `SwitchCase`.
+
+Each resulting identity-complete subtree guarantees that every Workflow step in that authored subtree received its identity through the explicit authoring contract.
+
+For the complete persisted-application procedure, see [Build and Execute a Declarative Application](../guides/declarative-application.md).
+
+## Language versus representation
+
+Several related concepts coexist in the framework and should not be collapsed.
+
+### Workflow Language
+
+The conceptual vocabulary for expressing process structure.
+
+### Workflow Asset
+
+The declarative AI Asset representation used by the current persisted-application path.
+
+### Runtime Workflow
+
+The realized `Workflow` object consumed by `IWorkflowRuntime`.
+
+### Workflow Runtime
+
+The execution authority that receives the realized `Workflow`, caller-owned `PipelineContext`, and cancellation token.
+
+Therefore:
+
+```text
+Workflow Language
+        ≠
+Workflow Asset
+        ≠
+runtime Workflow
+        ≠
+Workflow Runtime
+```
+
+## Relationship to the older Workflow builder
+
+PulseStackAI also contains the `Workflow.Create(...)` / `WorkflowBuilder` authoring surface for constructing runtime `Workflow` objects.
+
+That API remains part of the repository. Its continued existence does not make it the canonical persisted declarative application path.
+
+Current persisted application guidance uses stable AI Asset identities, identity-complete Workflow-step authoring, AI Asset persistence/publication, and Project-rooted execution through `IApplicationOperation`.
+
+The builder surface and the durable Workflow Asset authoring surface therefore answer different representation needs and should not be presented as one grammar.
+
+## Responsibility boundary
+
+This document owns the current conceptual Workflow Language and its relationship to declarative Workflow Assets.
+
+It does not own:
+
+- the detailed authoring procedure for a persisted application;
+- AI Asset storage, publication, or graph loading;
+- Workflow Asset realization;
+- runtime execution semantics;
+- the historical Workflow-specific persistence generation;
+- reconciliation of the older Workflow document specification.
+
+Use the owning documents instead:
+
+- [Workflow Language Grammar](../guides/workflow-language/grammar.md) — current durable declarative authoring vocabulary;
+- [Workflow Model](workflow-model.md) — declarative versus runtime representations;
+- [Persistent Asset Platform](persistent-asset-platform.md) — current persistence authority;
+- [Application Realization](runtime-realization-architecture.md) — Workflow Asset to runtime Workflow;
+- [Workflow Runtime](workflow-runtime.md) — current execution semantics.
