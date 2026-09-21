@@ -2,273 +2,166 @@
 > **Audience:** Contributors
 > **Status:** Draft
 > **Owner:** PulseStackAI Team
-> **Last Reviewed:** 2026-08-03
+> **Last Reviewed:** 2026-09-21
 
 # Prompt Language Specification
 
-> **A Prompt defines what should be communicated, not how it should be executed.**
+> **A Prompt represents reusable system-instruction intent.**
 
 ---
 
-# 1. Vision
+# 1. Domain Meaning
 
-The Prompt Language defines the vocabulary used to describe reusable AI instructions within PulseStackAI.
+Prompt is a reusable AI Asset for describing instructions supplied to an Agent.
 
-Rather than treating prompts as provider-specific strings or message payloads, the Prompt Language models prompts as reusable engineering assets.
-
-A Prompt represents communication intent.
-
-The Runtime is responsible for translating that intent into the format required by a specific AI provider.
-
-The Prompt Language therefore remains independent of:
-
-- AI providers
-- Model implementations
-- Runtime execution
-- Infrastructure technologies
-
-This enables prompts to remain reusable, portable, composable, and versioned across different AI platforms.
+The current public contract is intentionally smaller than the richer vocabulary commonly used when designing prompts. This specification distinguishes the implemented Prompt Asset structure from useful prompt-design concepts.
 
 ---
 
-# 2. What is a Prompt?
+# 2. Current Public Asset Contract
 
-A Prompt is a reusable AI Asset that describes what should be communicated to an AI model in order to achieve a specific outcome.
+The current public declarative contract is:
 
-A Prompt defines intent rather than execution.
-
-It describes:
-
-- what the AI should understand
-- what the AI should do
-- what constraints apply
-- what outcome is expected
-
-A Prompt never describes:
-
-- which provider should execute it
-- which model should execute it
-- how execution should occur
-
----
-
-# 3. Purpose
-
-The purpose of a Prompt is to provide reusable instructions that can be composed into AI-powered business applications.
-
-A Prompt enables developers to separate business communication from runtime implementation.
-
-Instead of embedding instructions directly into application code, developers create reusable Prompt Assets that can be shared, versioned, validated, packaged, and composed.
-
----
-
-# 4. Vocabulary
-
-The Prompt Language defines the following core vocabulary.
-
-| Concept | Description |
-|----------|-------------|
-| **Role** | The perspective or responsibility the AI should assume. |
-| **Context** | Background information required to understand the task. |
-| **Instruction** | The primary task to perform. |
-| **Template** | Reusable prompt structure containing variables. |
-| **Variable** | Placeholder values supplied at execution time. |
-| **Constraint** | Rules or limitations that guide the response. |
-| **Example** | Reference examples demonstrating expected behavior. |
-| **Output** | Description of the expected result or format. |
-
-These concepts define the Prompt Language independently of any AI provider.
-
----
-
-# 5. Responsibilities
-
-A Prompt is responsible for:
-
-- expressing communication intent
-- describing business instructions
-- providing reusable templates
-- defining reusable variables
-- documenting expected output
-- remaining reusable across applications
-
-A Prompt is not responsible for execution.
-
----
-
-# 6. What a Prompt is NOT
-
-A Prompt is intentionally independent of runtime execution.
-
-The following concepts do **not** belong to the Prompt Language:
-
-- AI Provider
-- Model Selection
-- Temperature
-- Top P
-- Max Tokens
-- Retry Policies
-- Streaming
-- Memory Management
-- Token Usage
-- Cost Tracking
-
-These concerns belong to Asset Configuration or the Runtime.
-
-Likewise, prompt engineering techniques such as:
-
-- Zero-shot Prompting
-- Few-shot Prompting
-- Chain-of-Thought Prompting
-- ReAct
-- Self-Consistency
-
-are engineering methodologies rather than Prompt Language constructs.
-
----
-
-# 7. Prompt Composition
-
-A Prompt may be composed from multiple reusable language elements.
-
+```text
+PromptAssetOptions
+├── Name
+└── SystemInstructions
 ```
-Prompt
+
+**Name** identifies the Prompt Asset.
+
+**SystemInstructions** contains the reusable system instructions represented by the Prompt.
+
+These are the current Prompt-specific public fields. `PromptAsset` projects Name into common Asset metadata and retains the Prompt options.
+
+---
+
+# 3. Design Vocabulary
+
+The following concepts remain useful when reasoning about prompt design:
+
+| Concept | Design meaning |
+|---|---|
+| **Role** | Perspective or responsibility described by instructions. |
+| **Context** | Background information useful to the task. |
+| **Instruction** | Task or behavior requested from the model. |
+| **Template** | Conceptual reusable prompt structure. |
+| **Variable** | Conceptual value substituted into prompt material. |
+| **Constraint** | Limitation expressed by prompt design. |
+| **Example** | Reference material demonstrating expected behavior. |
+| **Output** | Intended result or format. |
+
+These terms are **design vocabulary**. Unless represented by the current public Asset contract, they do not define Prompt Asset fields, required persisted structure, executable semantics, or guaranteed runtime capabilities.
+
+In particular, the current `PromptAssetOptions` contract does not expose structured Role, Context, Template, Variables, Constraints, Examples, or Output fields.
+
+Such concepts may be expressed within `SystemInstructions`, but doing so does not create additional structural Prompt properties.
+
+---
+
+# 4. Conceptual Model
+
+A prompt may be designed conceptually using:
+
+```text
+Prompt design
 
 ├── Role
-
 ├── Context
-
 ├── Instruction
-
 ├── Variables
-
 ├── Constraints
-
 ├── Examples
-
 └── Expected Output
 ```
 
-Each element contributes to the overall communication while remaining independent of execution.
+This is a **conceptual model, not an object/property schema**.
+
+The implemented structural contract remains:
+
+```text
+Name
+SystemInstructions
+```
 
 ---
 
-# 8. Configuration Boundary
+# 5. Provider and Configuration Boundary
 
-Prompts describe **what** should be communicated.
+Prompt does not contain Provider, Model, Temperature, Top P, Max Tokens, streaming, retry, usage, or cost fields.
 
-Configuration describes **how** that communication should be implemented.
+Provider/model selection belongs to other current application contracts, including the Model Asset where applicable.
 
-Examples of configuration include:
-
-- AI Provider
-- Model
-- Temperature
-- Response Format
-- Token Limits
-- Execution Policies
-
-Configuration may vary without requiring changes to the Prompt itself.
+Prompt-engineering techniques such as zero-shot, few-shot, ReAct, or other methodologies are also not structural Prompt Asset fields.
 
 ---
 
-# 9. Runtime Boundary
+# 6. Runtime Considerations
 
-The Runtime is responsible for realizing the Prompt.
+Prompt-oriented execution may involve concerns such as:
 
-Its responsibilities include:
-
-- rendering prompt templates
-- resolving variables
-- selecting providers
-- selecting models
-- translating Prompt Language into provider-specific message formats
-- executing requests
+- composing or rendering instruction material
+- supplying execution-time context
+- translating instructions into provider-specific messages
+- executing model requests
 - collecting responses
-- tracking usage
-- recording observability
 
-The Runtime executes the Prompt.
+These are possible downstream runtime or integration concerns. This specification does not guarantee a Prompt Runtime, structured template renderer, variable-resolution system, provider-selection behavior, or usage-tracking subsystem.
 
-The Prompt never executes itself.
+Concrete execution semantics require their own current source and architecture authority.
 
 ---
 
-# 10. Examples
+# 7. Conceptual Example
 
-## Customer Support
+The following is prompt-design vocabulary, **not constructible `PromptAssetOptions` syntax**:
 
-```
-Role
-Customer Support Specialist
-
-Context
-Assist customers with subscription questions.
-
-Instruction
-Answer clearly and accurately using the supplied knowledge.
-
-Constraint
-Never invent information.
-
-Output
-Professional response.
-```
-
----
-
-## Code Review
-
-```
+```text
 Role
 Senior .NET Architect
 
 Context
-Review C# source code.
+Review supplied C# source code.
 
 Instruction
-Identify correctness, maintainability, and performance improvements.
+Identify correctness and maintainability improvements.
 
 Constraint
-Explain recommendations with reasoning.
+Explain recommendations.
 
 Output
-Markdown review report.
+Markdown review.
 ```
+
+A current Prompt Asset representing that intent would encode the relevant instruction material through `SystemInstructions` and identify the Asset through `Name`.
 
 ---
 
-## Architecture Review
+# 8. Responsibilities and Boundaries
 
-```
-Role
-Enterprise Solution Architect
+At the current contract level, Prompt is responsible for providing a reusable AI Asset identity and reusable system instructions.
 
-Context
-Review the supplied architecture proposal.
+Prompt is not, merely by being a Prompt Asset, a guarantee of:
 
-Instruction
-Evaluate design principles, separation of concerns, and extensibility.
+- structured template rendering
+- variable resolution
+- provider or model selection
+- model execution
+- response collection
+- usage or cost tracking
 
-Constraint
-Remain provider-independent.
-
-Output
-Architecture review with recommendations.
-```
+Those concerns require separate implementation authority.
 
 ---
 
 # Summary
 
-The Prompt Language defines a provider-independent vocabulary for expressing reusable AI instructions.
+Prompt retains useful design vocabulary while its implemented structural authority remains:
 
-It separates communication intent from execution, allowing prompts to remain portable, reusable, versioned, and composable.
+```text
+PromptAssetOptions
+├── Name
+└── SystemInstructions
+```
 
-Prompts answer one fundamental question:
-
-> **What should be communicated?**
-
-Configuration determines how that communication is implemented.
-
-The Runtime determines how that communication is executed.
+Role, Context, Template, Variable, Constraint, Example, Output, and related concepts may guide prompt design, but they are not current Prompt Asset fields unless the public contract evolves to represent them.
