@@ -2,285 +2,230 @@
 > **Audience:** Contributors
 > **Status:** Draft
 > **Owner:** PulseStackAI Team
-> **Last Reviewed:** 2026-08-04
+> **Last Reviewed:** 2026-09-21
 
 # Memory Language Specification
 
-> **Memory defines the business context an AI application should retain over time.**
+> **Memory represents retained conversational-context intent within an AI application.**
 
 ---
 
-# 1. Vision
+# 1. Domain Meaning
 
-The Memory Language defines the vocabulary used to describe reusable business context within PulseStackAI.
+Memory is a reusable AI Asset for describing retained conversational-context intent.
 
-Rather than treating memory as conversation history, caches, databases, or provider-specific memory implementations, the Memory Language models memory as a reusable engineering asset.
+The current source contract deliberately keeps that representation small. Concepts such as scope, retention, expiration, history, and preference remain useful for reasoning about memory, but they are not automatically fields or persisted structure of a Memory Asset.
 
-Memory represents business context.
+This specification therefore distinguishes:
 
-The Runtime is responsible for storing, recalling, updating, summarizing, and forgetting contextual information throughout the lifecycle of an AI application.
-
-The Memory Language therefore remains independent of:
-
-- Memory implementations
-- Storage technologies
-- Runtime execution
-- Infrastructure providers
-
-This enables Memory Assets to remain reusable, portable, composable, and versioned across different AI platforms.
-
----
-
-# 2. What is Memory?
-
-Memory is a reusable AI Asset that defines the business context an AI application should retain over time.
-
-Memory defines context rather than storage.
-
-It describes:
-
-- what context should be remembered
-- how long it should be retained
-- where the context applies
-- when the context is no longer relevant
-
-Memory never describes:
-
-- where context is stored
-- how context is retrieved
-- how context is synchronized
-- how context is persisted
-
----
-
-# 3. Purpose
-
-The purpose of Memory is to provide continuity across AI interactions.
-
-Rather than repeatedly asking for the same information or losing progress between interactions, developers define reusable Memory Assets that describe what business context should persist.
-
-Memory enables AI applications to become contextual, personalized, and state-aware.
-
-Together, Memory ensures the AI application doesn't simply know business information in general—it retains the business context that matters at a particular moment in time.
-
-Examples include:
-
-- User Preferences
-- Conversation Context
-- Workflow State
-- Business Decisions
-- Current Task Progress
-- Session Variables
-- Personalization Settings
-
----
-
-# 4. Vocabulary
-
-The Memory Language defines the following core vocabulary.
-
-| Concept | Description |
-|----------|-------------|
-| **Context** | Business context that should be retained. |
-| **State** | Current business condition or progress. |
-| **Scope** | Boundary where the memory applies (Conversation, Session, Workflow, User, Application). |
-| **Retention** | How long the memory should remain available. |
-| **Expiration** | When the memory should no longer be retained. |
-| **History** | Sequence of remembered events. |
-| **Preference** | User or application preferences. |
-| **Sensitivity** | Classification of memory according to business importance or privacy. |
-
-These concepts define the Memory Language independently of implementation technologies.
-
----
-
-# 5. Responsibilities
-
-Memory is responsible for:
-
-- describing business context
-- preserving continuity across interactions
-- defining contextual state
-- supporting personalization
-- enabling multi-step business processes
-- remaining independent of implementation
-
-Memory is not responsible for storing or retrieving context.
-
----
-
-# 6. What Memory is NOT
-
-Memory intentionally remains independent of runtime implementation.
-
-The following concepts do **not** belong to the Memory Language:
-
-- Conversation History
-- Chat Transcript
-- Cache
-- Vector Memory
-- Database
-- Session Store
-- Redis
-- SQL Server
-- Cosmos DB
-- Embeddings
-- Synchronization
-- Replication
-
-Likewise, runtime operations such as:
-
-- Remember
-- Recall
-- Forget
-- Summarize
-- Compress
-- Expire
-
-belong to the Runtime rather than the Memory Language.
-
----
-
-# 7. Memory Composition
-
-Memory may be described using multiple reusable language elements.
-
+```text
+Memory semantic identity
+        +
+current public Asset contract
+        +
+qualified design vocabulary
+        ≠
+invented implemented grammar
 ```
-Memory
+
+---
+
+# 2. Current Public Asset Contract
+
+The current public declarative contract is:
+
+```text
+MemoryAssetOptions
+├── Name
+├── Description
+└── Tags[]
+```
+
+**Name** identifies the reusable Memory Asset.
+
+**Description** states the retained-context intent represented by the Asset.
+
+**Tags** provide lightweight descriptive classification.
+
+These are the current Memory-specific public fields.
+
+Like other AI Assets, a Memory Asset also participates in the common Asset contract, including Asset identity, URN, version, metadata, lifecycle, and type. The Memory implementation projects Name, Description, and Tags into common Asset metadata and retains a normalized snapshot of its options.
+
+---
+
+# 3. Design Vocabulary
+
+The following concepts are useful for reasoning about the Memory domain:
+
+| Concept | Design meaning |
+|---|---|
+| **Context** | Business or conversational context of interest. |
+| **State** | Current condition or progress relevant to that context. |
+| **Scope** | Conceptual boundary in which retained context applies. |
+| **Retention** | Intended duration of retained context. |
+| **Expiration** | Point at which retained context may cease to be relevant. |
+| **History** | Sequence of remembered events or states. |
+| **Preference** | User or application preference relevant to continuity. |
+| **Sensitivity** | Business or privacy significance of retained context. |
+
+These terms are **design vocabulary**. Unless represented by the current public Asset contract, they do not define Memory Asset fields, required persisted structure, executable semantics, or guaranteed runtime capabilities.
+
+For example, `Scope`, `Retention`, and `Expiration` are not properties of the current `MemoryAssetOptions` contract.
+
+---
+
+# 4. Purpose
+
+Memory Assets provide a reusable identity and description for retained-context concerns that participate in application composition.
+
+Useful memory-oriented design concerns may include:
+
+- user preferences
+- conversational context
+- workflow-related context
+- business decisions
+- current task progress
+- session-oriented context
+- personalization intent
+
+The current Asset can identify and describe such a concern. The richer vocabulary can be used in architecture and domain reasoning without implying that the framework currently stores each concept as a dedicated Memory property.
+
+---
+
+# 5. Conceptual Model
+
+A memory design may be reasoned about conceptually as:
+
+```text
+Memory concern
 
 ├── Context
-
 ├── State
-
 ├── Scope
-
 ├── Retention
-
 ├── Expiration
-
 ├── History
-
 ├── Preference
-
 └── Sensitivity
 ```
 
-Each element contributes to the continuity of the AI application while remaining independent of implementation.
+This diagram is a **conceptual model, not an object/property schema**.
+
+It does not mean that `MemoryAssetOptions` contains those properties, that they are serialized as Memory fields, or that every Memory Asset must provide them.
+
+The implemented structural contract remains:
+
+```text
+Name
+Description
+Tags
+```
 
 ---
 
-# 8. Configuration Boundary
+# 6. Implementation Independence
 
-Memory describes **what business context** should be retained.
+A Memory Asset does not itself define a memory storage or synchronization implementation.
 
-Configuration describes **how that context is implemented**.
+Technologies and mechanisms such as:
 
-Examples of configuration include:
-
-- In-Memory Storage
-- SQL Server
+- in-memory stores
+- SQL databases
 - Redis
-- Cosmos DB
-- Vector Store
-- File System
-- Cloud Storage
-- Encryption
-- Retention Policies
+- cloud databases
+- vector stores
+- file systems
+- embeddings
+- synchronization
+- replication
+- encryption
 
-Configuration may change without requiring changes to the Memory Asset.
+may be relevant to systems that implement retained context, but they are not current fields of the Memory Asset contract.
 
----
-
-# 9. Runtime Boundary
-
-The Runtime is responsible for realizing Memory.
-
-Its responsibilities include:
-
-- storing context
-- recalling context
-- updating context
-- forgetting context
-- expiring context
-- summarizing context
-- synchronizing context
-- collecting observability
-
-The Runtime manages memory.
-
-The Memory Asset defines what business context should be retained.
+The existence of a Memory Asset does not by itself establish storage, retrieval, retention, or expiration behavior.
 
 ---
 
-# 10. Examples
+# 7. Runtime Considerations
+
+Memory-oriented applications may require downstream capabilities such as:
+
+- recall
+- updating retained context
+- forgetting
+- expiration
+- summarization
+- synchronization
+
+These are **possible runtime or integration concerns associated with memory-oriented applications**. This specification does not assert that PulseStackAI currently provides a Memory Runtime or guarantees those behaviors.
+
+Any concrete runtime capability must be established by its own current source and architecture authority rather than inferred from the existence of a Memory Asset.
+
+---
+
+# 8. Conceptual Examples
+
+The following examples illustrate design vocabulary only. They are **not constructible `MemoryAssetOptions` syntax**.
 
 ## User Preferences
 
+A design discussion might use:
+
+```text
+Context         Developer preferences
+Scope           User
+Retention       Long-term
+Preference      Markdown documentation
 ```
-Context
-Developer Preferences
 
-Scope
-User
+A current Memory Asset representing that concern would still use `Name`, `Description`, and optional `Tags`.
 
-Retention
-Long-Term
+## Workflow Context
 
-Preference
-Markdown Documentation
+A design discussion might use:
 
-State
-Active
+```text
+Context         Invoice approval
+Scope           Workflow
+State           Manager approved
+Retention       Until workflow completion
 ```
+
+These labels describe the domain model; they do not add fields or retention behavior to the current Asset contract.
 
 ---
 
-## Invoice Approval Workflow
+# 9. Responsibilities and Boundaries
 
-```
-Context
-Invoice Approval
+At the current contract level, Memory is responsible for providing a reusable AI Asset identity and descriptive representation of retained conversational-context intent.
 
-Scope
-Workflow
+Memory is not, merely by being a Memory Asset, a guarantee of:
 
-State
-Manager Approved
+- recall
+- forgetting
+- expiration
+- summarization
+- synchronization
+- persistence of conversational history
+- a particular storage technology
 
-Retention
-Until Workflow Completion
-```
-
----
-
-## Current Conversation
-
-```
-Context
-Architecture Discussion
-
-Scope
-Conversation
-
-Retention
-Current Session
-
-State
-Knowledge Language Specification
-```
+Those concerns require separate implementation authority.
 
 ---
 
 # Summary
 
-The Memory Language defines a provider-independent vocabulary for expressing reusable business context.
+Memory retains a meaningful language-level identity: retained conversational-context intent.
 
-It separates business context from storage technologies, runtime implementations, and infrastructure concerns, allowing Memory Assets to remain portable, reusable, versioned, and composable.
+Its current public structural contract is:
 
-Memory answers one fundamental question:
+```text
+MemoryAssetOptions
+├── Name
+├── Description
+└── Tags[]
+```
 
-> **What business context should the AI application retain over time?**
+Context, State, Scope, Retention, Expiration, History, Preference, Sensitivity, and related terms remain useful **design vocabulary**, not current Asset fields.
 
-Configuration determines how that context is implemented.
-
-The Runtime determines how that context is stored, recalled, updated, and forgotten.
+Memory therefore provides a small implemented Asset contract while preserving a richer conceptual vocabulary for reasoning about retained-context application design.
