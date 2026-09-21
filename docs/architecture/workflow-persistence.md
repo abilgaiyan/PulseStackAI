@@ -1,5 +1,14 @@
 # Workflow Persistence Architecture
 
+> **Historical architecture notice**
+>
+> This document records the earlier Workflow-specific persistence architecture based on `WorkflowDocument`, `WorkflowMapper`, `WorkflowSerializer`, and `IWorkflowStore`.
+>
+> It is preserved as historical architecture and is not the current persistence authority for persisted declarative applications. Statements in this document such as "canonical", "current", and "future" describe the architecture at the time this document was authoritative.
+>
+> Current persisted declarative applications use the AI Asset persistence architecture documented in [Persistent Asset Platform](persistent-asset-platform.md).
+
+
 ## Overview
 
 The PulseStackAI persistence subsystem provides a portable, versioned, and extensible representation of workflows that is independent of runtime execution.
