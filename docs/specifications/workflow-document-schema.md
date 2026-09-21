@@ -2,101 +2,144 @@
 
 **Status:** Draft v1.0
 **Version:** 1.0
-**Applies To:** PulseStackAI Workflow Persistence
-**Last Updated:** July 2026
+**Applies To:** PulseStackAI Workflow-Specific Persistence
+**Last Updated:** September 2026
 
 ---
 
 # 1. Introduction
 
-The **Workflow Document Schema** defines the canonical persistence format used by PulseStackAI.
+The **Workflow Document Schema** defines the document contract used by PulseStackAI's surviving **Workflow-specific persistence subsystem**.
 
-A `WorkflowDocument` is the durable, portable representation of a workflow. It is the primary artifact exchanged between tools, persisted by storage providers, version controlled in repositories, and reconstructed into runtime objects during execution.
+A `WorkflowDocument` is the durable, portable representation used when a runtime `Workflow` is mapped into that subsystem, serialized, validated, stored, and reconstructed.
 
-Unlike the in-memory `Workflow` object, the document is designed for long-term storage and interoperability.
+Its authority is intentionally narrow:
 
-Every persisted workflow, regardless of serialization format or storage provider, **must conform to this specification**.
+```text
+runtime Workflow
+        ↕
+IWorkflowMapper
+        ↕
+WorkflowDocument
+        ↕
+workflow serializer / deserializer
+        ↕
+IWorkflowStore
+```
+
+This specification does **not** define the persistence representation of a declarative `WorkflowAsset`. The current AI Asset persistence path is separate:
+
+```text
+declarative WorkflowAsset
+        ↕
+WorkflowAssetDocument
+        ↕
+AI Asset serialization / storage
+        ↓
+catalog / resolution
+        ↓
+aggregate graph loading
+        ↓
+application realization
+        ↓
+runtime Workflow
+```
+
+`WorkflowDocument` and `WorkflowAssetDocument` therefore coexist at different architectural layers. Neither should be inferred to be the persistence representation of the other.
+
+This reconciliation is a documentation authority boundary, **not a deprecation decision**. The Workflow-specific mapper, serializer/deserializer, validator, stores, composition surfaces, and tests remain current where their source contracts establish them.
 
 ---
 
-# 2. Goals
+# 2. Authority Boundary
 
-The schema has the following design goals.
+This specification owns the current contract for:
 
-* Portable across machines and environments
-* Independent of runtime implementations
-* Human-readable
-* Versioned
-* Deterministic
-* Extensible
-* Storage-provider agnostic
-* Suitable for source control
-* Compatible with future migrations
+- `WorkflowDocument`
+- `WorkflowDocumentSchema`
+- Workflow-specific document mapping
+- Workflow-specific serialization and deserialization
+- Workflow-specific validation
+- `IWorkflowStore` persistence semantics where defined by those contracts
+- reconstruction of runtime `Workflow` objects through the Workflow-specific mapper
+
+This specification does **not** own:
+
+- `WorkflowAsset`
+- `WorkflowAssetDocument`
+- general AI Asset serialization
+- AI Asset storage or publication
+- persistent catalog or resolution
+- aggregate graph loading
+- application realization
+- persisted application architecture
+
+The term **canonical** in this document, where used for a `WorkflowDocument` detail, means canonical **within the Workflow-specific persistence subsystem**. It does not mean universal PulseStackAI persistence authority.
 
 ---
 
-# 3. Design Principles
+# 3. Goals
 
-The schema is based on several architectural principles.
+Within the Workflow-specific persistence subsystem, the document contract is designed to be:
+
+- portable across machines and environments
+- independent of runtime object instances
+- human-readable
+- versioned
+- deterministic
+- extensible
+- storage-provider agnostic
+- suitable for source control
+
+These goals describe this subsystem and must not be projected onto the separate AI Asset persistence contract.
+
+---
+
+# 4. Design Principles
 
 ## Runtime Independence
 
-Persistence documents never contain runtime objects.
+A `WorkflowDocument` is a persistence document, not the runtime `Workflow` object itself.
 
-The following runtime concepts are intentionally excluded:
+Runtime instances such as Agent objects, execution context, dependency-injection containers, and service providers are not embedded directly in the document.
 
-* Agent instances
-* Runtime state
-* Execution context
-* Dependency injection
-* Service providers
-
-Only immutable data required to reconstruct a workflow is persisted.
-
----
+Only data represented by the Workflow-specific document contract is persisted.
 
 ## Stable Identity
 
-Every workflow has a stable identity that remains unchanged across persistence operations.
+The Workflow-specific document carries the workflow identity and workflow-step identity represented by the current source contract.
 
-Workflow identity is independent of:
-
-* Storage provider
-* Serialization format
-* Runtime execution
-
----
+Those identities are independent of the selected `IWorkflowStore` implementation.
 
 ## Layer Separation
 
-The persistence pipeline is intentionally divided into independent stages.
+The Workflow-specific persistence path separates mapping, document validation, serialization, and storage concerns:
 
 ```text
 Workflow
       │
       ▼
-WorkflowMapper
+IWorkflowMapper
       │
       ▼
 WorkflowDocument
       │
-      ▼
-WorkflowValidator
+      ├── validation
       │
       ▼
-WorkflowSerializer
+workflow serialization
       │
       ▼
 IWorkflowStore
 ```
 
-Each stage has a single responsibility.
+This pipeline describes only direct Workflow persistence. It is not the `WorkflowAssetDocument` / AI Asset persistence pipeline.
 
 ---
 
-# 4. Workflow Document Structure
+# 5. Workflow Document Structure
 
-The canonical document structure is shown below.
+The current `WorkflowDocument` structure is:
 
 ```text
 WorkflowDocument
@@ -109,266 +152,114 @@ WorkflowDocument
 └── Steps
 ```
 
-Each field has a well-defined purpose.
+## 5.1 Schema
 
----
+`Schema` identifies this Workflow-specific document family.
 
-## 4.1 Schema
-
-Identifies the document type.
-
-Example:
-
-```json
-{
-  "schema": "pulsestack.workflow"
-}
-```
-
-The schema identifier enables future support for additional artifact types.
-
-Examples:
-
-* pulsestack.workflow
-* pulsestack.prompt
-* pulsestack.agent
-* pulsestack.memory
-
----
-
-## 4.2 SchemaVersion
-
-Identifies the version of the persistence contract.
-
-Example:
-
-```json
-{
-    "schemaVersion": "1.0"
-}
-```
-
-This value is used to determine compatibility and drive future migration pipelines.
-
----
-
-## 4.3 Workflow Identity
-
-Represents the permanent identity of a workflow.
+The current schema identifier is:
 
 ```text
-WorkflowIdentity
-│
-├── WorkflowId
-└── Version
+pulsestack.workflow
 ```
 
-### WorkflowId
+as defined by `WorkflowDocumentSchema.Name`.
 
-A globally unique identifier.
+## 5.2 SchemaVersion
 
-The identifier remains constant throughout the lifetime of the workflow.
-
-### Version
-
-Represents the business version of the workflow.
-
-Example:
+The current Workflow-specific schema version is:
 
 ```text
-1.0.0
-1.1.0
-2.0.0
+1.0
 ```
 
-This version is controlled by the workflow author.
+as defined by `WorkflowDocumentSchema.Version`.
+
+Schema version belongs to this document contract and must not be confused with the AI Asset persistence schema.
+
+## 5.3 Workflow Identity
+
+`Identity` is a `WorkflowIdentity` containing the workflow's `WorkflowId` and business `Version`.
+
+This is distinct from the document's `SchemaVersion`.
+
+## 5.4 Workflow Step Identity
+
+`Id` is the workflow's `WorkflowStepId`.
+
+A runtime `Workflow` participates in the workflow hierarchy as an `IWorkflowStep`, so its step identity is represented separately from its `WorkflowIdentity`.
+
+## 5.5 Workflow Definition
+
+`Definition` is the `WorkflowDefinition` associated with the runtime Workflow and contains its business definition data.
+
+## 5.6 Workflow Steps
+
+`Steps` contains the ordered Workflow-specific step documents used to reconstruct the runtime Workflow.
+
+The exact supported step-document shapes and discriminators are defined by the current Workflow-specific document and serialization source contracts.
 
 ---
 
-## 4.4 Workflow Step Identity
+# 6. Workflow Step Documents
 
-The document also contains the workflow's own `WorkflowStepId`.
+Workflow-specific step documents derive from the subsystem's `WorkflowStepDocument` representation and preserve the source-backed data needed by the mapper and serializer.
+
+Current step-document behavior must be read from the implemented document hierarchy rather than inferred from future workflow-language ideas.
+
+Stable step identity represented by the current document contract remains part of this subsystem.
+
+---
+
+# 7. Polymorphic Serialization
+
+The Workflow-specific serializer/deserializer supports polymorphic step documents using the discriminators configured by its current serialization implementation.
+
+Those discriminator rules are normative only to the extent established by the current Workflow-specific source and tests.
+
+They are not the discriminator contract of `WorkflowAssetDocument` or the general AI Asset codec.
+
+---
+
+# 8. Agent References and Reconstruction
+
+Runtime Agent instances are not serialized into `WorkflowDocument`.
+
+Workflow-specific Run step documents carry an Agent reference. Reconstruction occurs through:
 
 ```text
-Id
-```
-
-Because a `Workflow` is itself an implementation of `IWorkflowStep`, the workflow participates in the workflow hierarchy like every other step.
-
-This identity enables future support for nested workflows and composite workflow structures.
-
----
-
-## 4.5 Workflow Definition
-
-Represents the business metadata of the workflow.
-
-```text
-WorkflowDefinition
-│
-├── Name
-└── Description
-```
-
-The definition intentionally excludes persistence-specific information.
-
----
-
-## 4.6 Workflow Steps
-
-The root workflow contains a collection of workflow steps.
-
-```text
-Steps
-│
-├── RunStepDocument
-├── ConditionalStepDocument
-├── ParallelStepDocument
-├── LoopStepDocument
-└── SwitchStepDocument
-```
-
-The step hierarchy forms a recursive tree.
-
----
-
-# 5. Workflow Step Schema
-
-Every workflow step derives from the common base document.
-
-```text
-WorkflowStepDocument
-│
-├── Id
-├── Kind
-├── Name
-└── Children
-```
-
----
-
-## Id
-
-Stable identifier of the workflow step.
-
-The identifier is generated during workflow construction and preserved across persistence operations.
-
----
-
-## Kind
-
-Defines the workflow language construct.
-
-Current values include:
-
-* Run
-* Conditional
-* Parallel
-* Loop
-* Switch
-
-Future language constructs may introduce additional kinds without affecting existing implementations.
-
----
-
-## Name
-
-Human-readable name of the step.
-
-Used for:
-
-* Diagnostics
-* Logging
-* Visual Designer
-* Documentation
-
----
-
-## Children
-
-Represents nested workflow steps.
-
-Simple steps contain an empty collection.
-
-Composite steps contain their child workflow.
-
----
-
-# 6. Polymorphism
-
-Workflow steps are serialized polymorphically.
-
-The serializer uses a type discriminator.
-
-Example:
-
-```json
-{
-    "$type": "Run"
-}
-```
-
-Future workflow language constructs will introduce additional discriminators.
-
-Examples:
-
-```text
-Run
-Conditional
-Parallel
-Loop
-Switch
-```
-
----
-
-# 7. Agent References
-
-Runtime objects are never serialized.
-
-Instead, run steps store an agent reference.
-
-```text
-RunStepDocument
-│
-└── AgentReference
-```
-
-During reconstruction, the mapper resolves the reference using an `IAgentResolver`.
-
-```text
-AgentReference
+WorkflowDocument
         │
         ▼
-IAgentResolver
+IWorkflowMapper.FromDocument(...)
         │
+        ├── IAgentResolver
         ▼
-IAgent
+runtime Workflow
 ```
 
-This keeps persistence independent of dependency injection and runtime configuration.
+`IWorkflowMapper.FromDocument(WorkflowDocument, IAgentResolver)` therefore establishes the source-backed Agent-resolution boundary for this subsystem.
+
+This does not define how declarative Agent Assets or Workflow Assets are persisted, resolved, graph-loaded, or realized through the AI Asset application path.
 
 ---
 
-# 8. Example Workflow Document
+# 9. Example Workflow Document
+
+The following illustrates the Workflow-specific document family:
 
 ```json
 {
   "schema": "pulsestack.workflow",
   "schemaVersion": "1.0",
-
   "identity": {
     "id": "8b99d53b-ef5f-4f4b-bd84-1fdde4cce2d4",
     "version": "1.0.0"
   },
-
   "id": "d22c49d8-8469-43af-a818-c11b0fd3b89b",
-
   "definition": {
     "name": "Customer Onboarding",
     "description": "Creates a new customer profile."
   },
-
   "steps": [
     {
       "$type": "Run",
@@ -382,163 +273,179 @@ This keeps persistence independent of dependency injection and runtime configura
 }
 ```
 
+The exact accepted JSON representation remains governed by the current Workflow-specific serializer/deserializer implementation. This example is not an AI Asset `WorkflowAssetDocument`.
+
 ---
 
-# 9. Versioning Strategy
+# 10. Versioning
 
-Two independent version numbers exist within every persisted workflow.
+Two different version concepts are represented by the Workflow-specific persistence model.
 
 ## Workflow Version
 
-Represents the business evolution of the workflow.
-
-Examples:
-
-```text
-1.0.0
-1.1.0
-2.0.0
-```
-
-This version is controlled by workflow authors.
-
----
+The `WorkflowIdentity` carries the business version of the runtime Workflow.
 
 ## Schema Version
 
-Represents the persistence format.
+`WorkflowDocument.SchemaVersion` identifies the Workflow-specific persistence schema version.
 
-Examples:
+The current schema contract is `1.0`.
+
+These versions are independent.
+
+Neither should be confused with the identity/versioning model of a declarative AI Asset merely because both persistence generations coexist.
+
+---
+
+# 11. Validation and Compatibility
+
+The surviving Workflow-specific subsystem includes validation contracts and implementation for `WorkflowDocument`.
+
+Validation and compatibility requirements are normative only where established by the current Workflow-specific validator, serializer/deserializer, mapper, stores, and their tests.
+
+Unsupported or malformed Workflow-specific documents should be handled according to those current contracts rather than according to the AI Asset document validator.
+
+Conversely, `IAIAssetDocumentValidator` is the authority for the separate AI Asset document model and is outside this specification.
+
+---
+
+# 12. Storage
+
+`IWorkflowStore` remains the storage abstraction for the direct Workflow persistence subsystem.
+
+Its current contract provides operations to save, load, delete, and test existence using `WorkflowId` and serialized streams.
+
+Built-in in-memory and file Workflow storage composition remains separate from AI Asset serialized storage.
+
+Therefore:
 
 ```text
-1.0
-1.1
-2.0
+WorkflowDocument serialization
+        ↓
+IWorkflowStore
+
+is separate from
+
+WorkflowAssetDocument / AIAssetDocument
+        ↓
+ISerializedAIAssetStore
 ```
 
-This version is controlled by the framework.
-
-These two versions are intentionally independent.
+This specification does not imply that `WorkflowAssetDocument` is stored through `IWorkflowStore`.
 
 ---
 
-# 10. Compatibility
+# 13. Relationship to Runtime and Declarative Assets
 
-A reader should verify the schema before deserializing a document.
-
-Validation should include:
-
-* Schema identifier
-* Schema version
-* Document integrity
-* Structural validation
-
-Unsupported schema versions should produce validation errors rather than undefined behavior.
-
----
-
-# 11. Future Migration Pipeline
-
-Future versions of PulseStackAI may introduce document migrations.
-
-The intended migration pipeline is:
+The direct Workflow persistence subsystem begins with and reconstructs a runtime `Workflow`:
 
 ```text
+runtime Workflow
+        ↕
 WorkflowDocument
-        │
-        ▼
-Read Schema Version
-        │
-        ▼
-Migration Engine
-        │
-        ▼
-Latest Schema
-        │
-        ▼
-Deserializer
+        ↕
+Workflow-specific persistence
 ```
 
-This enables older workflow documents to remain usable as the framework evolves.
+The declarative application path begins with a `WorkflowAsset` and persists it as a `WorkflowAssetDocument` through the AI Asset persistence system before graph loading and realization produce a runtime `Workflow`.
+
+```text
+WorkflowAsset
+        ↕
+WorkflowAssetDocument
+        ↕
+AI Asset persistence
+        ↓
+graph loading
+        ↓
+realization
+        ↓
+runtime Workflow
+```
+
+The shared endpoint of a runtime `Workflow` does not merge these persistence paths.
 
 ---
 
-# 12. Extensibility
+# 14. Future and Design Context
 
-The schema is intentionally designed to evolve.
+Potential future concerns may include migrations, designer metadata, import/export tooling, registries, deployment workflows, backup/restore, or other document-oriented capabilities.
 
-Potential future additions include:
+Those are **design possibilities**, not guaranteed current capabilities of `WorkflowDocument`.
 
-* Workflow variables
-* Parameters
-* Triggers
-* Schedules
-* Policies
-* Permissions
-* Tags
-* Categories
-* Designer layout metadata
-* Execution checkpoints
-* Audit metadata
+In particular, this specification does not establish:
 
-New fields should preserve backward compatibility whenever practical.
+- a migration engine
+- a Visual Designer
+- a Workflow Registry
+- cloud deployment behavior
+- an import/export subsystem
+- backup/restore infrastructure
+- a rule that future PulseStackAI capabilities must exchange `WorkflowDocument`
+
+Any such capability requires its own current source and architecture authority.
 
 ---
 
-# 13. Relationship to the Runtime
+# 15. Architectural Significance
 
-The workflow document is **not** a runtime object.
+`WorkflowDocument` remains a real persistence contract for the surviving direct Workflow persistence subsystem.
 
-It is a persistence artifact.
+Its significance is therefore specific:
 
 ```text
 Workflow
-        │
-        ▼
-WorkflowMapper
-        │
-        ▼
+    ↔
 WorkflowDocument
-        │
-        ▼
-Persistence
+    ↔
+Workflow-specific persistence
 ```
 
-The runtime always executes reconstructed `Workflow` objects rather than persistence documents.
+It is **not** the canonical artifact of PulseStackAI as a whole, and it does not supersede or redefine the declarative AI Asset persistence architecture.
+
+The coexistence of the two persistence generations does not, by itself, deprecate either API or require migration between them.
 
 ---
 
-# 14. Architectural Significance
+# 16. Summary
 
-The `WorkflowDocument` is the canonical artifact of PulseStackAI.
+The Workflow Document Schema remains current authority for the Workflow-specific persistence subsystem.
 
-It serves as the foundation for:
+It defines the document boundary used by:
 
-* Workflow persistence
-* Import and export
-* Version control
-* Visual Designer
-* Workflow Registry
-* Cloud deployment
-* AI-generated workflows
-* Schema migrations
-* Backup and restore
+```text
+Workflow
+    ↔
+IWorkflowMapper
+    ↔
+WorkflowDocument
+    ↔
+workflow serializer / deserializer
+    ↔
+IWorkflowStore
+```
 
-As the framework evolves, new capabilities should exchange `WorkflowDocument` instances rather than runtime objects.
+The current declarative application path is separate:
 
----
+```text
+WorkflowAsset
+    ↔
+WorkflowAssetDocument
+    ↔
+AI Asset persistence
+```
 
-# 15. Summary
+Accordingly:
 
-The Workflow Document Schema establishes a stable, versioned, and portable contract for representing workflows.
+```text
+WorkflowDocument
+    = current Workflow-specific persistence contract
 
-By separating persistence artifacts from runtime execution, PulseStackAI achieves:
+WorkflowAssetDocument
+    = current declarative Workflow Asset persistence representation
 
-* Clean architectural boundaries
-* Storage independence
-* Long-term compatibility
-* Extensibility
-* Provider neutrality
-* Future-proof workflow evolution
+WorkflowDocument
+    ≠ universal PulseStackAI workflow persistence format
+```
 
-This specification represents the authoritative definition of the PulseStackAI workflow persistence format.
+This specification narrows authority to match the surviving implementation. It does not redesign, deprecate, or remove either persistence subsystem.
