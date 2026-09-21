@@ -2,279 +2,218 @@
 > **Audience:** Contributors
 > **Status:** Draft
 > **Owner:** PulseStackAI Team
-> **Last Reviewed:** 2026-08-05
+> **Last Reviewed:** 2026-09-21
 
 # Package Language Specification
 
-> **Package groups and distributes reusable AI Assets.**
+> **An AI Asset Package is a versioned distribution boundary for AI Asset definitions.**
 
 ---
 
-# 1. Vision
+# 1. Domain Meaning
 
-The Package Language defines the vocabulary used to describe reusable AI Asset distribution within PulseStackAI.
+Package is a reusable AI Asset representing one versioned distribution boundary.
 
-Rather than treating packages as provider-specific deployment artifacts or storage formats, the Package Language models packages as reusable engineering assets.
-
-A Package represents a portable unit of distribution.
-
-It groups related AI Assets into a versioned, reusable, and distributable unit that can be shared across AI applications.
-
-The Package Language therefore remains independent of:
-
-- Storage technologies
-- Package repositories
-- Deployment mechanisms
-- Runtime execution
-- Infrastructure providers
-
-This enables Packages to remain portable, reusable, composable, and versioned across different environments.
+Its current implementation has genuine membership, version, and external-dependency authority. Those concepts must be distinguished from software-package distribution mechanisms and from older workflow-specific packaging concepts.
 
 ---
 
-# 2. What is a Package?
+# 2. Concept Boundary
 
-A Package is a reusable AI Asset that groups and distributes related AI Assets as a portable unit.
+In this specification, **Package** means:
 
-A Package defines distribution rather than execution.
-
-It describes:
-
-- which AI Assets belong together
-- how those assets are versioned
-- what dependencies they require
-- how they are distributed
-
-A Package never describes:
-
-- how assets execute
-- where packages are stored
-- how packages are downloaded
-- how packages are installed
-
----
-
-# 3. Purpose
-
-The purpose of a Package is to provide a reusable unit of AI Asset distribution.
-
-Rather than distributing individual Prompts, Tools, Agents, or Workflows independently, developers organize related assets into a single distributable package.
-
-Packages promote:
-
-- reuse
-- portability
-- versioning
-- dependency management
-- modular application design
-
-Examples include:
-
-- Customer Support Package
-- Financial Analysis Package
-- Healthcare Package
-- Architecture Review Package
-- Document Intelligence Package
-
-A Package is the fundamental distribution unit of the PulseStackAI ecosystem.
-
----
-
-# 4. Vocabulary
-
-The Package Language defines the following core vocabulary.
-
-| Concept | Description |
-|----------|-------------|
-| **Manifest** | Describes the contents and metadata of a package. |
-| **Contents** | Collection of AI Assets included within the package. |
-| **Dependency** | Other packages or assets required by the package. |
-| **Version** | Version of the package. |
-| **Publisher** | Organization or author responsible for the package. |
-| **Reference** | Reference to packaged assets. |
-| **Signature** | Verification of package authenticity. |
-
-These concepts define the Package Language independently of storage technologies.
-
----
-
-# 5. Responsibilities
-
-A Package is responsible for:
-
-- grouping related AI Assets
-- enabling reusable distribution
-- supporting versioning
-- expressing dependencies
-- supporting modular application development
-- remaining independent of storage and deployment
-
-A Package is not responsible for execution.
-
----
-
-# 6. What a Package is NOT
-
-A Package intentionally remains independent of runtime implementation.
-
-The following concepts do **not** belong to the Package Language:
-
-- Package Repository
-- Package Feed
-- NuGet
-- Git Repository
-- File System
-- Cloud Storage
-- Installation
-- Download
-- Upload
-- Cache
-- Deployment
-
-Likewise, runtime operations such as:
-
-- Install
-- Restore
-- Resolve
-- Verify
-- Load
-- Cache
-
-belong to the Runtime rather than the Package Language.
-
----
-
-# 7. Package Composition
-
-A Package groups one or more AI Assets.
-
-```
-Package
-
-├── Prompt
-
-├── Tool
-
-├── Knowledge
-
-├── Memory
-
-├── Policy
-
-├── Model
-
-├── Agent
-
-└── Workflow
+```text
+AI Asset Package
+    PackageAsset
+    PackageAssetOptions
 ```
 
-Packages may contain any combination of reusable AI Assets required to deliver a complete business capability.
+It does **not** mean:
+
+```text
+PulseStackAI NuGet package
+    software/binary distribution mechanism
+
+older WorkflowPackage concepts
+    separate workflow-specific packaging subsystem
+```
+
+NuGet package production and consumption are development/distribution concerns for PulseStackAI binaries. They are not the Package Language defined here.
 
 ---
 
-# 8. Configuration Boundary
+# 3. Current Public Asset Contract
 
-A Package describes **what AI Assets** are distributed together.
+The current public declarative options are:
 
-Configuration describes **how the Package is distributed**.
+```text
+PackageAssetOptions
+├── Name
+├── Description
+└── Members[]
+```
 
-Examples of configuration include:
+**Name** identifies the AI Asset Package.
 
-- Local Package Repository
-- GitHub
-- NuGet Feed
-- Azure Blob Storage
-- Amazon S3
-- Internal Package Registry
+**Description** describes the distribution boundary.
 
-Configuration may change without requiring changes to the Package Asset.
+**Members** contains direct AI Asset references distributed as members of the Package.
+
+`PackageAsset` also participates in the common Asset model with an `AssetVersion`, and it may carry external `AssetDependency` entries.
+
+Therefore Package version and dependency semantics are real current Asset authority even though they are not additional fields of `PackageAssetOptions`.
 
 ---
 
-# 9. Runtime Boundary
+# 4. Membership and Dependency Authority
 
-The Runtime is responsible for realizing Package distribution.
+Package membership is a real structural relationship.
 
-Its responsibilities include:
+The current Package reference projection enforces:
 
-- resolving dependencies
-- downloading packages
-- verifying signatures
-- restoring packages
-- caching packages
-- loading package contents
-- managing package versions
+- a Package must declare at least one member
+- a Package cannot include itself as a direct member
+- member Asset types must be defined
+- duplicate member definition keys are rejected
+- conflicting URNs for the same member definition key are rejected
+- a Package cannot depend on itself
+- duplicate dependency definition keys are rejected
+- conflicting dependency URNs are rejected
+- conflicting `Required` values for the same dependency are rejected
+- a member cannot also be declared as an external dependency
 
-The Runtime manages package lifecycle.
+The final rule can be summarized as:
 
-The Package Asset defines the reusable distribution unit.
+```text
+Members ∩ ExternalDependencies = ∅
+```
+
+Package membership is not restricted to the Library member-type whitelist; Package applies its own membership invariants.
 
 ---
 
-# 10. Examples
+# 5. Design Vocabulary
 
-## Customer Support Package
+The following concepts may be useful when reasoning about AI Asset distribution:
 
-```
-Contents
+| Concept | Authority |
+|---|---|
+| **Contents / Members** | Current structural Package authority. |
+| **Version** | Current common Asset authority used by Package. |
+| **Dependency** | Current Package/common Asset dependency authority. |
+| **Manifest** | Design vocabulary; not a current `PackageAssetOptions` field. |
+| **Publisher** | Design vocabulary; not a current `PackageAssetOptions` field. |
+| **Signature** | Design vocabulary; not a current `PackageAssetOptions` field. |
 
-• Customer Support Prompt
-• Customer Support Agent
-• Customer Knowledge
-• Privacy Policy
-• Customer Lookup Tool
-
-Version
-
-1.0.0
-```
+Manifest, Publisher, and Signature must not be inferred as required persisted Package structure or current package-management capability.
 
 ---
 
-## Architecture Package
+# 6. Distribution vs Distribution Mechanism
 
-```
-Contents
+The Package Asset defines **which AI Asset definitions form a versioned distribution boundary**.
 
-• Architecture Review Prompt
-• Architecture Standards
-• Architecture Agent
-• Repository Analysis Tool
+It does not define the mechanism by which software binaries or Package representations are published, downloaded, installed, restored, or cached.
 
-Version
+Examples such as:
 
-2.1.0
-```
+- NuGet feeds
+- Git repositories
+- blob storage
+- package registries
+- download/install workflows
+
+describe possible external distribution mechanisms. They are not current Package Asset fields.
+
+In particular, PulseStackAI's NuGet package feed and development-package workflow do not provide evidence for AI Asset Package semantics.
 
 ---
 
-## Financial Package
+# 7. Runtime and Lifecycle Considerations
 
+Systems working with AI Asset Packages may require concerns such as:
+
+- dependency resolution
+- loading package members
+- distribution
+- verification
+- caching
+
+Those are possible downstream persistence, loading, tooling, or integration concerns. This specification does not establish a Package Runtime, package downloader, installer, restore system, signature verifier, or cache manager.
+
+Concrete capabilities require their own current source and architecture authority.
+
+---
+
+# 8. Example
+
+Conceptually, an AI Asset Package may contain:
+
+```text
+Financial Operations Package
+
+Members
+├── Invoice Workflow
+├── Invoice Approval Agent
+├── Financial Policy
+└── ERP Integration Tool
+
+External Dependencies
+└── Shared Finance Asset
 ```
-Contents
 
-• Invoice Workflow
-• Invoice Approval Agent
-• Financial Policies
-• ERP Integration Tool
+The `Members` relationship and external dependencies correspond to current Package structure. The example does not imply a NuGet package, downloadable archive, manifest format, publisher field, signature field, or installation lifecycle.
 
-Dependencies
+---
 
-Core Finance Package
-```
+# 9. Responsibilities and Boundaries
+
+At the current contract level, Package is responsible for:
+
+- identifying one AI Asset distribution boundary
+- describing that boundary
+- carrying direct member references
+- participating in common Asset versioning
+- carrying external dependencies where supplied
+- enforcing current Package membership/dependency invariants
+
+Package is not, merely by being a Package Asset, a guarantee of:
+
+- a package repository
+- publishing infrastructure
+- download or installation
+- restore behavior
+- signature verification
+- caching
+- deployment
 
 ---
 
 # Summary
 
-The Package Language defines a provider-independent vocabulary for expressing reusable AI Asset distribution.
+AI Asset Package has genuine implemented structural authority:
 
-It separates distribution from deployment, storage, runtime execution, and infrastructure technologies, allowing Packages to remain portable, reusable, versioned, and composable.
+```text
+PackageAssetOptions
+├── Name
+├── Description
+└── Members[]
 
-Package answers one fundamental question:
+PackageAsset
+├── AssetVersion
+└── Dependencies[]
+```
 
-> **How are reusable AI Assets distributed?**
+Its membership and dependency invariants are source-backed.
 
-Configuration determines where packages are stored and published.
+Manifest, Publisher, Signature, and package-manager lifecycle concepts remain design or downstream concerns unless separately established by current authority.
 
-The Runtime determines how packages are discovered, resolved, verified, and loaded.
+Most importantly:
+
+```text
+AI Asset Package
+        ≠
+NuGet software package
+        ≠
+older WorkflowPackage subsystem
+```
