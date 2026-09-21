@@ -2,285 +2,234 @@
 > **Audience:** Contributors
 > **Status:** Draft
 > **Owner:** PulseStackAI Team
-> **Last Reviewed:** 2026-08-06
+> **Last Reviewed:** 2026-09-21
 
 # Project Language Specification
 
-> **Project defines the ownership and composition of an intelligent business application.**
+> **Project defines the root and semantic membership of one intelligent application.**
 
 ---
 
 # 1. Vision
 
-The Project Language defines the vocabulary used to describe intelligent business applications within PulseStackAI.
+The Project Language defines the declarative application-root contract used by PulseStackAI.
 
-Rather than treating projects as source code folders, repositories, or deployment units, the Project Language models projects as reusable engineering assets.
+A Project Asset represents one intelligent application. It identifies the Workflow that serves as the application's entry point and the AI Assets owned by that application.
 
-A Project represents the ownership boundary of an AI application.
+The Project Language remains independent of:
 
-It brings together Libraries, Packages, Workflows, Agents, and the Foundation Assets into a cohesive business solution.
+- source-control repositories
+- workspace or folder layout
+- build and deployment pipelines
+- hosting infrastructure
+- runtime execution mechanics
 
-The Project Language therefore remains independent of:
-
-- Source control systems
-- Repository structures
-- Deployment pipelines
-- Runtime execution
-- Infrastructure providers
-
-This enables Projects to remain portable, composable, reusable, and versioned throughout their lifecycle.
+A Project is therefore an application definition and ownership boundary, not a repository, deployment unit, or runtime host.
 
 ---
 
 # 2. What is a Project?
 
-A Project is a reusable AI Asset that defines the ownership and composition of an intelligent business application.
+A Project is a reusable AI Asset whose public declarative options are:
 
-A Project defines ownership rather than execution.
+```text
+ProjectAssetOptions
+├── Name
+├── Description?
+├── EntryWorkflow
+└── OwnedAssets[]
+```
 
-It describes:
+**Name** identifies the application for developers and diagnostics.
 
-- the business application being built
-- the business domain it serves
-- the Libraries that compose the application
-- the overall application structure
-- the ownership of the application
+**Description** optionally describes the application.
 
-A Project never describes:
+**EntryWorkflow** is the required Workflow Asset reference that identifies the application's entry workflow.
 
-- runtime execution
-- deployment pipelines
-- source control implementation
-- infrastructure configuration
+**OwnedAssets** is the collection of AI Asset references semantically owned by the Project.
+
+A Project defines application composition and ownership. It does not execute the application.
 
 ---
 
 # 3. Purpose
 
-The purpose of a Project is to provide the top-level organizational boundary for an intelligent business application.
+The purpose of a Project is to provide the root definition for one intelligent application.
 
-Rather than managing individual AI Assets independently, developers compose Libraries into a Project that represents a complete business solution.
+Instead of requiring consumers to independently identify the application's entry workflow and all application-owned definitions, the Project provides one Project Asset identity from which the persisted application graph can be loaded and realized.
 
-Projects promote:
+Conceptually:
 
-- ownership
-- modular architecture
-- application composition
-- lifecycle management
-- long-term evolution
+```text
+Project
+├── EntryWorkflow
+└── OwnedAssets[]
+```
 
-Examples include:
-
-- Customer Service Copilot
-- Financial Operations Assistant
-- Healthcare Advisor
-- Engineering Copilot
-- Enterprise Knowledge Assistant
-
-A Project represents the complete intelligent business application.
+The Project is the supported application root for application realization and invocation boundaries.
 
 ---
 
 # 4. Vocabulary
 
-The Project Language defines the following core vocabulary.
+The current Project Language defines the following normative concepts.
 
 | Concept | Description |
 |----------|-------------|
-| **Application** | Complete intelligent business solution. |
-| **Ownership** | Business or team responsible for the application. |
-| **Identity** | Unique identity of the Project. |
-| **Composition** | Collection of Libraries that form the application. |
-| **Lifecycle** | Evolution of the Project over time. |
-| **Solution** | Complete business capability delivered by the Project. |
+| **Project** | AI Asset representing one intelligent application. |
+| **Name** | Display name of the application. |
+| **Description** | Optional application description. |
+| **Entry Workflow** | Required Workflow Asset reference that defines the application's execution entry point. |
+| **Owned Assets** | AI Asset references semantically owned by the Project. |
+| **External Dependency** | Referenced dependency required by the Project but not owned by it. |
 
-These concepts define the Project Language independently of runtime implementation.
+Libraries and Packages are separate AI Asset domain concepts. A Project may participate in graphs containing those Assets, but `ProjectAssetOptions` does not define Project composition as a list of Libraries or Packages.
 
 ---
 
-# 5. Responsibilities
+# 5. Ownership and Dependency Invariants
 
-A Project is responsible for:
+Project membership and external dependency ownership are distinct.
 
-- defining application ownership
-- composing Libraries
-- representing business solutions
-- managing application identity
-- supporting long-term evolution
-- remaining independent of runtime execution
+A Project-owned Asset cannot also be declared as an external dependency of the same Project.
 
-A Project is not responsible for execution or deployment.
+```text
+OwnedAssets ∩ ExternalDependencies = ∅
+```
+
+A Project also cannot depend on another Project Asset.
+
+These rules preserve a single Project root for the application and prevent the same Asset definition from being simultaneously classified as owned and external.
+
+The Project's references are projected from its required `EntryWorkflow` and `OwnedAssets` according to the Project reference contract.
 
 ---
 
 # 6. What a Project is NOT
 
-A Project intentionally remains independent of runtime implementation.
+A Project is not:
 
-The following concepts do **not** belong to the Project Language:
+- a Git repository
+- an Azure DevOps or GitHub project
+- a source-code folder
+- a build pipeline
+- a deployment manifest
+- a container or Kubernetes workload
+- a runtime host
+- a list of Libraries
+- a NuGet package
 
-- Git Repository
-- Azure DevOps Project
-- GitHub Repository
-- Build Pipeline
-- CI/CD
-- Docker
-- Kubernetes
-- Deployment
-- Runtime Execution
-- Provider Configuration
-
-Likewise, runtime operations such as:
-
-- Build
-- Deploy
-- Execute
-- Publish
-- Monitor
-
-belong to the Runtime rather than the Project Language.
+Those concepts may participate in development, distribution, or deployment, but they are not fields of the current Project Asset contract.
 
 ---
 
-# 7. Project Composition
+# 7. Application Composition
 
-A Project composes one or more Libraries.
+The Project is the application root, while other AI Asset types retain their own contracts.
 
+A Project may own references to application Assets such as:
+
+- Workflow
+- Agent
+- Prompt
+- Tool
+- Knowledge
+- Memory
+- Policy
+- Model
+- Library
+- Package
+
+The exact validity of the resulting persisted aggregate is governed by the applicable AI Asset graph and persistence contracts.
+
+Project ownership must not be confused with Library membership or Package distribution membership.
+
+---
+
+# 8. Persistence and Resolution Boundary
+
+A Project Asset can be persisted and published through the common AI Asset persistence platform.
+
+Its persisted `AssetDefinitionKey` can then serve as the root key for loading the application's aggregate graph.
+
+The Project specification does not own:
+
+- serialization format
+- storage-provider behavior
+- catalog publication mechanics
+- aggregate graph-loading algorithms
+
+Those responsibilities belong to the persistent AI Asset platform.
+
+---
+
+# 9. Realization and Runtime Boundary
+
+Project defines the application; it does not execute it.
+
+The current application path is conceptually:
+
+```text
+Project AssetDefinitionKey
+        ↓
+aggregate graph loading
+        ↓
+application realization
+        ↓
+application invocation
+        ↓
+Workflow Runtime
 ```
+
+Application realization accepts a Project-rooted graph and selects the Project's entry Workflow for the realized application.
+
+Runtime execution remains downstream of Project definition.
+
+---
+
+# 10. Example
+
+Conceptually:
+
+```text
 Project
+Name
+    Meridian Works
 
-├── Library
+EntryWorkflow
+    RFQ Analysis Workflow
 
-│      ├── Prompt
-│      ├── Tool
-│      ├── Knowledge
-│      ├── Memory
-│      ├── Policy
-│      ├── Model
-│      ├── Agent
-│      └── Workflow
-
-├── Library
-
-└── Package (Distribution)
+OwnedAssets
+    RFQ Analysis Workflow
+    RFQ Analysis Agent
+    RFQ Analysis Prompt
+    RFQ Analysis Model
 ```
 
-A Project represents the complete intelligent business application.
-
-Libraries organize reusable AI Assets.
-
-Packages distribute reusable AI Assets.
-
----
-
-# 8. Configuration Boundary
-
-A Project describes **what intelligent application is being built**.
-
-Configuration describes **how the Project is managed**.
-
-Examples include:
-
-- GitHub
-- Azure DevOps
-- Local Workspace
-- Enterprise Repository
-
-Configuration may change without requiring changes to the Project Asset.
-
----
-
-# 9. Runtime Boundary
-
-The Runtime is responsible for realizing Project execution.
-
-Its responsibilities include:
-
-- loading application assets
-- resolving dependencies
-- executing workflows
-- coordinating agents
-- managing runtime state
-- collecting telemetry
-- monitoring execution
-
-The Runtime executes the application.
-
-The Project Asset defines the application.
-
----
-
-# 10. Examples
-
-## Customer Service Copilot
-
-```
-Project
-
-Customer Service Copilot
-
-Libraries
-
-• Customer Service Library
-• Knowledge Library
-
-Business Domain
-
-Customer Support
-```
-
----
-
-## Engineering Copilot
-
-```
-Project
-
-Engineering Copilot
-
-Libraries
-
-• Architecture Library
-• Code Review Library
-• Engineering Standards Library
-
-Business Domain
-
-Software Engineering
-```
-
----
-
-## Financial Operations Assistant
-
-```
-Project
-
-Financial Operations Assistant
-
-Libraries
-
-• Invoice Processing Library
-• Financial Policies Library
-• Reporting Library
-
-Business Domain
-
-Finance
-```
+The Project records application ownership and its required entry Workflow. It does not describe provider credentials, runtime hosting, deployment, or execution mechanics.
 
 ---
 
 # Summary
 
-The Project Language defines a provider-independent vocabulary for expressing intelligent business applications.
+The Project Language defines the declarative root of one intelligent PulseStackAI application.
 
-It separates application ownership from runtime execution, deployment technologies, and infrastructure implementations, allowing Projects to remain reusable, composable, versioned, and portable.
+Its current public contract is:
 
-Project answers one fundamental question:
+```text
+ProjectAssetOptions
+├── Name
+├── Description?
+├── EntryWorkflow
+└── OwnedAssets[]
+```
 
-> **Who owns and composes the intelligent business application?**
+Project therefore answers:
 
-Configuration determines how the Project is managed.
+> **What is this application, which Workflow is its entry point, and which AI Assets does it own?**
 
-The Runtime determines how the application is executed.
+Persistence determines how the Project definition is stored and published.
+
+Application realization determines how a Project-rooted graph becomes a realized application.
+
+Runtime execution determines how the realized entry Workflow executes.
