@@ -2,286 +2,171 @@
 > **Audience:** Contributors
 > **Status:** Draft
 > **Owner:** PulseStackAI Team
-> **Last Reviewed:** 2026-08-03
+> **Last Reviewed:** 2026-09-21
 
 # Tool Language Specification
 
-> **A Tool defines what capability is available, not when or how it should be invoked.**
+> **A Tool represents a reusable business capability available to an AI application.**
 
 ---
 
-# 1. Vision
+# 1. Domain Meaning
 
-The Tool Language defines the vocabulary used to describe reusable capabilities within PulseStackAI.
+Tool is a reusable AI Asset describing a business capability.
 
-Rather than treating tools as provider-specific function calls or executable implementations, the Tool Language models tools as reusable engineering assets.
-
-A Tool represents a business capability.
-
-The Runtime is responsible for discovering, authorizing, invoking, and coordinating tool execution.
-
-The Tool Language therefore remains independent of:
-
-- AI providers
-- Runtime execution
-- Infrastructure technologies
-- Implementation details
-
-This enables Tools to remain reusable, portable, composable, and versioned across different AI platforms.
+The current public contract directly represents Tool identity, description, category, and tags. Richer concepts such as formal input/output contracts and authorization remain useful tool-design vocabulary but are not current Tool Asset fields.
 
 ---
 
-# 2. What is a Tool?
+# 2. Current Public Asset Contract
 
-A Tool is a reusable AI Asset that describes an external capability available to an AI application.
+The current public declarative contract is:
 
-A Tool defines **what capability exists**, not how it is implemented or executed.
-
-A Tool describes:
-
-- what capability is available
-- what inputs are required
-- what outputs are produced
-- what contract governs the interaction
-
-A Tool never describes:
-
-- when it should be executed
-- who should execute it
-- how execution should occur
-
----
-
-# 3. Purpose
-
-The purpose of a Tool is to expose reusable capabilities that extend AI applications beyond language generation.
-
-Instead of embedding business operations directly into prompts or workflows, developers create reusable Tool Assets that represent well-defined business capabilities.
-
-Examples include:
-
-- Search Customer
-- Lookup Invoice
-- Generate Report
-- Send Email
-- Create Purchase Order
-- Read Document
-- Generate Image
-
-These capabilities can then be composed by Agents and Workflows.
-
----
-
-# 4. Vocabulary
-
-The Tool Language defines the following core vocabulary.
-
-| Concept | Description |
-|----------|-------------|
-| **Capability** | The business function provided by the Tool. |
-| **Contract** | The formal definition of the Tool interface. |
-| **Input** | Information required by the Tool. |
-| **Output** | Information produced by the Tool. |
-| **Authorization** | Permissions required to use the Tool. |
-| **Category** | Logical grouping of similar Tools. |
-| **Description** | Human-readable explanation of the Tool capability. |
-
-These concepts define the Tool Language independently of any runtime implementation.
-
----
-
-# 5. Responsibilities
-
-A Tool is responsible for:
-
-- describing a reusable capability
-- defining its public contract
-- describing required inputs
-- describing expected outputs
-- remaining reusable across applications
-- remaining independent of implementation
-
-A Tool is not responsible for execution.
-
----
-
-# 6. What a Tool is NOT
-
-A Tool intentionally remains independent of runtime execution.
-
-The following concepts do **not** belong to the Tool Language:
-
-- Tool Invocation
-- Tool Execution
-- Tool Parameters
-- Tool Response
-- Retry Policies
-- Timeout
-- Circuit Breakers
-- Parallel Execution
-- Scheduling
-- Provider Integration
-- Observability
-- Cost Tracking
-
-These concerns belong to the Runtime.
-
-Likewise, concepts such as:
-
-- Tool Orchestration
-- Tool Chains
-- Multi-tool Coordination
-
-belong to the Agent or Workflow Language rather than the Tool Language.
-
----
-
-# 7. Tool Composition
-
-A Tool may be described using multiple reusable language elements.
-
+```text
+ToolAssetOptions
+├── Name
+├── Description
+├── Category
+└── Tags[]
 ```
-Tool
+
+**Name** identifies the Tool capability.
+
+**Description** explains the reusable business capability.
+
+**Category** provides the Tool's logical category.
+
+**Tags** provide lightweight descriptive classification.
+
+`ToolAsset` projects all four values into common Asset metadata and retains a normalized snapshot of its options.
+
+---
+
+# 3. Design Vocabulary
+
+The following concepts are useful when reasoning about Tool design:
+
+| Concept | Authority |
+|---|---|
+| **Capability** | Source-supported semantic identity of a Tool. |
+| **Description** | Current public Tool field. |
+| **Category** | Current public Tool field. |
+| **Contract** | Design concept for reasoning about a Tool interface. |
+| **Input** | Design concept for information a capability may require. |
+| **Output** | Design concept for information a capability may produce. |
+| **Authorization** | Design concern associated with access to a capability. |
+
+Contract, Input, Output, and Authorization do **not** define fields of the current `ToolAssetOptions` contract.
+
+They must not be inferred as required serialized structure merely because they are useful concepts for designing executable tools.
+
+---
+
+# 4. Conceptual Model
+
+A Tool capability may be reasoned about as:
+
+```text
+Tool design
 
 ├── Capability
-
 ├── Contract
-
 ├── Input
-
 ├── Output
-
-├── Authorization
-
-├── Category
-
-└── Description
+└── Authorization
 ```
 
-Each element contributes to the Tool definition while remaining independent of execution.
+This is a **conceptual model, not an object/property schema**.
+
+The implemented structural contract is:
+
+```text
+Name
+Description
+Category
+Tags
+```
 
 ---
 
-# 8. Configuration Boundary
+# 5. Implementation Independence
 
-Tools describe **what** capability is available.
+The Tool Asset describes a reusable business capability; it does not itself define its executable implementation.
 
-Configuration describes **how** that capability is implemented.
+Possible implementations may involve:
 
-Examples of configuration include:
-
-- Local Implementation
-- REST API
-- Database
-- ERP System
+- local code
+- REST APIs
+- databases
+- ERP systems
 - Microsoft Graph
-- Azure Service
-- MCP Server
-- Authentication
-- Connection Strings
-- Endpoint Configuration
+- cloud services
+- MCP servers
+- authentication or connection configuration
 
-Configuration may vary without requiring changes to the Tool itself.
+Those mechanisms are not current Tool Asset fields.
 
 ---
 
-# 9. Runtime Boundary
+# 6. Runtime Considerations
 
-The Runtime is responsible for realizing the Tool.
+Tool-oriented execution may involve:
 
-Its responsibilities include:
+- resolving an implementation
+- validating invocation data
+- authorization
+- invocation
+- result handling
+- failure handling
+- observability
 
-- discovering Tools
-- validating contracts
-- authorizing access
-- resolving implementations
-- invoking execution
-- collecting results
-- handling failures
-- tracking usage
-- recording observability
+These are possible downstream runtime or integration concerns. This specification does not, by itself, guarantee Tool discovery, a formal Tool contract system, authorization enforcement, implementation resolution, invocation behavior, retry, timeout, or telemetry.
 
-The Runtime executes the Tool.
-
-The Tool never executes itself.
+Concrete Tool execution semantics require their own current source and architecture authority.
 
 ---
 
-# 10. Examples
+# 7. Conceptual Example
 
-## Customer Lookup
+The following illustrates Tool-design vocabulary and is **not constructible `ToolAssetOptions` syntax**:
 
+```text
+Capability       Customer lookup
+Input            Customer number
+Output           Customer profile
+Authorization    Customer.Read
 ```
-Capability
-Lookup Customer
 
-Input
-Customer Number
-
-Output
-Customer Profile
-
-Authorization
-Customer.Read
-
-Category
-ERP
-```
+A current Tool Asset can identify and describe that capability using `Name`, `Description`, `Category`, and optional `Tags`. The conceptual Input/Output/Authorization labels do not add Tool Asset fields.
 
 ---
 
-## Invoice Search
+# 8. Responsibilities and Boundaries
 
-```
-Capability
-Search Invoice
+At the current contract level, Tool is responsible for:
 
-Input
-Invoice Number
+- identifying a reusable business capability
+- describing that capability
+- assigning its category
+- carrying descriptive tags
+- participating in the common AI Asset identity and lifecycle model
 
-Output
-Invoice Details
-
-Authorization
-Finance.Read
-
-Category
-Finance
-```
-
----
-
-## Web Search
-
-```
-Capability
-Search the Web
-
-Input
-Search Query
-
-Output
-Search Results
-
-Authorization
-Public
-
-Category
-Research
-```
+Tool is not, merely by being a Tool Asset, a guarantee of a particular invocation, authorization, or implementation mechanism.
 
 ---
 
 # Summary
 
-The Tool Language defines a provider-independent vocabulary for expressing reusable business capabilities.
+Tool retains the semantic identity of a reusable business capability.
 
-It separates capability definition from implementation and execution, allowing Tools to remain portable, reusable, versioned, and composable.
+Its implemented structural authority is:
 
-Tools answer one fundamental question:
+```text
+ToolAssetOptions
+├── Name
+├── Description
+├── Category
+└── Tags[]
+```
 
-> **What capability is available?**
-
-Configuration determines how that capability is implemented.
-
-The Runtime determines when and how that capability is executed.
+Contract, Input, Output, Authorization, and related terms remain useful design concepts rather than current Tool Asset fields.
