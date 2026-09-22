@@ -1,5 +1,16 @@
 # AI Asset Model vs Runtime
 
+> **Historical architecture notice**
+>
+> This document records an earlier authoring-versus-runtime architecture snapshot. It is preserved as historical architecture and is not the current authority for PulseStackAI's AI Asset, application, runtime, provider, or persistence boundaries.
+>
+> Statements below such as provider independence, provider selection, runtime responsibilities, and canonical Asset responsibilities describe the architecture at this historical checkpoint and should not be read as current framework guarantees.
+>
+> For current architecture, see [Architecture Overview](architecture-overview.md), [AI Asset Model](ai-asset-model.md), [Persistent Asset Platform](persistent-asset-platform.md), [Application Operation](application-operation.md), and [Workflow Runtime](workflow-runtime.md).
+>
+> The historical body below is intentionally preserved rather than rewritten to current contracts.
+
+
 One of the fundamental architectural principles of PulseStackAI is the separation between **authoring** and **execution**.
 
 The **AI Asset Model** defines the reusable software assets that make up an AI application. These assets describe *what exists* and *how applications are composed*, but they do not define how those assets execute.
