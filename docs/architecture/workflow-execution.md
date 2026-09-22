@@ -1,16 +1,16 @@
 # Workflow Execution
 
-> **Every workflow is a conversation.**
+> **A business-readable mental model for thinking about Workflow execution.**
 
----
+This document explains execution conceptually. It does not define the exact `IWorkflowRuntime` contract, traversal algorithm, executor-selection rules, state-isolation guarantees, retry semantics, event model, or result projection.
 
-## Before we talk about code...
+For those implementation semantics, use [Workflow Runtime](workflow-runtime.md).
+
+## Start with intent
 
 Imagine explaining a business process to a colleague.
 
-You don't start by talking about classes, APIs, or AI models.
-
-You simply describe what needs to happen.
+You usually begin with what needs to happen:
 
 > Read the document.
 
@@ -20,292 +20,256 @@ You simply describe what needs to happen.
 
 > Notify the customer.
 
-One step naturally leads to the next until the work is complete.
+That business objective is the starting point for Workflow design.
 
-That's a workflow.
+PulseStackAI keeps that intent separate from the framework mechanics that persist, realize, invoke, and execute the application.
 
-PulseStackAI simply gives developers a way to describe that workflow in code.
+## A useful mental model
 
----
-
-# Every workflow is a conversation
-
-Every workflow begins with an intent.
-
-Each step produces a result.
-
-That result becomes the starting point for the next decision.
-
-The workflow continues until the business objective has been achieved.
-
-PulseStackAI simply coordinates that conversation.
-
-The developer describes it.
-
-The runtime executes it.
-
----
-
-# The Mental Model
-
-To understand how PulseStackAI works, you do not need to understand complex algorithms or runtime internals.
-
-You only need to understand five simple ideas.
+A simple way to reason about Workflow execution is:
 
 ```text
 Intent
-
-↓
-
+  ↓
 Workflow
-
-↓
-
+  ↓
 Step
-
-↓
-
-Current State
-
-↓
-
-Next Step
+  ↓
+Execution State
+  ↓
+Next Decision
 ```
 
-Everything in PulseStackAI is built around these ideas.
+This is a conceptual model, not a runtime algorithm.
 
----
+Each term has a more precise representation elsewhere in the architecture.
 
-# 1. Intent
+## 1. Intent
 
-Every workflow begins with a purpose.
-
-Not a prompt.
-
-Not a provider.
-
-Not a model.
-
-A purpose.
-
-Examples include:
-
-* Review this contract.
-* Approve this expense.
-* Summarize these documents.
-* Analyze this report.
-* Classify this support request.
-
-The intent answers one simple question:
+Intent answers:
 
 > **What are we trying to accomplish?**
 
-Everything else exists to support that goal.
+Examples include:
 
----
+- review a contract;
+- approve an expense;
+- summarize documents;
+- analyze an RFQ;
+- classify a support request.
 
-# 2. Workflow
+Intent should remain understandable independently of runtime infrastructure.
 
-A workflow is the complete map of your business process.
+## 2. Workflow
 
-It connects individual pieces of work together until the objective has been achieved.
+Conceptually, a Workflow describes the orchestration structure of the business process.
 
-Think of it as the blueprint of your application.
-
-A workflow does not perform the work itself.
-
-It simply describes what should happen.
-
----
-
-# 3. Step
-
-A step is a single piece of work.
-
-Every step has one responsibility.
-
-A step might:
-
-* ask an AI agent to summarize a document,
-* execute a tool,
-* validate a condition,
-* perform work in parallel,
-* repeat a task,
-* choose between multiple paths.
-
-Steps do not need to understand the entire workflow.
-
-They simply perform their own job and return the result.
-
-Small, focused steps are easier to understand, easier to test, and easier to reuse.
-
----
-
-# 4. Current State
-
-Imagine carrying a notebook while completing a task.
-
-Every time something important happens, you write it down.
-
-The next person who continues the work reads the notebook before making the next decision.
-
-That notebook represents the **current state**.
-
-As a workflow executes, PulseStackAI continuously keeps track of:
-
-* the latest results,
-* important decisions,
-* shared information,
-* execution progress.
-
-Every step can use this information when performing its work.
-
-The runtime manages this state automatically.
-
-The developer simply focuses on the business logic.
-
----
-
-# 5. Next Step
-
-Business processes are simply a sequence of decisions.
-
-After one step finishes, something else happens.
-
-Sometimes another step executes.
-
-Sometimes work branches into multiple paths.
-
-Sometimes work happens in parallel.
-
-Sometimes the workflow repeats.
-
-Sometimes it finishes.
-
-PulseStackAI automatically moves the workflow from one step to the next based on the current state of the business process.
-
----
-
-# A Workflow is a Team
-
-A workflow is not one intelligent AI.
-
-It is a team working together.
-
-One step gathers information.
-
-Another analyzes it.
-
-Another validates the result.
-
-Another stores it.
-
-PulseStackAI coordinates the team.
-
-Each step focuses on one responsibility.
-
-Together, they accomplish the business objective.
-
----
-
-# The Separation of Responsibilities
-
-One of the most important ideas in PulseStackAI is the separation between business logic and infrastructure.
+PulseStackAI has two important Workflow representations:
 
 ```text
-The Workflow describes.
-
-The Runtime orchestrates.
-
-The AI thinks.
+WorkflowAsset
+    declarative application definition
+        ↓ realization
+Workflow
+    runtime representation
 ```
 
-Each layer has a single responsibility.
+The declarative `WorkflowAsset` is part of the AI Asset model. The realized runtime `Workflow` is what `IWorkflowRuntime` executes.
 
-The workflow expresses the business process.
+See [Workflow Model](workflow-model.md) for this representation boundary.
 
-The runtime coordinates execution.
+## 3. Step
 
-The AI provides intelligence.
+A step describes one unit of Workflow structure or runtime work.
 
-Keeping these responsibilities separate makes applications easier to understand, easier to test, and easier to evolve.
+At the declarative level, current Workflow-step definitions include concepts such as:
 
----
+- Run;
+- Conditional;
+- Parallel;
+- Retry;
+- Loop;
+- Switch.
 
-# What We Don't Think About
+During realization, declarative definitions are composed into runtime Workflow steps understood by the existing executors.
 
-Notice what we never asked.
+A step does not need to own the entire application lifecycle. Its execution authority is bounded to the semantics of that step.
 
-Not:
+## 4. Execution state
 
-> Which provider should I use?
+During invocation, PulseStackAI projects the application request into a fresh `PipelineContext`.
 
-Not:
+That context is then supplied to `IWorkflowRuntime` with the realized runtime `Workflow`.
 
-> How do I retry this request?
+Conceptually, execution state lets later work observe information produced or supplied earlier.
 
-Not:
+The important ownership distinction is:
 
-> How do I manage conversation history?
+```text
+Application Invocation
+    creates the fresh PipelineContext
 
-Not:
+Workflow Runtime / executors
+    receive and operate on that context
+```
 
-> How do I execute work in parallel?
+The context is shared mutable state in the current runtime. This mental model does not imply transactionality, parallel isolation, deterministic concurrent mutation ordering, or any other concurrency guarantee.
 
-Not:
+Exact state behavior belongs to [Workflow Runtime](workflow-runtime.md).
 
-> How do I orchestrate execution?
+## 5. Next decision
 
-Those are infrastructure concerns.
+Business processes move through different kinds of decisions:
 
-PulseStackAI manages them for you.
+- execute another unit of work;
+- choose a conditional branch;
+- run work in parallel;
+- retry a child operation according to Retry semantics;
+- iterate over values;
+- select a switch branch;
+- complete the Workflow.
 
-Instead, developers stay focused on the business process.
+The Workflow Language provides the vocabulary for expressing those structures.
 
----
+The runtime and its executors determine the implemented execution mechanics.
 
-# The PulseStackAI Way
+Therefore “what happens next” is useful as a business mental model, but it should not be read as a substitute for the exact traversal and executor semantics documented by the runtime authority.
 
-When designing a workflow, always begin with three simple questions.
+## A Workflow coordinates capabilities
+
+A Workflow is often easier to understand as coordination among focused capabilities rather than as one intelligent component.
+
+For example:
+
+```text
+receive business input
+        ↓
+run an Agent capability
+        ↓
+evaluate a business condition
+        ↓
+run additional work
+        ↓
+produce a result
+```
+
+When a Run step requires Agent execution, the runtime path crosses an explicit boundary:
+
+```text
+RunStep
+        ↓
+RunStepExecutor
+        ↓
+IAgentExecutionRuntime
+```
+
+Agent execution is downstream work. Describing it here does not transfer ownership of Agent internals, tools, models, memory, prompts, or providers to Workflow Runtime.
+
+## Separation of responsibilities
+
+A useful shorthand is:
+
+```text
+The Workflow describes orchestration.
+
+The Workflow Runtime coordinates runtime Workflow execution.
+
+Step executors own the semantics of their accepted steps.
+
+Agent execution provides downstream AI capability when requested.
+
+Provider integrations communicate with configured model providers.
+```
+
+Those responsibilities cooperate without becoming one authority.
+
+The same principle applies before execution:
+
+```text
+Persistent Asset Platform
+    owns persistence / publication / graph loading
+
+Application Realization
+    owns declarative graph → runtime application composition
+
+Application Invocation
+    owns invocation context projection and runtime handoff
+
+Workflow Runtime
+    owns runtime Workflow execution
+```
+
+## Business thinking versus infrastructure
+
+Application authors should be able to begin with the business process instead of rebuilding orchestration infrastructure.
+
+That does not mean application definitions contain no infrastructure-relevant choices.
+
+For example:
+
+- a Model Asset can explicitly select a provider and model;
+- a Workflow can explicitly include Retry or Parallel structure;
+- an application chooses which Assets compose its Project.
+
+The framework owns the mechanics behind its boundaries; the application still declares the choices that are part of its definition.
+
+## From description to execution
+
+The complete conceptual progression is:
+
+```text
+Business Intent
+        ↓
+declarative AI Assets
+        ↓
+WorkflowAsset
+        ↓
+persistence / publication
+        ↓
+Project-rooted graph
+        ↓
+application realization
+        ↓
+runtime Workflow
+        ↓
+application invocation
+        ↓
+IWorkflowRuntime
+        ↓
+step execution
+        ↓
+downstream Agent/provider work when required
+        ↓
+result
+```
+
+This diagram describes cross-boundary flow. It does not make Workflow Runtime the owner of persistence, realization, invocation, Agent execution, tools, or providers.
+
+## Where to go next
+
+Use the document that owns the question you are asking:
+
+- [Workflow Language](workflow-language.md) — conceptual business-process vocabulary;
+- [Workflow Language Grammar](../guides/workflow-language/grammar.md) — current durable declarative authoring;
+- [Workflow Model](workflow-model.md) — `WorkflowAsset` versus runtime `Workflow`;
+- [Persistent Asset Platform](persistent-asset-platform.md) — persistence, publication, resolution, and graph loading;
+- [Application Realization](runtime-realization-architecture.md) — declarative graph to runtime application;
+- [Application Operation & Invocation](application-operation.md) — integrated operation and invocation context;
+- [Workflow Runtime](workflow-runtime.md) — exact current runtime execution semantics;
+- [Execution Flow](execution-flow.md) — cross-boundary execution authority map.
+
+## Summary
+
+The most useful execution questions remain simple:
 
 > **What is the intent?**
 
-What business problem are we solving?
+> **What orchestration structure describes the process?**
 
----
+> **What execution state is available?**
 
-> **What happens next?**
+> **What decision or work comes next?**
 
-How does the business process naturally flow?
+PulseStackAI then carries that application through distinct persistence, realization, invocation, runtime, Agent, and provider boundaries.
 
----
-
-> **What is the current state?**
-
-What information is available to make the next decision?
-
-Everything else is the framework's responsibility.
-
----
-
-# Looking Ahead
-
-Now that we've learned how workflows execute, we can learn the language used to describe them.
-
-The next chapters introduce each workflow primitive one at a time.
-
-* Run
-* If
-* Parallel
-* Retry
-* ForEach
-* Switch
-* Nested Workflows
-
-Each one represents a simple business concept.
-
-Combined together, they form the Workflow Language of PulseStackAI.
-
----
-
-> **The developer should think about business workflows—not AI infrastructure.**
+The boundaries cooperate, but describing the complete flow never transfers ownership of a downstream stage to Workflow Runtime.

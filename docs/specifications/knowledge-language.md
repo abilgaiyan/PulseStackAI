@@ -2,296 +2,233 @@
 > **Audience:** Contributors
 > **Status:** Draft
 > **Owner:** PulseStackAI Team
-> **Last Reviewed:** 2026-08-04
+> **Last Reviewed:** 2026-09-21
 
 # Knowledge Language Specification
 
-> **Knowledge defines the business information available to the application.**
+> **Knowledge represents reusable knowledge and business-information intent within an AI application.**
 
 ---
 
-# 1. Vision
+# 1. Domain Meaning
 
-The Knowledge Language defines the vocabulary used to describe reusable business information within PulseStackAI.
+Knowledge is a reusable AI Asset for describing business-information intent.
 
-Rather than treating knowledge as databases, vector stores, search indexes, or provider-specific retrieval mechanisms, the Knowledge Language models knowledge as reusable engineering assets.
+The current source contract deliberately keeps that representation small. Rich concepts used to reason about knowledge remain useful design vocabulary, but they are not automatically fields or persisted structure of a Knowledge Asset.
 
-Knowledge represents business information.
+This specification therefore distinguishes:
 
-The Runtime is responsible for locating, retrieving, validating, and delivering that information to AI applications.
-
-The Knowledge Language therefore remains independent of:
-
-- Storage technologies
-- Search engines
-- Vector databases
-- Knowledge graphs
-- Retrieval mechanisms
-- Runtime execution
-
-This enables Knowledge Assets to remain reusable, portable, composable, and versioned across different environments.
-
----
-
-# 2. What is Knowledge?
-
-Knowledge is a reusable AI Asset that describes the business information available to an AI application.
-
-Knowledge defines information rather than storage.
-
-It describes:
-
-- what information exists
-- what business domain it belongs to
-- how the information is organized
-- how the information should be interpreted
-
-Knowledge never describes:
-
-- where information is stored
-- how information is retrieved
-- how information is indexed
-- how information is searched
-
----
-
-# 3. Purpose
-
-The purpose of Knowledge is to make business information reusable across AI applications.
-
-Rather than embedding information directly into prompts or application code, developers create reusable Knowledge Assets that describe business domains.
-
-Examples include:
-
-- Company Policies
-- Product Catalog
-- ERP Documentation
-- Financial Regulations
-- Manufacturing Procedures
-- Medical Guidelines
-- Architecture Standards
-- Customer Documentation
-
-Knowledge becomes a reusable source of business information that can be shared across Agents, Workflows, and Projects.
-
----
-
-# 4. Vocabulary
-
-The Knowledge Language defines the following core vocabulary.
-
-| Concept | Description |
-|----------|-------------|
-| **Domain** | Business area the knowledge belongs to. |
-| **Subject** | Primary topic described by the knowledge. |
-| **Content** | Business information represented by the knowledge. |
-| **Type** | Classification of the knowledge. |
-| **Source** | Origin of the business information. |
-| **Classification** | Business categorization of the information. |
-| **Freshness** | Expected validity of the information over time. |
-| **Trust** | Confidence level of the information. |
-| **Ownership** | Business owner responsible for the knowledge. |
-
-These concepts define the Knowledge Language independently of storage technologies.
-
----
-
-# 5. Responsibilities
-
-Knowledge is responsible for:
-
-- describing reusable business information
-- organizing information into meaningful domains
-- providing reusable information across applications
-- remaining independent of implementation
-- remaining portable across environments
-
-Knowledge is not responsible for retrieval or execution.
-
----
-
-# 6. What Knowledge is NOT
-
-Knowledge intentionally remains independent of runtime implementation.
-
-The following concepts do **not** belong to the Knowledge Language:
-
-- Vector Database
-- Embeddings
-- Search Index
-- Knowledge Graph
-- Similarity Search
-- Chunking
-- Retrieval
-- Grounding
-- Ranking
-- Caching
-- Database Technology
-- Search Providers
-
-Likewise, implementation technologies such as:
-
-- Azure AI Search
-- Neo4j
-- SQL Server
-- Oracle
-- SharePoint
-- Blob Storage
-- Elasticsearch
-
-are configuration concerns rather than Knowledge Language constructs.
-
----
-
-# 7. Knowledge Composition
-
-Knowledge may be described using multiple reusable language elements.
-
+```text
+Knowledge semantic identity
+        +
+current public Asset contract
+        +
+qualified design vocabulary
+        ≠
+invented implemented grammar
 ```
-Knowledge
+
+---
+
+# 2. Current Public Asset Contract
+
+The current public declarative contract is:
+
+```text
+KnowledgeAssetOptions
+├── Name
+├── Description
+└── Tags[]
+```
+
+**Name** identifies the reusable Knowledge Asset.
+
+**Description** states the knowledge or business-information intent represented by the Asset.
+
+**Tags** provide lightweight descriptive classification.
+
+These are the current Knowledge-specific public fields.
+
+Like other AI Assets, a Knowledge Asset also participates in the common Asset contract, including Asset identity, URN, version, metadata, lifecycle, and type. The Knowledge implementation projects Name, Description, and Tags into its common Asset metadata and retains a normalized snapshot of its options.
+
+---
+
+# 3. Design Vocabulary
+
+The following concepts are useful for reasoning about the Knowledge domain:
+
+| Concept | Design meaning |
+|---|---|
+| **Domain** | Business area to which knowledge relates. |
+| **Subject** | Primary topic represented by the knowledge. |
+| **Content** | Business information associated with the knowledge concept. |
+| **Type** | Conceptual classification of knowledge. |
+| **Source** | Origin of relevant business information. |
+| **Classification** | Business categorization of information. |
+| **Freshness** | Expected validity of information over time. |
+| **Trust** | Confidence associated with information. |
+| **Ownership** | Business responsibility for the knowledge. |
+
+These terms are **design vocabulary**. Unless represented by the current public Asset contract, they do not define Knowledge Asset fields, required persisted structure, executable semantics, or guaranteed runtime capabilities.
+
+For example, `Domain`, `Source`, and `Freshness` may help describe a knowledge design, but they are not properties of the current `KnowledgeAssetOptions` contract.
+
+---
+
+# 4. Purpose
+
+Knowledge Assets provide a reusable identity and description for knowledge or business-information concerns that participate in application composition.
+
+Examples of useful knowledge domains include:
+
+- company policies
+- product information
+- ERP documentation
+- financial regulations
+- manufacturing procedures
+- architecture standards
+- customer documentation
+
+The Asset can express the identity and descriptive intent of such knowledge through its current public fields. More detailed domain modeling may use the design vocabulary in this specification without implying additional framework fields.
+
+---
+
+# 5. Conceptual Model
+
+A knowledge design may be reasoned about conceptually as:
+
+```text
+Knowledge concern
 
 ├── Domain
-
 ├── Subject
-
 ├── Content
-
-├── Type
-
 ├── Source
-
 ├── Classification
-
 ├── Freshness
-
 ├── Trust
-
 └── Ownership
 ```
 
-Each element contributes to the business meaning of the Knowledge Asset while remaining independent of implementation.
+This diagram is a **conceptual model, not an object/property schema**.
+
+It does not mean that `KnowledgeAssetOptions` contains those properties, that they are serialized as Knowledge fields, or that every Knowledge Asset must provide them.
+
+The implemented structural contract remains:
+
+```text
+Name
+Description
+Tags
+```
 
 ---
 
-# 8. Configuration Boundary
+# 6. Implementation Independence
 
-Knowledge describes **what information** is available.
+A Knowledge Asset does not itself define storage or retrieval implementation.
 
-Configuration describes **where that information is implemented**.
+Technologies and mechanisms such as:
 
-Examples of configuration include:
+- SQL databases
+- vector stores
+- search indexes
+- knowledge graphs
+- embeddings
+- chunking
+- ranking
+- grounding
+- caches
+- external search providers
 
-- SQL Server
-- Oracle
-- Azure AI Search
-- Neo4j
-- SharePoint
-- Blob Storage
-- Git Repository
-- Local Files
-- REST APIs
+may be relevant to systems that use knowledge, but they are not current fields of the Knowledge Asset contract.
 
-Configuration may change without requiring changes to the Knowledge Asset.
+A Knowledge Asset also does not, by itself, establish where information is stored or how information is located.
 
 ---
 
-# 9. Runtime Boundary
+# 7. Runtime Considerations
 
-The Runtime is responsible for realizing Knowledge.
-
-Its responsibilities include:
+Knowledge-oriented applications may require downstream capabilities such as:
 
 - locating information
-- retrieving information
-- searching repositories
-- ranking results
-- grounding responses
-- caching data
-- indexing content
-- collecting observability
-- tracking usage
+- retrieval
+- search
+- ranking
+- grounding
+- indexing
+- caching
 
-The Runtime provides information to the application.
+These are **possible runtime or integration concerns associated with knowledge-oriented applications**. This specification does not assert that PulseStackAI currently provides a Knowledge Runtime or guarantees those behaviors.
 
-The Knowledge Asset never performs retrieval itself.
+Any concrete runtime capability must be established by its own current source and architecture authority rather than inferred from the existence of a Knowledge Asset.
 
 ---
 
-# 10. Examples
+# 8. Conceptual Examples
 
-## Product Catalog
+The following examples illustrate design vocabulary only. They are **not constructible `KnowledgeAssetOptions` syntax**.
 
-```
-Domain
-Sales
+## Product Information
 
-Subject
-Products
+Conceptually, a team might discuss:
 
-Content
-Product catalog and pricing information
-
-Classification
-Business Data
-
-Ownership
-Sales Department
+```text
+Domain          Sales
+Subject         Products
+Source          Product catalog
+Freshness       Current catalog cycle
+Ownership       Sales
 ```
 
----
-
-## Financial Policies
-
-```
-Domain
-Finance
-
-Subject
-Expense Policies
-
-Content
-Corporate expense reimbursement rules
-
-Classification
-Business Policy
-
-Ownership
-Finance Department
-```
-
----
+A current Knowledge Asset representing that concern would still use `Name`, `Description`, and optional `Tags`.
 
 ## Architecture Standards
 
+A design discussion might use:
+
+```text
+Domain          Engineering
+Subject         Architecture standards
+Classification Technical guidance
+Ownership       Architecture team
 ```
-Domain
-Engineering
 
-Subject
-Architecture Guidelines
+Those labels describe the domain model; they do not add fields to the current Asset contract.
 
-Content
-PulseStackAI engineering standards and best practices
+---
 
-Classification
-Technical Documentation
+# 9. Responsibilities and Boundaries
 
-Ownership
-Architecture Team
-```
+At the current contract level, Knowledge is responsible for providing a reusable AI Asset identity and descriptive representation of knowledge intent.
+
+Knowledge is not, merely by being a Knowledge Asset, a guarantee of:
+
+- retrieval
+- ranking
+- grounding
+- indexing
+- caching
+- a particular storage technology
+- a particular search provider
+
+Those concerns require separate implementation authority.
 
 ---
 
 # Summary
 
-The Knowledge Language defines a provider-independent vocabulary for expressing reusable business information.
+Knowledge retains a meaningful language-level identity: reusable knowledge and business-information intent.
 
-It separates business information from storage technologies, retrieval mechanisms, and runtime execution, allowing Knowledge Assets to remain portable, reusable, versioned, and composable.
+Its current public structural contract is:
 
-Knowledge answers one fundamental question:
+```text
+KnowledgeAssetOptions
+├── Name
+├── Description
+└── Tags[]
+```
 
-> **What business information is available to the application?**
+Domain, Subject, Content, Source, Freshness, Trust, Ownership, and related terms remain useful **design vocabulary**, not current Asset fields.
 
-Configuration determines where that information is implemented.
-
-The Runtime determines how that information is retrieved and delivered.
+Knowledge therefore provides a small implemented Asset contract while preserving a richer conceptual vocabulary for reasoning about knowledge-oriented application design.

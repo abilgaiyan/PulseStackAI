@@ -1,538 +1,277 @@
-> **Document Type:** Architecture
-> **Audience:** Contributors
-> **Status:** Draft
-> **Owner:** PulseStackAI Team
-> **Last Reviewed:** 2026-07-31
-
 # AI Asset Model
 
-> **Everything reusable is an AI Asset.**
+> **AI Assets are the declarative definitions that identify and compose reusable application capabilities in PulseStackAI.**
 
- ---
+This document describes the current public AI Asset architecture. It intentionally stays at the definition boundary: persistence, catalog mechanics, graph loading, realization, invocation, runtime execution, provider behavior, and unresolved language specifications are outside its scope.
 
-## Vision
+## What is an AI Asset?
 
-PulseStackAI is a Developer-Friendly AI Application Engineering Platform.
+An AI Asset is a declarative definition represented by the public `IAsset` contract and the concrete asset types built on it.
 
-Developers should build AI applications by composing reusable business capabilities rather than integrating low-level AI providers.
+Every asset exposes a common architectural surface:
 
-To achieve this, PulseStackAI introduces the concept of an **AI Asset**.
-
-An AI Asset is the fundamental building block of every AI application.
-
-> **Anything a developer can intentionally create and reuse is an AI Asset.**
-
-This principle serves as the foundation of the PulseStackAI Application Language.
-
-The goal of PulseStackAI is not to abstract AI providers. The goal is to enable developers to engineer AI-powered business applications using reusable AI Assets.
-
-Examples:
-
-CLR → Types
-SQL → Tables
-HTML → Elements
-PulseStackAI → AI Assets
-
----
-
-# Introduction
-
-The AI Asset Model defines the canonical domain model for PulseStackAI.
-
-Rather than treating workflows, agents, prompts, tools, providers, and knowledge as unrelated concepts, the Asset Model establishes a unified representation for every reusable AI capability within the platform.
-
-Every reusable capability is modeled as an **Asset**.
-
-An Asset represents a reusable, versioned, immutable definition that can be composed into AI-powered business applications.
-
-The Asset Model intentionally remains independent of runtime execution, infrastructure technologies, and provider implementations.
-
-Assets describe business capabilities.
-
-Configuration selects concrete implementations.
-
-Technology choices such as OpenAI, Azure OpenAI, Neo4j, Oracle, SQL Server, or Azure AI Search are configuration concerns rather than Asset definitions.
-
-An Asset should remain reusable regardless of how it is ultimately executed.
-
-It answers a single question:
-
-> **What reusable capabilities exist within PulseStackAI?**
-
-''' 
-
-            AI Asset
-
-      What capability exists?
-
-               │
-
-               ▼
-
-        Asset Configuration
-
- Which implementation is selected?
-
-               │
-
-               ▼
-
-         Runtime Execution
-
-   How is the capability executed?
-'''
-
----
-
-# Design Goals
-
-The AI Asset Model is designed to provide a consistent foundation for every reusable capability within the platform.
-
-Its goals are to:
-
-- Define a canonical representation for reusable AI assets.
-- Establish consistent identity and metadata.
-- Support composition between assets.
-- Enable portable serialization and packaging.
-- Remain independent of execution.
-- Remain independent of infrastructure providers.
-- Support long-term evolution of the platform.
-
----
-
-# Core Principles
-
-The AI Asset Model follows several fundamental principles.
-
-## Reusable by Design
-
-Anything a developer can intentionally create and reuse is modeled as an Asset.
-
-Execution state is never modeled as an Asset.
-
-Reusable capabilities are represented as Assets.
-
-Execution state is never modeled as an Asset.
-
----
-
-## Identity Before Implementation
-
-Every Asset has a stable identity independent of its implementation.
-
-Identity enables versioning, packaging, discovery, and reuse.
-
----
-
-## Composition over Duplication
-
-Applications are composed from reusable Assets rather than duplicated implementations.
-
----
-
-## Runtime Independence
-
-Assets describe capabilities.
-
-The Runtime executes those capabilities.
-
-Execution behavior never becomes part of the Asset Model.
-
----
-
-## Provider Independence
-
-Assets describe business intent rather than infrastructure.
-
-Providers remain configuration choices.
-
----
-
-## Immutable Versioning
-
-Published Assets are immutable.
-
-New behavior is introduced through new versions rather than mutation.
-
----
-
-## Portable by Design
-
-Assets can be serialized, packaged, exchanged, and executed across different environments without modification.
-
----
-
-## Configuration over Implementation
-
-Assets describe business capabilities.
-
-Configuration selects concrete implementations.
-
-Technology choices such as OpenAI, Azure OpenAI, Neo4j, Oracle, SQL Server, or Azure AI Search are configuration concerns rather than Asset definitions.
-
-An Asset remains reusable regardless of how it is implemented or executed.
-
----
-
-# AI Asset Taxonomy
-
-The Asset Model defines the primary reusable concepts of PulseStackAI.
-
+```text
+IAsset
+├── Id
+├── Urn
+├── Version
+├── Metadata
+├── Type
+├── Lifecycle
+├── References
+└── Dependencies
 ```
-Foundation
 
-Prompt
+Assets describe definitions. They are not workflow execution state, runtime contexts, realized applications, provider clients, or invocation results.
 
-Tool
+This definition/runtime separation is fundamental:
 
-Knowledge
+```text
+AI Asset Definition
+        │
+        ▼
+Persistent Asset Platform
+        │
+        ▼
+AIAssetGraph
+        │
+        ▼
+Application Realization
+        │
+        ▼
+Runtime Representation
+```
 
-Memory
+The later boundaries do not change what an AI Asset is. They store, resolve, compose, realize, or execute definitions according to their own contracts.
 
-Policy
+## Asset identity
 
-Model
+PulseStackAI distinguishes several identity-related values rather than treating an asset name as its persistence identity.
 
-────────────────
+An asset carries:
 
-Composition
+- `AssetId` — the asset identifier.
+- `AssetUrn` — the asset URN.
+- `AssetVersion` — the definition version.
+- `AssetType` — the asset kind.
 
-Agent
+For operations that must identify one immutable definition, the public contract uses `AssetDefinitionKey`:
 
-Workflow
+```csharp
+public readonly record struct AssetDefinitionKey(
+    AssetType Type,
+    AssetId Id,
+    AssetVersion Version);
+```
 
-────────────────
+An `AssetDefinitionKey` can be projected from either an `IAsset` or an `AssetReference`. The key therefore identifies a specific typed, versioned asset definition independently of its display metadata.
 
-Organization
+`AssetReference` carries the referenced asset's type, ID, URN, and version:
 
-Package
+```csharp
+public sealed record AssetReference(
+    AssetType Type,
+    AssetId Id,
+    AssetUrn Urn,
+    AssetVersion Version);
+```
 
+These contracts provide the identity vocabulary used by later persistence, resolution, graph-loading, and realization boundaries.
+
+## Current asset taxonomy
+
+The current public `AssetType` enumeration defines these asset kinds:
+
+```text
+Project
 Library
+Package
+Workflow
+Agent
+Prompt
+Tool
+Knowledge
+Memory
+Policy
+Provider
+Model
+```
 
+The presence of an asset kind establishes a declarative definition category. It does **not** imply that every asset kind has equivalent composition rules, realization behavior, or runtime capabilities.
+
+In particular, this architecture document does not assign additional behavior to Knowledge, Memory, Policy, Provider, or other asset types beyond what their current public contracts encode.
+
+## Common references and dependencies
+
+The base `Asset` contract exposes two general relationship collections:
+
+```csharp
+IReadOnlyCollection<AssetReference> References
+IReadOnlyCollection<AssetDependency> Dependencies
+```
+
+An `AssetDependency` contains an `AssetReference` and a `Required` flag.
+
+These common contracts allow an asset definition to identify related definitions. They should not be interpreted as a complete universal dependency grammar for every asset type. More specific relationships are encoded by individual asset contracts, and language-level rules remain the responsibility of reconciled specifications.
+
+## Current composition boundaries
+
+The following relationships are architectural facts encoded by current public asset options. They are examples of the current composition surface, not a claim that every valid application must have one universal shape.
+
+### Project
+
+`ProjectAssetOptions` represents one intelligent application and contains:
+
+```text
 Project
+├── EntryWorkflow : AssetReference
+└── OwnedAssets   : AssetReference[]
 ```
 
-Asset Categories
+The entry Workflow identifies the Workflow definition that serves as the application's execution entry point. `OwnedAssets` identifies definitions owned by the Project.
+
+A persisted Project's `AssetDefinitionKey` is also the root accepted by the integrated persisted-application operation described by the wider architecture.
+
+### Library
+
+`LibraryAssetOptions` represents a reusable collection of AI Asset definitions:
+
+```text
+Library
+└── Members : AssetReference[]
 ```
 
-                    AI Application
+A Library is therefore a grouping/composition definition. This document does not infer additional dependency or runtime semantics beyond its current member references.
 
-                           │
+### Package Asset
 
-                     AI Project
+`PackageAssetOptions` represents a distribution boundary:
 
-                           │
-
-                  AI Asset Library
-
-                           │
-
-                ┌──────────┼──────────┐
-
-            Atomic      Composite   Container
-
-                │            │           │
-
-            Prompt       Workflow     Project
-
-            Tool         Agent        Library
-
-            Policy       Package
-
-            Model
-
-            Knowledge
-
-            Memory
+```text
+Package Asset
+└── Members : AssetReference[]
 ```
 
-Each Asset contributes a reusable capability to the application.
+A Package Asset groups referenced AI Asset definitions at the application-definition level.
 
----
+A **Package Asset is not a NuGet package**. NuGet packages distribute PulseStackAI framework binaries to .NET consumers. The two concepts share a word but belong to different architectural concerns.
 
-## Common Characteristics
-Every Asset:
+### Workflow
 
-- Identity
-- Metadata
-- Version
-- Lifecycle
-- Composition
-- Configuration
-- Runtime Independence
-- Portability
+`WorkflowAssetOptions` represents a reusable declarative Workflow Asset:
 
-# Asset Identity
-
-Every Asset owns a globally unique identity.
-
-Identity remains stable throughout the Asset lifecycle.
-
-Identity includes:
-
-- Asset Identifier
-- Uniform Resource Name (URN)
-- Asset Version
-
-Identity exists independently of storage location or implementation.
-
----
-
-# Asset Metadata
-
-Metadata describes an Asset for humans without affecting its behavior.
-
-Examples include:
-
-- Name
-- Description
-- Author
-- Organization
-- Tags
-- Category
-- Documentation
-- License
-- Created
-- Updated
-
-Metadata supports discovery and governance while remaining execution-independent.
-
----
-
-# Asset Relationships
-
-Assets are intentionally composable.
-
-Relationships describe how reusable capabilities interact.
-
-Examples include:
-
-- Workflow contains Agents.
-- Agent uses Prompt.
-- Agent uses Knowledge.
-- Agent uses Tools.
-- Agent references a Provider.
-- Project contains Libraries.
-- Library contains Assets.
-- Package distributes Assets.
-
-Relationships describe composition rather than execution.
-
----
-
-# Asset Dependencies
-
-Assets may depend upon other Assets.
-
-Dependencies remain declarative.
-
-Examples include:
-
-- Agent depends on Prompt.
-- Workflow depends on Agent.
-- Project depends on Library.
-- Package depends on Asset.
-
-Infrastructure technologies are not modeled as dependencies.
-
-Instead, they are introduced through Asset Configuration.
-
----
-
-# Asset Lifecycle
-
-Every Asset progresses through a common lifecycle.
-
-```
-Draft
-
-↓
-
-Validated
-
-↓
-
-Published
-
-↓
-
-Deprecated
-
-↓
-
-Archived
+```text
+Workflow Asset
+├── Name
+├── Description
+└── WorkflowStepDefinition[]
 ```
 
-Execution never changes the lifecycle of an Asset.
+A Workflow Asset contains declarative workflow-step definitions. It is not the runtime `Workflow` object accepted by `IWorkflowRuntime`.
 
----
+The distinction is intentional:
 
-# AI Libraries and Projects
-
-Assets are organized into Libraries.
-
-Libraries are organized into Projects.
-
-```
-Project
-
-│
-
-├── Library
-
-│      ├── Agent
-
-│      ├── Prompt
-
-│      ├── Workflow
-
-│      └── Tool
-
-│
-
-└── Library
+```text
+WorkflowAsset
+    declarative definition
+          │
+          │ later realization
+          ▼
+Workflow
+    runtime representation
 ```
 
-Projects provide ownership.
+How workflow definitions are realized and executed belongs to the realization and workflow-runtime architecture, not to the AI Asset Model.
 
-Libraries provide organization.
+### Agent
 
-Assets provide reusable capabilities.
+`AgentDefinitionOptions` currently encodes explicit references to other definitions:
 
----
-
-# Relationship to the Runtime
-
-The AI Asset Model defines reusable capabilities.
-
-The Runtime realizes those capabilities through execution.
-
-```
-Assets
-
-↓
-
-Application Language
-
-↓
-
-Configuration
-
-↓
-
-Runtime
-
-↓
-
-Execution
+```text
+Agent
+├── Model?      : AssetReference
+├── Prompt?     : AssetReference
+├── Knowledge[] : AssetReference
+├── Tools[]     : AssetReference
+├── Memory?     : AssetReference
+└── Policies[]  : AssetReference
 ```
 
-The Runtime is responsible for:
+It also carries the agent's name, goal, role, and responsibilities.
 
-- Execution
-- Scheduling
-- Retry
-- Timeout
-- Provider Selection
-- Token Usage
-- Cost Tracking
-- Observability
-- Auditing
+This is a concrete example of asset composition encoded by the current public contract. It does not establish a general grammar for unrelated asset types.
 
-These concerns intentionally remain outside the Asset Model.
+### Model
 
----
+The current `ModelAssetOptions` contract contains:
 
-# Extensibility
+```csharp
+public sealed record ModelAssetOptions(
+    string Provider,
+    string Model);
+```
 
-New Asset types can be introduced without modifying the existing model.
+Accordingly, the current AI Asset architecture does not claim that every persisted asset definition is provider-independent. Broader language-design goals concerning provider independence remain outside this document until specification reconciliation establishes their authority.
 
-Examples include:
+## Definition roles versus runtime behavior
 
-- Plan
-- Approval Policy
-- Memory
-- Dataset
-- Evaluation
-- Connector
+AI Asset taxonomy and runtime capability are deliberately not symmetrical.
 
-Every new Asset inherits the same identity, metadata, lifecycle, and relationship model.
+For example:
 
----
+- Project, Library, and Package encode aggregate or grouping relationships through explicit references.
+- Workflow encodes declarative workflow-step definitions.
+- Agent encodes references to Model, Prompt, Knowledge, Tool, Memory, and Policy definitions.
+- Model currently records provider/model selection.
+- Other foundation asset types expose the definition data present in their own public contracts.
 
-# Future Evolution
+Nothing in this taxonomy alone guarantees that two asset kinds are realized, executed, persisted, or consumed in the same way.
 
-The AI Asset Model establishes the foundation for:
+That behavior belongs to the subsystem that owns the corresponding boundary.
 
-- PulseStackAI Application Language
-- AI Projects
-- Asset Registry
-- Package Repository
-- Visual Designer
-- Marketplace
-- Cross-platform Asset Exchange
+## Handoff to the persistent asset platform
 
----
+The AI Asset Model ends at declarative definitions and their encoded relationships.
 
-# Architectural Boundary
+The next architectural boundary is responsible for making those definitions durable, publishing them for resolution, and loading an aggregate graph rooted at a requested definition:
 
-The AI Asset Model defines reusable engineering artifacts.
+```text
+AI Asset Definition
+        │
+        ▼
+Persistent Asset Platform
+        │
+        ▼
+AIAssetGraph
+```
 
-The following concepts are intentionally **not** Assets:
+This document intentionally does not describe the mechanics of that platform. The AI Asset Model supplies the definitions and relationship information that the persistence and graph-loading architecture consumes.
 
-- Execution Context
-- Runtime State
-- Chat Messages
-- Provider Clients
-- Token Usage
-- Execution Results
+Likewise, `AIAssetGraph` is not an execution result. It is the handoff from the persisted-definition platform to application realization.
 
-These concepts belong to the Runtime rather than the Application Model.
+## Scope boundaries
 
----
+The AI Asset Model answers four questions:
 
-# The AI Application Engineering Stack
+1. What is an AI Asset?
+2. How is an asset definition identified?
+3. Which asset categories exist in the current public contract?
+4. Which reference and composition relationships are explicitly encoded by current asset contracts?
 
-PulseStackAI separates application engineering from runtime execution.
+It does not define:
 
-Developer
+- canonical serialization or storage mechanics;
+- catalog publication or resolution algorithms;
+- aggregate graph-loading rules;
+- application realization;
+- invocation or application-operation behavior;
+- workflow runtime execution;
+- provider execution behavior;
+- future semantics for Knowledge, Memory, Policy, or other asset types;
+- the normative grammar of the Application Language.
 
-↓
+Those subjects belong to their own architectural or specification authorities.
 
-AI Project
+## Related architecture
 
-↓
-
-AI Assets
-
-↓
-
-Application Language
-
-↓
-
-Asset Configuration
-
-↓
-
-Runtime
-
-↓
-
-Providers
-
----
-
-# Summary
-
-The AI Asset Model provides the canonical domain model for PulseStackAI.
-
-It defines what reusable capabilities exist, how they are identified, how they relate to one another, and how they evolve over time.
-
-By separating reusable Assets from runtime execution, PulseStackAI enables applications to remain portable, composable, versioned, and independent of implementation technologies.
-
-The AI Asset Model answers one fundamental question:
-
-> **What reusable capabilities exist?**
-
-Everything else belongs to the Application Language, Asset Configuration, or Runtime.
+The canonical architecture overview places the AI Asset Model between the Application Language and the Persistent Asset Platform. This document supplies the current asset-definition model required by that lifecycle while deliberately leaving specification reconciliation and downstream implementation details to their owning documentation boundaries.

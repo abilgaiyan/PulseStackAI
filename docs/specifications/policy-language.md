@@ -2,278 +2,228 @@
 > **Audience:** Contributors
 > **Status:** Draft
 > **Owner:** PulseStackAI Team
-> **Last Reviewed:** 2026-08-04
+> **Last Reviewed:** 2026-09-21
 
 # Policy Language Specification
 
-> **Policy defines the business rules and constraints an AI application must follow.**
+> **Policy represents reusable governance intent within an AI application.**
 
 ---
 
-# 1. Vision
+# 1. Domain Meaning
 
-The Policy Language defines the vocabulary used to describe reusable business governance within PulseStackAI.
+Policy is a reusable AI Asset for describing governance intent.
 
-Rather than treating policies as provider-specific safety settings, authorization frameworks, or runtime implementations, the Policy Language models policies as reusable engineering assets.
+The current source contract deliberately keeps that representation small. Concepts such as rules, constraints, conditions, scope, priority, exceptions, and compliance remain useful for reasoning about governance, but they are not automatically fields or persisted structure of a Policy Asset.
 
-A Policy represents business governance.
+This specification therefore distinguishes:
 
-The Runtime is responsible for evaluating, enforcing, auditing, and monitoring policies throughout the lifecycle of an AI application.
-
-The Policy Language therefore remains independent of:
-
-- Authorization frameworks
-- Security implementations
-- Runtime execution
-- Infrastructure technologies
-- AI providers
-
-This enables Policy Assets to remain reusable, portable, composable, and versioned across different AI platforms.
-
----
-
-# 2. What is a Policy?
-
-A Policy is a reusable AI Asset that defines the business rules and constraints an AI application must follow.
-
-A Policy defines governance rather than implementation.
-
-It describes:
-
-- what business rules apply
-- what constraints must be respected
-- when a rule should be enforced
-- who or what the rule applies to
-
-A Policy never describes:
-
-- how rules are enforced
-- where rules are executed
-- how authorization is implemented
-- how compliance is monitored
-
----
-
-# 3. Purpose
-
-The purpose of Policy is to ensure AI applications operate within defined business, regulatory, and organizational boundaries.
-
-Rather than embedding business rules directly into prompts, tools, or application code, developers create reusable Policy Assets that describe governance independently of implementation.
-
-Policies ensure that AI applications behave consistently, responsibly, and in accordance with organizational requirements.
-
-Examples include:
-
-- Financial Approval Rules
-- Data Privacy Policies
-- Security Policies
-- Compliance Requirements
-- Medical Safety Guidelines
-- Human Approval Policies
-- Document Retention Policies
-
----
-
-# 4. Vocabulary
-
-The Policy Language defines the following core vocabulary.
-
-| Concept | Description |
-|----------|-------------|
-| **Rule** | Business requirement that must be followed. |
-| **Constraint** | Limitation placed on application behavior. |
-| **Condition** | Circumstances under which a policy applies. |
-| **Scope** | Boundary where the policy is enforced. |
-| **Priority** | Relative importance when multiple policies exist. |
-| **Exception** | Approved deviation from a policy. |
-| **Compliance** | Business or regulatory obligation supported by the policy. |
-| **Responsibility** | Business owner accountable for the policy. |
-
-These concepts define the Policy Language independently of runtime implementation.
-
----
-
-# 5. Responsibilities
-
-Policy is responsible for:
-
-- defining reusable business rules
-- expressing governance requirements
-- defining business constraints
-- supporting regulatory compliance
-- enabling consistent application behavior
-- remaining independent of implementation
-
-Policy is not responsible for enforcement.
-
----
-
-# 6. What Policy is NOT
-
-Policy intentionally remains independent of runtime implementation.
-
-The following concepts do **not** belong to the Policy Language:
-
-- RBAC
-- ABAC
-- Authentication
-- Authorization
-- Access Tokens
-- Security Frameworks
-- Firewalls
-- Content Filters
-- AI Provider Safety Settings
-- Runtime Enforcement
-- Audit Logging
-
-Likewise, runtime operations such as:
-
-- Evaluate
-- Enforce
-- Allow
-- Deny
-- Audit
-- Monitor
-
-belong to the Runtime rather than the Policy Language.
-
----
-
-# 7. Policy Composition
-
-Policy may be described using multiple reusable language elements.
-
+```text
+Policy semantic identity
+        +
+current public Asset contract
+        +
+qualified design vocabulary
+        ≠
+invented implemented grammar
 ```
-Policy
+
+---
+
+# 2. Current Public Asset Contract
+
+The current public declarative contract is:
+
+```text
+PolicyAssetOptions
+├── Name
+├── Description
+└── Tags[]
+```
+
+**Name** identifies the reusable Policy Asset.
+
+**Description** states the governance intent represented by the Asset.
+
+**Tags** provide lightweight descriptive classification.
+
+These are the current Policy-specific public fields.
+
+Like other AI Assets, a Policy Asset also participates in the common Asset contract, including Asset identity, URN, version, metadata, lifecycle, and type. The Policy implementation projects Name, Description, and Tags into common Asset metadata and retains a normalized snapshot of its options.
+
+---
+
+# 3. Design Vocabulary
+
+The following concepts are useful for reasoning about the Policy domain:
+
+| Concept | Design meaning |
+|---|---|
+| **Rule** | Business requirement relevant to governance. |
+| **Constraint** | Limitation relevant to application behavior. |
+| **Condition** | Circumstance under which governance may apply. |
+| **Scope** | Conceptual boundary of applicability. |
+| **Priority** | Relative importance when reasoning about multiple policies. |
+| **Exception** | Conceptual approved deviation from a rule. |
+| **Compliance** | Business or regulatory obligation associated with governance. |
+| **Responsibility** | Business ownership or accountability for governance. |
+
+These terms are **design vocabulary**. Unless represented by the current public Asset contract, they do not define Policy Asset fields, required persisted structure, executable semantics, or guaranteed runtime capabilities.
+
+For example, `Rule`, `Condition`, `Scope`, and `Priority` are not properties of the current `PolicyAssetOptions` contract.
+
+---
+
+# 4. Purpose
+
+Policy Assets provide a reusable identity and description for governance concerns that participate in application composition.
+
+Useful policy-oriented design concerns may include:
+
+- financial approval rules
+- data privacy requirements
+- security governance
+- compliance requirements
+- human-review requirements
+- document-retention governance
+
+The current Asset can identify and describe such a concern. Richer policy vocabulary can be used in design discussions without implying that PulseStackAI currently stores or executes a structured policy grammar.
+
+---
+
+# 5. Conceptual Model
+
+A policy design may be reasoned about conceptually as:
+
+```text
+Policy concern
 
 ├── Rule
-
 ├── Constraint
-
 ├── Condition
-
 ├── Scope
-
 ├── Priority
-
 ├── Exception
-
 ├── Compliance
-
 └── Responsibility
 ```
 
-Each element contributes to the governance of the AI application while remaining independent of implementation.
+This diagram is a **conceptual model, not an object/property schema**.
+
+It does not mean that `PolicyAssetOptions` contains those properties, that they are serialized as Policy fields, or that every Policy Asset must provide them.
+
+The implemented structural contract remains:
+
+```text
+Name
+Description
+Tags
+```
 
 ---
 
-# 8. Configuration Boundary
+# 6. Implementation Independence
 
-Policy describes **what business rules** must be followed.
+A Policy Asset does not itself define an authorization, enforcement, or auditing implementation.
 
-Configuration describes **how those rules are implemented**.
+Technologies and mechanisms such as:
 
-Examples of configuration include:
-
-- Open Policy Agent
-- Authorization Providers
-- Identity Providers
 - RBAC
 - ABAC
-- Security Frameworks
-- Compliance Services
-- Audit Systems
+- identity providers
+- authorization frameworks
+- provider safety settings
+- content filters
+- policy engines
+- audit systems
 
-Configuration may change without requiring changes to the Policy Asset.
+may be relevant to systems that implement governance, but they are not current fields of the Policy Asset contract.
 
----
-
-# 9. Runtime Boundary
-
-The Runtime is responsible for realizing Policy.
-
-Its responsibilities include:
-
-- evaluating rules
-- enforcing constraints
-- authorizing actions
-- denying prohibited operations
-- auditing policy decisions
-- monitoring compliance
-- recording observability
-
-The Runtime enforces Policy.
-
-The Policy Asset defines the business rules the AI application must follow.
+The existence of a Policy Asset does not by itself establish enforcement or authorization behavior.
 
 ---
 
-# 10. Examples
+# 7. Runtime Considerations
 
-## Financial Approval Policy
+Policy-oriented applications may require downstream capabilities such as:
 
-```
-Rule
-Invoices above ₹100,000 require manager approval.
+- evaluation
+- enforcement
+- authorization
+- denial
+- auditing
+- monitoring
 
-Condition
-Invoice Amount > ₹100,000
+These are **possible runtime or integration concerns associated with policy-oriented applications**. This specification does not assert that PulseStackAI currently provides a Policy Runtime or guarantees those behaviors.
 
-Scope
-Invoice Approval Workflow
-
-Priority
-High
-```
+Any concrete runtime capability must be established by its own current source and architecture authority rather than inferred from the existence of a Policy Asset.
 
 ---
 
-## Data Privacy Policy
+# 8. Conceptual Examples
 
+The following examples illustrate design vocabulary only. They are **not constructible `PolicyAssetOptions` syntax**.
+
+## Financial Approval
+
+A design discussion might use:
+
+```text
+Rule            High-value invoices require manager approval
+Condition       Invoice amount exceeds a business threshold
+Scope           Invoice approval
+Priority        High
 ```
-Rule
-Personal information must never be disclosed.
 
-Constraint
-Mask sensitive data before responding.
+A current Policy Asset representing that concern would still use `Name`, `Description`, and optional `Tags`.
 
-Scope
-Customer Support Agent
+## Data Privacy
 
-Compliance
-Privacy Regulations
+A design discussion might use:
+
+```text
+Rule            Protect personal information
+Constraint      Avoid disclosure of sensitive data
+Scope           Customer-support interactions
+Compliance      Applicable privacy requirements
 ```
+
+Those labels describe governance design; they do not add fields or enforcement behavior to the current Asset contract.
 
 ---
 
-## Human Approval Policy
+# 9. Responsibilities and Boundaries
 
-```
-Rule
-Medical recommendations require human review.
+At the current contract level, Policy is responsible for providing a reusable AI Asset identity and descriptive representation of governance intent.
 
-Condition
-Diagnosis Confidence < 95%
+Policy is not, merely by being a Policy Asset, a guarantee of:
 
-Scope
-Medical Assistant
+- evaluation
+- enforcement
+- authorization
+- denial
+- auditing
+- monitoring
+- a particular security framework
+- a particular policy engine
 
-Priority
-Critical
-```
+Those concerns require separate implementation authority.
 
 ---
 
 # Summary
 
-The Policy Language defines a provider-independent vocabulary for expressing reusable business governance.
+Policy retains a meaningful language-level identity: reusable governance intent.
 
-It separates business rules from enforcement mechanisms, runtime implementations, and infrastructure technologies, allowing Policy Assets to remain portable, reusable, versioned, and composable.
+Its current public structural contract is:
 
-Policy answers one fundamental question:
+```text
+PolicyAssetOptions
+├── Name
+├── Description
+└── Tags[]
+```
 
-> **What business rules and constraints must the AI application follow?**
+Rule, Constraint, Condition, Scope, Priority, Exception, Compliance, Responsibility, and related terms remain useful **design vocabulary**, not current Asset fields.
 
-Configuration determines how those rules are implemented.
-
-The Runtime determines how those rules are evaluated, enforced, and monitored.
+Policy therefore provides a small implemented Asset contract while preserving a richer conceptual vocabulary for reasoning about governance-oriented application design.

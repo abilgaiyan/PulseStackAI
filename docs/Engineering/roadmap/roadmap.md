@@ -25,6 +25,12 @@ AI Asset Platform
     ↓
 Application Realization & Invocation
     ↓
+Integrated Application Operation
+    ↓
+External Framework Distribution
+    ↓
+External Reference-Application Proof
+    ↓
 Platform Capabilities
     ↓
 Ecosystem
@@ -302,7 +308,100 @@ Completed capabilities include:
 - invocation-private release-invariant diagnostics;
 - provider composition and whole-boundary conformance.
 
-MS-010.4 intentionally begins at `RealizedApplication`. A future persisted-Project → graph-load → realize → invoke coordinator would be an outer application-operation boundary and is not required for portable invocation closure.
+MS-010.4 intentionally begins at `RealizedApplication`. At MS-010.4 closure, persisted-Project → graph-load → realize → invoke coordination remained outside portable invocation. MS-011 subsequently delivered that outer application-operation boundary.
+
+---
+
+## ✅ MS-011 — Integrated Application Operation
+
+MS-011 closes the integrated consumer boundary over the persisted Project application lifecycle without replacing the existing graph-loading, realization, invocation, or workflow-runtime authorities.
+
+The delivered application operation is:
+
+```text
+persisted Project AssetDefinitionKey
+        ↓
+IApplicationOperation.ExecuteAsync(...)
+        ├── aggregate graph loading
+        ├── application realization
+        └── portable invocation
+                ↓
+IWorkflowRuntime
+        ↓
+ApplicationOperationResult
+```
+
+`IApplicationOperation` coordinates the already-established MS-009 and MS-010 capabilities. It does not introduce a second persistence model, realization engine, invocation engine, or workflow runtime.
+
+Integrated conformance proves the complete Project-key operation through `IAIAssetGraphLoader`, `IApplicationRealizer`, `IApplicationInvoker`, and `IWorkflowRuntime`, including the established failure, cancellation, provenance, and composition boundaries.
+
+---
+
+# Delivered Framework Distribution Capability
+
+After the application-operation boundary, PulseStackAI established deterministic development-package production and local NuGet-compatible distribution for external consumers.
+
+The delivered development path is:
+
+```text
+PulseStackAI source
+        ↓
+validated build / test
+        ↓
+deterministic package production
+        ↓
+verified immutable package set
+        ↓
+manifest + source SHA provenance
+        ↓
+local NuGet-compatible feed
+        ↓
+external consumer
+```
+
+Delivered capabilities include:
+
+- a defined framework package contract;
+- deterministic development-package production;
+- exact SHA-qualified immutable development-package identity;
+- verification of the expected package set before publication;
+- manifest and source-commit provenance;
+- local NuGet-compatible publication;
+- isolated external-consumer package-resolution conformance.
+
+This capability is framework software distribution. It is distinct from the declarative AI Asset `Package` concept and from the older Workflow Package subsystem.
+
+The delivered boundary does **not** claim completion of stable public releases, NuGet.org publication, remote/public-feed publication, CI/CD package publication, SourceLink or symbol publication, or the broader release-management lifecycle.
+
+---
+
+# External Reference-Application Proof
+
+MeridianWorks provides external reference evidence that the public framework capabilities compose from package consumption through real application execution.
+
+The proven external path is:
+
+```text
+PulseStackAI development packages
+        ↓
+public DI composition
+        ↓
+declarative Model → Prompt → Agent → Workflow → Project
+        ↓
+persist + publish
+        ↓
+Project aggregate loading
+        ↓
+IApplicationOperation
+        ↓
+Workflow / Agent Runtime
+        ↓
+provider integration
+        ↓
+business-readable application result
+```
+
+MeridianWorks is external conformance/reference evidence. It is not a PulseStackAI framework dependency, architectural authority, or retrospectively numbered PulseStackAI milestone.
 
 ---
 
@@ -342,7 +441,19 @@ The following capabilities should evolve as focused runtime/platform tracks rath
 
 - MS-INFRA-001 — CI/CD
 - MS-INFRA-002 — Benchmark Suite
-- MS-INFRA-003 — Packaging & Release
+- **Development-package production and local distribution — delivered**
+  - deterministic package production
+  - exact SHA-qualified immutable development-package identity
+  - verified package-set publication
+  - manifest and source provenance
+  - local NuGet-compatible feed
+  - external package-consumer conformance
+- **Public/stable Packaging & Release — future**
+  - stable public package publication
+  - NuGet.org / remote-feed publication
+  - CI/CD package publication
+  - SourceLink / symbol publication
+  - broader release-management automation
 
 ---
 
@@ -368,22 +479,26 @@ AI Application Language
 AI Asset Model
         │
         ▼
-Persistence / Aggregate Loading
+Persisted Project
         │
         ▼
-Application Realization
+IApplicationOperation
         │
-        ▼
-Portable Invocation
-        │
-        ▼
-Execution Runtime
-        │
-        ▼
-Provider Infrastructure
+        ├── Aggregate Graph Loading
+        ├── Application Realization
+        └── Portable Invocation
+                    │
+                    ▼
+        Workflow / Agent Runtime
+                    │
+                    ▼
+        Provider Integration
+                    │
+                    ▼
+        ApplicationOperationResult
 ```
 
-The long-term goal is to keep business intent stable while providers, models, databases, protocols, and execution infrastructure evolve independently.
+The long-term goal is to keep business intent stable while provider integration, models, databases, protocols, and execution infrastructure can evolve behind explicit framework boundaries. A current Model Asset may explicitly select its `Provider` and `Model`; provider isolation does not mean those choices are absent from the declarative contract.
 
 ---
 
@@ -396,16 +511,16 @@ Every milestone should make the platform:
 - more reusable
 - more observable
 - more resilient
-- more provider-independent
+- better isolated from provider-specific runtime and infrastructure concerns
 
 Technology will continue to evolve.
 
 Business intent changes much more slowly.
 
-PulseStackAI is designed to keep those worlds independent.
+PulseStackAI is designed to keep business intent and framework/runtime infrastructure separated by explicit contracts, while allowing declarative Assets such as Model to carry the provider/model selections they own.
 
 ---
 
 # Guiding Principle
 
-> **Describe the intent. Compose the capabilities. Let the runtime realize and invoke the application.**
+> **Describe the intent. Persist the application. Execute it through the integrated application-operation boundary.**

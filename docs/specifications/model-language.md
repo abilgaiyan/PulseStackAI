@@ -2,283 +2,197 @@
 > **Audience:** Contributors
 > **Status:** Draft
 > **Owner:** PulseStackAI Team
-> **Last Reviewed:** 2026-08-04
+> **Last Reviewed:** 2026-09-21
 
 # Model Language Specification
 
-> **Model defines the intelligence required by an AI application.**
+> **A Model identifies the provider and model implementation that supplies intelligence to an AI application.**
 
 ---
 
 # 1. Vision
 
-The Model Language defines the vocabulary used to describe reusable intelligence within PulseStackAI.
+The Model Language defines the declarative Model Asset contract used by PulseStackAI applications.
 
-Rather than treating models as provider-specific implementations such as GPT, Claude, Gemini, or Llama, the Model Language models intelligence as a reusable engineering asset.
+A Model Asset identifies the AI provider and concrete model that an application intends to use. It is an application definition, not an inference client or runtime execution object.
 
-A Model represents application intelligence.
+The Model Language therefore separates:
 
-The Runtime is responsible for selecting, configuring, invoking, and managing concrete model implementations.
+- declarative provider/model selection
+- provider integration and credentials
+- runtime inference and execution
 
-The Model Language therefore remains independent of:
-
-- AI providers
-- Model implementations
-- Runtime execution
-- Infrastructure technologies
-
-This enables Model Assets to remain reusable, portable, composable, and versioned across different AI platforms.
+This keeps model selection explicit in the persisted application definition while leaving provider implementation and execution concerns outside the Model Asset.
 
 ---
 
 # 2. What is a Model?
 
-A Model is a reusable AI Asset that defines the intelligence required by an AI application.
+A Model is a reusable AI Asset whose public declarative options are:
 
-A Model defines intelligence rather than implementation.
+```text
+ModelAssetOptions
+├── Provider
+└── Model
+```
 
-It describes:
+**Provider** identifies the provider integration selected by the application.
 
-- what kind of intelligence is required
-- what cognitive capabilities are expected
-- what reasoning abilities are needed
-- what AI functions should be available
+**Model** identifies the provider model selected by the application.
 
-A Model never describes:
+Both values are part of the Model Asset definition.
 
-- which provider supplies the intelligence
-- which model implementation is used
-- how inference is performed
-- how responses are generated
+A Model does not itself:
+
+- create provider clients
+- hold provider credentials
+- invoke inference
+- stream responses
+- collect usage
+- execute application workflows
+
+Those responsibilities belong to provider integrations and runtime execution boundaries.
 
 ---
 
 # 3. Purpose
 
-The purpose of a Model is to describe the intelligence required by AI applications independently of any specific implementation.
+The purpose of a Model Asset is to make provider/model selection an explicit, reusable part of an AI application definition.
 
-Rather than coupling applications to provider-specific models, developers define reusable Model Assets that express the intelligence needed to solve business problems.
+For example, an application may declare a Model Asset that identifies:
 
-Examples include:
+```text
+Provider
+OpenRouter
 
-- General Reasoning
-- Code Generation
-- Document Analysis
-- Image Understanding
-- Speech Recognition
-- Planning
-- Classification
-- Content Generation
+Model
+deepseek/deepseek-chat-v3-0324
+```
 
-Model Assets allow applications to evolve independently from underlying AI technologies.
+The Model Asset records that selection. Provider registration, credentials, client construction, request execution, and response handling remain separate concerns.
 
 ---
 
 # 4. Vocabulary
 
-The Model Language defines the following core vocabulary.
+The current Model Language has two normative configuration values.
 
 | Concept | Description |
 |----------|-------------|
-| **Intelligence** | Primary cognitive capability required by the application. |
-| **Reasoning** | Ability to analyze, infer, and solve problems. |
-| **Language** | Ability to understand and generate natural language. |
-| **Vision** | Ability to interpret visual information. |
-| **Speech** | Ability to understand or generate spoken language. |
-| **Planning** | Ability to decompose and organize complex tasks. |
-| **Generation** | Ability to create new content. |
-| **Classification** | Ability to categorize or identify information. |
+| **Provider** | Provider integration selected for the Model Asset. |
+| **Model** | Provider model identifier selected for the Model Asset. |
 
-These concepts define the Model Language independently of implementation technologies.
+Other concepts such as reasoning capability, vision, speech, planning, generation, classification, temperature, token limits, and context windows are not currently fields of the public `ModelAssetOptions` contract.
+
+They may be useful architectural or application concepts, but this specification does not define them as current Model Asset language elements.
 
 ---
 
 # 5. Responsibilities
 
-Model is responsible for:
+A Model Asset is responsible for:
 
-- defining application intelligence
-- describing cognitive capabilities
-- expressing reasoning requirements
-- remaining independent of providers
-- remaining portable across environments
-- supporting reusable application design
+- declaring the selected provider
+- declaring the selected provider model
+- participating as a reusable AI Asset in application composition
+- carrying stable AI Asset identity, version, metadata, and lifecycle through the common Asset contract
 
-Model is not responsible for inference or execution.
+A Model Asset is not responsible for:
 
----
-
-# 6. What a Model is NOT
-
-Model intentionally remains independent of runtime implementation.
-
-The following concepts do **not** belong to the Model Language:
-
-- GPT
-- Claude
-- Gemini
-- Llama
-- Phi
-- Mistral
-- Transformer
-- Neural Network
-- Parameters
-- Training
-- Fine-tuning
-- Embeddings
-- Context Window
-- Temperature
-- Top P
-- Max Tokens
-
-Likewise, runtime operations such as:
-
-- Inference
-- Token Generation
-- Streaming
-- Sampling
-- Response Generation
-
-belong to the Runtime rather than the Model Language.
+- provider credentials
+- provider client construction
+- inference execution
+- streaming
+- sampling
+- response generation
+- usage or cost collection
 
 ---
 
-# 7. Model Composition
+# 6. Provider Boundary
 
-A Model may be described using multiple reusable language elements.
+Provider selection is part of the Model Asset contract.
 
-```
-Model
+Provider implementation is not.
 
-├── Intelligence
-
-├── Reasoning
-
-├── Language
-
-├── Vision
-
-├── Speech
-
-├── Planning
-
-├── Generation
-
-└── Classification
+```text
+ModelAsset
+    Provider + Model
+        ↓
+application realization / runtime use
+        ↓
+configured provider integration
+        ↓
+provider execution
 ```
 
-Each element contributes to the intelligence of the AI application while remaining independent of implementation.
+The Model Asset identifies what provider/model pair the application selects. The configured provider integration owns communication with that provider.
+
+Changing `Provider` or `Model` changes the Model Asset definition; changing credentials, endpoints, client lifetime, or provider-service registration does not redefine the Model Language.
 
 ---
 
-# 8. Configuration Boundary
+# 7. Runtime Boundary
 
-Model describes **what intelligence** the application requires.
+The Model Asset is declarative and does not execute itself.
 
-Configuration describes **how that intelligence is implemented**.
+Runtime and provider-specific responsibilities may include:
 
-Examples of configuration include:
+- resolving the configured provider integration
+- constructing or obtaining provider clients
+- invoking the selected model
+- handling provider requests and responses
+- applying execution-specific options
+- collecting execution results
 
-- OpenAI
-- Azure OpenAI
-- Anthropic
-- Google Gemini
-- Ollama
-- Hugging Face
-- Model Versions
-- Provider Credentials
-
-Configuration may change without requiring changes to the Model Asset.
+Those responsibilities must not be inferred as fields of the Model Asset merely because they participate in model execution.
 
 ---
 
-# 9. Runtime Boundary
+# 8. Composition
 
-The Runtime is responsible for realizing the Model.
+Other AI Assets may reference a Model Asset as part of application composition.
 
-Its responsibilities include:
+For example, an Agent can reference a Model Asset through its declarative Agent contract. That relationship does not transfer provider execution responsibilities into the Agent or Model Asset.
 
-- selecting implementations
-- invoking inference
-- managing execution
-- handling streaming
-- collecting usage
-- tracking costs
-- monitoring performance
-- recording observability
-
-The Runtime realizes intelligence.
-
-The Model Asset defines the intelligence required by the AI application.
+The Model remains the declarative provider/model selection used by the composed application.
 
 ---
 
-# 10. Examples
+# 9. Example
 
-## General Assistant
-
-```
-Intelligence
-General Reasoning
-
-Language
-Natural Language Understanding
-
-Generation
-Text Generation
-
-Planning
-Task Planning
+```csharp
+var options = new ModelAssetOptions(
+    Provider: "OpenRouter",
+    Model: "deepseek/deepseek-chat-v3-0324");
 ```
 
----
+Conceptually:
 
-## Architecture Reviewer
-
-```
-Intelligence
-Technical Reasoning
-
-Language
-Technical Documentation
-
-Generation
-Architecture Recommendations
-
-Classification
-Design Quality Assessment
+```text
+Model Asset
+├── Provider: OpenRouter
+└── Model: deepseek/deepseek-chat-v3-0324
 ```
 
----
-
-## Document Intelligence
-
-```
-Intelligence
-Document Analysis
-
-Vision
-Document Understanding
-
-Classification
-Document Type Recognition
-
-Generation
-Structured Extraction
-```
+This example describes the public Model Asset options. It does not configure credentials or execute inference.
 
 ---
 
 # Summary
 
-The Model Language defines a provider-independent vocabulary for expressing reusable application intelligence.
+The Model Language defines the declarative provider/model selection used by a PulseStackAI application.
 
-It separates intelligence requirements from provider implementations, runtime execution, and infrastructure technologies, allowing Model Assets to remain portable, reusable, versioned, and composable.
+Its current public contract is:
 
-Model answers one fundamental question:
+```text
+ModelAssetOptions(Provider, Model)
+```
 
-> **What intelligence is required by the AI application?**
+Model therefore answers:
 
-Configuration determines how that intelligence is implemented.
+> **Which provider and model implementation does this application definition select?**
 
-The Runtime determines how that intelligence is realized through concrete AI providers.
+Provider integrations determine how that selection is connected to an external AI provider.
+
+Runtime execution determines when and how the selected model is invoked.

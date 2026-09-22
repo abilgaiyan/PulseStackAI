@@ -2,315 +2,203 @@
 > **Audience:** Contributors
 > **Status:** Draft
 > **Owner:** PulseStackAI Team
-> **Last Reviewed:** 2026-08-05
+> **Last Reviewed:** 2026-09-21
 
 # Agent Language Specification
 
-> **An Agent composes the Foundation Assets to accomplish a business goal.**
+> **An Agent is a reusable business worker that composes referenced AI Assets around a business goal and role.**
 
 ---
 
-# 1. Vision
+# 1. Domain Meaning
 
-The Agent Language defines the vocabulary used to describe reusable AI workers within PulseStackAI.
+The Agent Language defines the declarative contract for reusable Agent Assets within PulseStackAI.
 
-Rather than treating agents as provider-specific assistants, chat sessions, or runtime processes, the Agent Language models agents as reusable engineering assets.
+An Agent represents a business worker. Unlike language concepts whose current Asset contracts are primarily descriptive, Agent has a substantial implemented composition contract: its goal, role, responsibilities, and referenced Model, Prompt, Knowledge, Tools, Memory, and Policies are current public structure.
 
-An Agent represents a business worker.
-
-It composes the Foundation Assets to accomplish a specific business objective.
-
-The Runtime is responsible for orchestrating, executing, monitoring, and coordinating Agent execution.
-
-The Agent Language therefore remains independent of:
-
-- AI providers
-- Runtime execution
-- Infrastructure technologies
-- Orchestration strategies
-
-This enables Agent Assets to remain reusable, portable, composable, and versioned across different AI platforms.
+Agent definition remains distinct from Agent execution.
 
 ---
 
-# 2. What is an Agent?
+# 2. Current Public Asset Contract
 
-An Agent is a reusable composite AI Asset that composes the Foundation Assets to accomplish a business goal.
+The current public declarative contract is:
 
-An Agent defines collaboration rather than execution.
+```text
+AgentDefinitionOptions
+├── Name
+├── Goal
+├── Role
+├── Responsibilities[]
+├── Model?
+├── Prompt?
+├── Knowledge[]
+├── Tools[]
+├── Memory?
+└── Policies[]
+```
 
-It describes:
+**Name** identifies the Agent business capability.
 
-- what business goal should be achieved
-- what communication should occur
-- what business information is required
-- what business context should be retained
-- what business rules must be followed
-- what business capabilities are available
-- what intelligence is required
+**Goal** states the business objective the Agent is responsible for accomplishing.
 
-An Agent never describes:
+**Role** states the business role performed by the Agent.
 
-- how execution occurs
-- how planning is performed
-- how tools are invoked
-- how providers are selected
-- how orchestration is implemented
+**Responsibilities** records business responsibilities owned by the Agent.
+
+The remaining fields are explicit references to other AI Assets.
+
+`AgentDefinition` normalizes collection values and projects its Model, Prompt, Knowledge, Tools, Memory, and Policy references into the Agent's common `References` collection.
 
 ---
 
-# 3. Purpose
+# 3. Composition Authority
 
-The purpose of an Agent is to provide a reusable unit of intelligent business work.
+The following composition is current structural authority:
 
-Rather than embedding prompts, tools, knowledge, memory, policies, and model selection directly into applications, developers compose these reusable Foundation Assets into a single reusable Agent.
+```text
+Agent
+├── Model?
+├── Prompt?
+├── Knowledge[]
+├── Tools[]
+├── Memory?
+└── Policies[]
+```
 
-An Agent represents a business responsibility.
+These relationships are not merely conceptual design vocabulary. They are represented directly by `AgentDefinitionOptions`.
 
-Examples include:
+An Agent may therefore compose:
 
-- Customer Support Agent
-- Invoice Approval Agent
-- Code Review Agent
-- Architecture Advisor
-- Research Assistant
-- Document Analysis Agent
-- Financial Review Agent
+- one optional Model Asset
+- one optional Prompt Asset
+- zero or more Knowledge Assets
+- zero or more Tool Assets
+- one optional Memory Asset
+- zero or more Policy Assets
 
-An Agent is the fundamental work unit of an AI Workflow.
+The collected references are de-duplicated in the Agent definition.
 
 ---
 
 # 4. Vocabulary
 
-The Agent Language defines the following core vocabulary.
+The following terms are source-backed Agent language:
 
-| Concept | Description |
-|----------|-------------|
-| **Goal** | Business objective the Agent is responsible for achieving. |
-| **Role** | Business responsibility performed by the Agent. |
-| **Responsibility** | Business capability owned by the Agent. |
-| **Collaboration** | Composition of Foundation Assets working together. |
-| **Composition** | Assembly of reusable AI Assets into a cohesive Agent. |
+| Concept | Current meaning |
+|---|---|
+| **Goal** | Business objective represented by the `Goal` field. |
+| **Role** | Business role represented by the `Role` field. |
+| **Responsibility** | Business responsibility represented in `Responsibilities`. |
+| **Composition** | Explicit Asset references represented by the Agent contract. |
 
-These concepts define the Agent Language independently of runtime execution.
+Broader ideas such as planning, reflection, adaptation, autonomy, scheduling, and multi-Agent coordination are not fields or guaranteed semantics of the current Agent Asset contract.
 
 ---
 
-# 5. Responsibilities
+# 5. Provider Boundary
 
-An Agent is responsible for:
+Agent does not contain a provider-selection field.
 
-- defining a reusable business worker
-- composing Foundation Assets
-- expressing a business goal
-- encapsulating business responsibilities
-- remaining reusable across applications
-- remaining independent of execution
+However, an Agent may explicitly reference a Model Asset, and the current Model Asset contract contains its own `Provider` and `Model` selection.
 
-An Agent is not responsible for orchestration or runtime behavior.
+Therefore:
+
+```text
+Agent
+    references Model Asset
+        ↓
+Model Asset
+    Provider + Model
+```
+
+Provider selection is not duplicated as Agent structure, but neither is it independent of the composed application definition.
+
+Provider clients, credentials, endpoints, and provider execution remain outside the Agent Asset contract.
 
 ---
 
 # 6. What an Agent is NOT
 
-An Agent intentionally remains independent of runtime implementation.
+The existence of an Agent Asset does not itself establish:
 
-The following concepts do **not** belong to the Agent Language:
+- an Agent loop
+- planning
+- observation or reflection
+- autonomous adaptation
+- scheduling
+- retry or timeout policy
+- multi-Agent coordination
+- provider client behavior
+- runtime telemetry or cost accounting
 
-- Agent Loop
-- Planning
-- Execution
-- Observation
-- Reflection
-- Adaptation
-- Autonomy
-- Multi-Agent Coordination
-- Scheduling
-- Retry
-- Timeout
-- Provider Selection
-
-Likewise, provider-specific concepts such as:
-
-- Chat Sessions
-- Assistants API
-- Threads
-- MCP Sessions
-- Provider Clients
-
-are runtime or configuration concerns rather than Agent Language constructs.
+Those capabilities require their own current source and architecture authority.
 
 ---
 
-# 7. Agent Composition
+# 7. Runtime Boundary
 
-An Agent is composed from the Foundation Language.
+Agent definition and Agent execution are separate concerns.
 
-```
-Agent
+An Agent-oriented runtime may use the Agent's goal, role, responsibilities, and referenced Assets when executing work. This specification does not, by itself, guarantee planning, tool invocation, knowledge retrieval, memory management, policy enforcement, model-selection algorithms, telemetry, or cost tracking.
 
-├── Prompt
-│      Communication
-│
-├── Tool
-│      Capability
-│
-├── Knowledge
-│      Information
-│
-├── Memory
-│      Context
-│
-├── Policy
-│      Governance
-│
-└── Model
-       Intelligence
-```
-
-Each Foundation Asset contributes exactly one responsibility to the Agent.
-
-Together they form a reusable business worker capable of accomplishing a business goal.
+Any concrete Agent execution semantics must be established by the current runtime contracts and architecture rather than inferred from Agent composition.
 
 ---
 
-# 8. Configuration Boundary
+# 8. Example
 
-An Agent describes **what business work** should be accomplished.
+Conceptually, an Agent definition may contain:
 
-Configuration describes **how the Agent is implemented**.
+```text
+Name              Architecture Advisor
+Goal              Review software architecture
+Role              Architecture reviewer
+Responsibilities  Review design boundaries
 
-Examples of configuration include:
+Prompt            Architecture Review Prompt
+Knowledge         Engineering Standards
+Memory            Project Context
+Policies          Architecture Governance
+Tools             Repository Analysis
+Model             Technical Model
+```
 
-- Provider Selection
-- Model Mapping
-- Tool Implementations
-- Memory Providers
-- Knowledge Sources
-- Authorization Services
-- Runtime Options
-
-Configuration may change without requiring changes to the Agent Asset.
+Unlike purely conceptual vocabulary examples, the categories above correspond to fields in the current `AgentDefinitionOptions` contract. The example does not imply runtime behavior for the referenced Assets.
 
 ---
 
-# 9. Runtime Boundary
+# 9. Responsibilities and Boundaries
 
-The Runtime is responsible for realizing the Agent.
+At the current contract level, Agent is responsible for:
 
-Its responsibilities include:
+- identifying a reusable business worker
+- expressing its goal and role
+- recording business responsibilities
+- composing the supported referenced AI Assets
+- participating in the common AI Asset identity and lifecycle model
 
-- planning execution
-- orchestrating Foundation Assets
-- invoking tools
-- retrieving knowledge
-- managing memory
-- evaluating policies
-- selecting models
-- observing results
-- collecting telemetry
-- tracking usage and cost
-
-The Runtime executes the Agent.
-
-The Agent Asset defines the business worker.
-
----
-
-# 10. Examples
-
-## Customer Support Agent
-
-```
-Goal
-Resolve customer questions.
-
-Prompt
-Customer Support Prompt
-
-Knowledge
-Product Documentation
-
-Memory
-Conversation Context
-
-Policy
-Customer Privacy Policy
-
-Tool
-Customer Lookup
-
-Model
-General Reasoning
-```
-
----
-
-## Architecture Advisor
-
-```
-Goal
-Review software architecture.
-
-Prompt
-Architecture Review Prompt
-
-Knowledge
-Engineering Standards
-
-Memory
-Project Context
-
-Policy
-Architecture Governance
-
-Tool
-Repository Analysis
-
-Model
-Technical Reasoning
-```
-
----
-
-## Invoice Approval Agent
-
-```
-Goal
-Review purchase invoices.
-
-Prompt
-Invoice Review Prompt
-
-Knowledge
-Financial Policies
-
-Memory
-Approval Workflow Context
-
-Policy
-Approval Rules
-
-Tool
-ERP Invoice Lookup
-
-Model
-Business Reasoning
-```
+Agent is not, merely by being an Agent Asset, a guarantee of a particular orchestration or execution strategy.
 
 ---
 
 # Summary
 
-The Agent Language defines a provider-independent vocabulary for expressing reusable intelligent business workers.
+Agent has genuine implemented structural authority.
 
-It composes the Foundation Assets into a cohesive unit capable of accomplishing business goals while remaining independent of runtime execution, provider implementations, and infrastructure technologies.
+Its current contract includes business semantics and explicit Asset composition:
 
-An Agent answers one fundamental question:
+```text
+Name
+Goal
+Role
+Responsibilities[]
+Model?
+Prompt?
+Knowledge[]
+Tools[]
+Memory?
+Policies[]
+```
 
-> **How do the Foundation Assets collaborate to accomplish a business goal?**
-
-Configuration determines how the Agent is implemented.
-
-The Runtime determines how the Agent is orchestrated and executed.
+Runtime execution remains a separate authority. The Agent specification therefore preserves its real composition contract without deriving additional orchestration or provider behavior from it.

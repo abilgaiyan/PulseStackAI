@@ -1,5 +1,14 @@
 # Workflow Language Status
 
+> **Historical status notice**
+>
+> This document is a point-in-time Workflow Language design and implementation checkpoint. It is preserved as an engineering-history snapshot and is not the current authority for Workflow language, authoring, model, or runtime behavior.
+>
+> Terms such as "current", "status", "current milestone", and "next milestone" refer to the repository state when this checkpoint was written.
+>
+> For current documentation, see [Workflow Language](workflow-language.md), [Workflow Model](workflow-model.md), [Workflow Language Grammar](../guides/workflow-language/grammar.md), and [Workflow Runtime](workflow-runtime.md).
+
+
 **Project:** PulseStackAI  
 **Status:** Phase 1 Complete – Workflow Foundation Established
 

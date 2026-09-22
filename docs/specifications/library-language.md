@@ -2,234 +2,144 @@
 > **Audience:** Contributors
 > **Status:** Draft
 > **Owner:** PulseStackAI Team
-> **Last Reviewed:** 2026-08-05
+> **Last Reviewed:** 2026-09-21
 
 # Library Language Specification
 
-> **Library organizes reusable AI Assets for discovery and reuse.**
+> **A Library is one flat reusable collection of AI Asset definitions.**
 
 ---
 
-# 1. Vision
+# 1. Domain Meaning
 
-The Library Language defines the vocabulary used to organize reusable AI Assets within PulseStackAI.
+Library is a reusable AI Asset that groups related AI Asset definitions.
 
-Rather than treating libraries as storage locations or deployment artifacts, the Library Language models libraries as reusable engineering assets.
+Its current contract has genuine membership structure. Library membership is not merely conceptual vocabulary: `LibraryAssetOptions.Members` and the Library reference projection define and validate the collection.
 
-A Library represents the organizational boundary for related AI Assets.
-
-It provides a logical structure that enables developers to discover, understand, and reuse AI capabilities across applications.
-
-The Library Language therefore remains independent of:
-
-- Storage technologies
-- Package repositories
-- Deployment mechanisms
-- Runtime execution
-- Infrastructure providers
-
-This enables Libraries to remain reusable, portable, composable, and versioned across different environments.
+Library remains distinct from storage, package distribution, deployment, and runtime execution.
 
 ---
 
-# 2. What is a Library?
+# 2. Current Public Asset Contract
 
-A Library is a reusable AI Asset that organizes related AI Assets for discovery and reuse.
+The current public declarative contract is:
 
-A Library defines organization rather than distribution or execution.
-
-It describes:
-
-- which AI Assets belong together
-- how assets are logically organized
-- how developers discover reusable capabilities
-- how assets are grouped within a business domain
-
-A Library never describes:
-
-- how assets execute
-- how assets are packaged
-- where assets are stored
-- how assets are deployed
-
----
-
-# 3. Purpose
-
-The purpose of a Library is to provide a reusable organizational boundary for AI Assets.
-
-Rather than managing individual Prompts, Tools, Knowledge Assets, Agents, or Workflows independently, developers organize related assets into cohesive libraries that represent a business domain or capability.
-
-Libraries promote:
-
-- discoverability
-- organization
-- reuse
-- consistency
-- modular application design
-
-Examples include:
-
-- Customer Service Library
-- Financial Operations Library
-- Healthcare Library
-- Engineering Library
-- Human Resources Library
-
-A Library is the fundamental organizational unit of the PulseStackAI ecosystem.
-
----
-
-# 4. Vocabulary
-
-The Library Language defines the following core vocabulary.
-
-| Concept | Description |
-|----------|-------------|
-| **Collection** | Group of related AI Assets. |
-| **Category** | Logical classification of assets. |
-| **Namespace** | Organizational boundary for assets. |
-| **Domain** | Business capability represented by the library. |
-| **Catalog** | Discoverable inventory of reusable assets. |
-| **Reference** | Relationship to assets within the library. |
-
-These concepts define the Library Language independently of storage technologies.
-
----
-
-# 5. Responsibilities
-
-A Library is responsible for:
-
-- organizing related AI Assets
-- enabling asset discovery
-- promoting reuse
-- representing business domains
-- supporting modular application design
-- remaining independent of storage and execution
-
-A Library is not responsible for distribution or runtime execution.
-
----
-
-# 6. What a Library is NOT
-
-A Library intentionally remains independent of runtime implementation.
-
-The following concepts do **not** belong to the Library Language:
-
-- Package Repository
-- File System
-- Database
-- Cloud Storage
-- Deployment
-- Installation
-- Package Feed
-- Runtime Execution
-- Provider Configuration
-
-Likewise, runtime operations such as:
-
-- Load
-- Execute
-- Install
-- Restore
-- Cache
-- Publish
-
-belong to the Runtime rather than the Library Language.
-
----
-
-# 7. Library Composition
-
-A Library organizes one or more related AI Assets.
-
+```text
+LibraryAssetOptions
+├── Name
+├── Description
+└── Members[]
 ```
+
+**Name** identifies the Library.
+
+**Description** describes the reusable collection.
+
+**Members** contains the Library's direct member Asset references.
+
+`LibraryAsset` normalizes the member collection, projects valid members into its common `References` collection, and may also carry external `AssetDependency` entries through the common Asset dependency model.
+
+---
+
+# 3. Membership Authority
+
+A Library is a **flat** reusable collection.
+
+The current direct member types are:
+
+```text
 Library
-
-├── Prompt
-
-├── Tool
-
-├── Knowledge
-
-├── Memory
-
-├── Policy
-
-├── Model
-
+├── Workflow
 ├── Agent
-
-└── Workflow
+├── Prompt
+├── Tool
+├── Knowledge
+├── Memory
+├── Policy
+└── Model
 ```
 
-A Library represents a business capability or domain by organizing related reusable AI Assets.
+This list represents allowed direct member types. It does not require every Library to contain every type.
 
-Libraries may later be packaged and distributed without changing their logical organization.
+The Library reference projection enforces:
+
+- only the supported member Asset types are accepted
+- duplicate member definition keys are rejected
+- the same definition key with conflicting URNs is rejected
+
+Library membership and external dependency classification are also exclusive:
+
+```text
+Members ∩ ExternalDependencies = ∅
+```
+
+A member cannot simultaneously be declared as an external dependency of the same Library.
 
 ---
 
-# 8. Configuration Boundary
+# 4. Design Vocabulary
 
-A Library describes **how AI Assets are logically organized**.
+Concepts such as:
 
-Configuration describes **where the Library is stored or managed**.
+- Collection
+- Category
+- Namespace
+- Domain
+- Catalog
+- Discovery
 
-Examples of configuration include:
+can be useful when reasoning about how reusable Assets are organized.
 
-- Local Workspace
-- Git Repository
-- Cloud Repository
-- Asset Registry
-- Enterprise Catalog
+Only the concepts represented by the current public contract and membership projection are structural Library authority.
 
-Configuration may change without requiring changes to the Library Asset.
-
----
-
-# 9. Runtime Boundary
-
-The Runtime is responsible for realizing Library management.
-
-Its responsibilities include:
-
-- discovering libraries
-- indexing assets
-- searching catalogs
-- resolving references
-- loading metadata
-- managing versions
-
-The Runtime manages library operations.
-
-The Library Asset defines the organizational structure.
+In particular, Category, Namespace, Domain, and Catalog are not fields of the current `LibraryAssetOptions` contract, and the existence of a Library Asset does not establish a catalog or discovery subsystem.
 
 ---
 
-# 10. Examples
+# 5. Library vs Package
 
-## Customer Service Library
+Library and Package are separate AI Asset concepts.
 
+```text
+Library
+    organizational membership boundary
+
+Package
+    versioned distribution boundary
 ```
-Customer Service Library
 
-├── Customer Support Prompt
-├── Customer Knowledge
-├── Customer Memory
-├── Privacy Policy
-├── Customer Support Agent
-└── Customer Support Workflow
-```
+A Library is not a package repository, NuGet package, package feed, deployment artifact, or software library/assembly abstraction.
+
+Library membership should therefore not be interpreted as package distribution semantics.
 
 ---
 
-## Engineering Library
+# 6. Storage and Runtime Boundaries
 
-```
+A Library Asset does not establish:
+
+- where its definitions are stored
+- a repository or registry
+- indexing
+- catalog search
+- discovery infrastructure
+- runtime execution
+- package installation or restore
+
+Applications or infrastructure may provide discovery, indexing, searching, resolution, or loading capabilities, but those behaviors require their own current source and architecture authority.
+
+The Library specification defines the Library Asset and its membership boundary, not a Library Runtime.
+
+---
+
+# 7. Example
+
+A valid conceptual Library membership might be:
+
+```text
 Engineering Library
 
+Members
 ├── Code Review Prompt
 ├── Architecture Knowledge
 ├── Engineering Standards Policy
@@ -238,33 +148,35 @@ Engineering Library
 └── Architecture Workflow
 ```
 
+Unlike design-only composition diagrams, the `Members` relationship itself corresponds to current Library structure. The named examples are illustrative Asset references; they do not establish catalog, indexing, or discovery behavior.
+
 ---
 
-## Financial Operations Library
+# 8. Responsibilities and Boundaries
 
-```
-Financial Operations Library
+At the current contract level, Library is responsible for:
 
-├── Invoice Review Prompt
-├── Financial Knowledge
-├── Approval Policy
-├── ERP Integration Tool
-├── Invoice Approval Agent
-└── Invoice Workflow
-```
+- identifying one reusable collection
+- describing that collection
+- carrying its direct member references
+- enforcing current Library membership invariants
+- distinguishing members from external dependencies
+
+Library is not, merely by being a Library Asset, a guarantee of discovery, search, indexing, version management, storage, or distribution behavior.
 
 ---
 
 # Summary
 
-The Library Language defines a provider-independent vocabulary for organizing reusable AI Assets.
+Library has genuine implemented structural authority:
 
-It separates logical organization from distribution, storage, runtime execution, and infrastructure technologies, allowing Libraries to remain reusable, portable, versioned, and composable.
+```text
+LibraryAssetOptions
+├── Name
+├── Description
+└── Members[]
+```
 
-Library answers one fundamental question:
+Its allowed direct membership and membership invariants are source-backed.
 
-> **How are reusable AI Assets organized for discovery and reuse?**
-
-Configuration determines where Libraries are managed.
-
-The Runtime determines how Libraries are discovered, indexed, and searched.
+Broader organizational vocabulary can remain useful for design, but it must not be confused with current Library fields or with guaranteed catalog/discovery infrastructure.

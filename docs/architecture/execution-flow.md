@@ -1,290 +1,283 @@
 # Execution Flow
 
-## Introduction
+> **Execution crosses several framework boundaries. Describing the flow does not transfer ownership of downstream stages to the Workflow Runtime.**
 
-The Workflow Runtime transforms a declarative workflow definition into executable behavior.
+## Purpose
 
-Rather than executing business logic directly, the runtime traverses the Workflow Model, dispatches workflow steps to specialized executors, coordinates agent execution, and collects execution results.
+This document provides a high-level map of what happens as a persisted PulseStackAI application reaches execution.
 
-The Execution Flow document answers one question:
+It answers:
 
-> **What happens when a workflow is executed?**
+> **Which authority owns each stage of the execution path?**
 
----
+It is not the normative specification of Workflow Runtime traversal, executor selection, result aggregation, Agent execution, tool execution, provider communication, persistence, or realization.
 
-# High-Level Flow
+Use the owning architecture document for exact behavior.
+
+## End-to-end authority flow
+
+For the integrated persisted-application path:
 
 ```text
-User
- │
- ▼
+persisted Project identity
+        ↓
+IApplicationOperation
+        ↓
+graph loading
+        ↓
+IApplicationRealizer
+        ↓
+RealizedApplication
+        ↓
+IApplicationInvoker
+        ↓
+Workflow + caller-created PipelineContext
+        ↓
+IWorkflowRuntime
+        ↓
+IStepExecutor
+        ↓
+IAgentExecutionRuntime when a RunStep requires Agent work
+        ↓
+downstream Agent / provider capabilities
+        ↓
+WorkflowExecutionResult
+        ↓
+ApplicationInvocationResult
+```
+
+The arrows describe handoffs between authorities. They do not imply that `IWorkflowRuntime` owns every stage shown below it.
+
+## Before Workflow Runtime
+
+### Persistence and graph loading
+
+Declarative Assets are mapped, stored, published, resolved, and loaded through the Persistent Asset Platform.
+
+That work occurs before runtime Workflow execution and is not a Workflow Runtime responsibility.
+
+See [Persistent Asset Platform](persistent-asset-platform.md).
+
+### Application realization
+
+Application Realization accepts a Project-rooted `AIAssetGraph` and composes the runtime application representation.
+
+For the entry Workflow, realization is the boundary that turns the accepted declarative Workflow Asset representation into the runtime `Workflow` used for execution.
+
+```text
+WorkflowAsset
+        ↓
+Application Realization
+        ↓
 Workflow
- │
- ▼
+```
+
+Workflow Runtime does not perform this declarative-to-runtime conversion.
+
+See [Application Realization](runtime-realization-architecture.md).
+
+### Application invocation and execution context
+
+The integrated application boundary coordinates loading, realization, and invocation through `IApplicationOperation`.
+
+Application Invocation creates a fresh `PipelineContext` from the invocation request and hands the realized `Workflow`, that context, and the cancellation token to `IWorkflowRuntime`.
+
+```text
+ApplicationInvocationRequest
+        ↓
+Application Invocation
+        ↓
+Workflow
++ PipelineContext
++ CancellationToken
+        ↓
+IWorkflowRuntime
+```
+
+Workflow Runtime receives the context; it does not create it.
+
+See [Application Operation & Invocation](application-operation.md).
+
+## Workflow Runtime boundary
+
+At its public boundary, Workflow Runtime receives:
+
+```text
+Workflow
++
+PipelineContext
++
+CancellationToken
+        ↓
+IWorkflowRuntime
+        ↓
+WorkflowExecutionResult
+```
+
+The concrete runtime performs ordered top-level traversal and selects registered step executors according to its current implementation.
+
+Nested/composite execution has its own resolver path, and runtime result projection has precise semantics.
+
+Those details belong exclusively to [Workflow Runtime](workflow-runtime.md) and are intentionally not duplicated here.
+
+## Step execution
+
+Workflow steps are executed by `IStepExecutor` implementations.
+
+Conceptually:
+
+```text
+runtime Workflow step
+        ↓
+appropriate executor
+        ↓
+StepExecutionResult
+```
+
+Different executors own different step semantics.
+
+This document does not define a generic top-level “Step Dispatcher” abstraction. The exact distinction between top-level executor selection and nested/composite resolution is documented by the Workflow Runtime authority.
+
+## Agent execution handoff
+
+A runtime Run step crosses from Workflow execution into Agent execution:
+
+```text
+RunStep
+        ↓
+RunStepExecutor
+        ↓
+IAgentExecutionRuntime
+        ↓
+Agent execution
+```
+
+The handoff is part of the end-to-end execution flow.
+
+Agent execution itself is not owned by Workflow Runtime. Prompt construction, tools, model interaction, memory behavior, and provider communication belong to their downstream authorities.
+
+## Tools and external capabilities
+
+An Agent may use tools or other capabilities during its own execution.
+
+That possibility can be shown in an end-to-end application flow:
+
+```text
 Workflow Runtime
- │
- ▼
-Execution Context
- │
- ▼
-Workflow Traversal
- │
- ▼
-Step Dispatcher
- │
- ▼
-Step Executor
- │
- ▼
+        ↓
+RunStepExecutor
+        ↓
 Agent Runtime
- │
- ▼
-Agent
- │
- ▼
-Tool Execution
- │
- ▼
-AI Provider
- │
- ▼
-Response
- │
- ▼
-Workflow Result
+        ↓
+tool / external capability when required
 ```
 
----
+This diagram does not establish a Tool Registry, tool lifecycle, or tool-execution contract for Workflow Runtime.
 
-# Workflow Initialization
+Workflow Runtime's ownership stops at its existing executor boundaries.
 
-Execution begins when an application submits a workflow to the Workflow Runtime.
+## Provider-backed execution
 
-The runtime validates the request, creates an execution context, initializes runtime services, and prepares the workflow for traversal.
+Provider integration is also downstream from Workflow Runtime.
 
----
-
-# Execution Context
-
-The execution context stores shared state for the lifetime of the workflow execution.
-
-Typical contents include:
-
-- Input
-- Output
-- Variables
-- Cancellation Token
-- Runtime Services
-- Execution Metadata
-
-The context is shared across workflow steps while remaining isolated from other workflow executions.
-
----
-
-# Workflow Traversal
-
-The runtime traverses the Workflow Tree defined by the Workflow Model.
-
-Traversal strategies depend on the workflow structure.
-
-Examples include:
-
-- Sequential execution
-- Parallel execution
-- Conditional branching
-- Iteration
-- Nested workflows
-
-The runtime interprets the workflow structure without modifying it.
-
----
-
-# Step Dispatching
-
-Each workflow step is delegated to a corresponding Step Executor.
+A provider-backed path can conceptually reach:
 
 ```text
-Workflow Step
-        │
-        ▼
-Step Dispatcher
-        │
-        ▼
-Step Executor
+RunStep
+        ↓
+Agent execution
+        ↓
+configured model/provider integration
+        ↓
+Agent result
+        ↓
+StepExecutionResult
 ```
 
-The dispatcher selects the appropriate executor based on the workflow step type.
+The Workflow Runtime remains separated from provider-specific communication, but that separation does not mean provider/model selection is absent from application definitions. Model Assets can explicitly identify their provider and model.
 
----
+## Execution state
 
-# Step Execution
+`PipelineContext` is mutable execution state supplied to `IWorkflowRuntime`.
 
-Each Step Executor implements the execution semantics of a specific workflow step.
+The same context participates in Workflow-step execution according to the semantics of the current runtime and executors.
 
-Examples include:
+This document does not define isolation, transactional behavior, parallel mutation ordering, context ownership, or context disposal. Those details must not be inferred from this high-level flow.
 
-- RunStepExecutor
-- ConditionalStepExecutor
-- ParallelStepExecutor
-- LoopStepExecutor
-- RetryStepExecutor
-- SwitchStepExecutor
+See [Workflow Runtime](workflow-runtime.md) for the current state and concurrency boundaries.
 
-This design keeps execution logic localized and extensible.
+## Runtime lifecycle events
 
----
+Workflow Runtime emits its current Workflow/Step lifecycle events through the runtime event-dispatch boundary.
 
-# Agent Execution
+This document intentionally does not present a combined Workflow/Agent/Tool event stream. Describing downstream Agent or Tool work does not make their lifecycle events Workflow Runtime events.
 
-Run Steps delegate execution to the Agent Runtime.
+Exact Workflow Runtime event behavior belongs to [Workflow Runtime](workflow-runtime.md).
+
+## Failures, retry, and cancellation
+
+Failure behavior is stage-specific.
+
+Workflow Runtime propagates executor failures according to its current contract. Individual Workflow constructs can own explicit semantics—for example, Retry can repeat child execution based on the child result.
+
+This does not establish:
+
+- generic exception retry;
+- parallel branch isolation;
+- compensation semantics;
+- human-approval semantics.
+
+Application Operation, Application Invocation, Workflow Runtime, and individual executors each retain their own documented failure and cancellation responsibilities.
+
+## Completion
+
+Workflow Runtime returns a `WorkflowExecutionResult` to its caller.
+
+For the integrated application path, Application Invocation then projects its own `ApplicationInvocationResult`, and `IApplicationOperation` exposes the stage-preserving operation outcome.
 
 ```text
-Run Step
-        │
-        ▼
-Agent Runtime
-        │
-        ▼
-Agent
+WorkflowExecutionResult
+        ↓
+Application Invocation
+        ↓
+ApplicationInvocationResult
+        ↓
+ApplicationOperationResult
 ```
 
-The Agent Runtime coordinates prompt generation, tool invocation, memory access, and provider communication.
+The exact Workflow result fields and top-level result aggregation remain defined by [Workflow Runtime](workflow-runtime.md).
 
----
+## Authority map
 
-# Tool Invocation
+| Stage | Current authority |
+| --- | --- |
+| AI Asset persistence / publication / graph loading | [Persistent Asset Platform](persistent-asset-platform.md) |
+| Declarative graph → runtime application | [Application Realization](runtime-realization-architecture.md) |
+| Integrated load → realize → invoke coordination | [Application Operation & Invocation](application-operation.md) |
+| Invocation request → fresh execution context | [Application Operation & Invocation](application-operation.md) |
+| Runtime Workflow execution | [Workflow Runtime](workflow-runtime.md) |
+| Workflow-step semantics | current `IStepExecutor` implementations |
+| Run-step handoff to Agent execution | `RunStepExecutor` → `IAgentExecutionRuntime` |
+| Agent/tool/provider internals | downstream authorities, not Workflow Runtime |
 
-Agents may invoke one or more tools during execution.
+## Summary
 
-```text
-Agent
- │
- ▼
-Tool Registry
- │
- ▼
-Tool
- │
- ▼
-External Service
-```
-
-Tools provide controlled access to external systems while remaining independent of workflow orchestration.
-
----
-
-# Provider Communication
-
-Providers abstract communication with external AI platforms.
+Execution in PulseStackAI is a chain of explicit handoffs rather than one runtime owning the entire application lifecycle.
 
 ```text
-Agent
- │
- ▼
-Provider
- │
- ▼
-AI Model
- │
- ▼
-Completion
-```
-
-The Workflow Runtime remains independent of vendor-specific SDKs.
-
----
-
-# Runtime Events
-
-The runtime publishes events throughout execution.
-
-Typical events include:
-
-```text
-Workflow Started
-        │
-        ▼
-Step Started
-        │
-        ▼
-Agent Started
-        │
-        ▼
-Tool Executing
-        │
-        ▼
-Tool Executed
-        │
-        ▼
-Agent Completed
-        │
-        ▼
-Step Completed
-        │
-        ▼
-Workflow Completed
-```
-
-These events enable logging, metrics, diagnostics, and observability without affecting execution behavior.
-
----
-
-# Error Handling
-
-Execution errors propagate through the runtime while respecting workflow semantics.
-
-Examples include:
-
-- Retry
-- Conditional recovery
-- Parallel branch isolation
-- Future compensation strategies
-- Human approval workflows
-
-Error handling remains the responsibility of the appropriate workflow step.
-
----
-
-# Execution Completion
-
-When the final workflow step completes, the runtime:
-
-- Collects execution results
-- Finalizes runtime state
-- Publishes completion events
-- Returns the workflow result to the caller
-
-The execution context is then discarded.
-
----
-
-# Relationship to the Architecture
-
-```text
-Domain Model
-        │
-        ▼
-Workflow Model
-        │
-        ▼
+Persist / Publish / Load
+        ↓
+Realize
+        ↓
+Invoke
+        ↓
 Workflow Runtime
-        │
-        ▼
-Execution Flow
-        │
-        ▼
-Agent Runtime
-        │
-        ▼
-Providers
+        ↓
+Step Executor
+        ↓
+Agent / provider work when required
+        ↓
+Results return through the owning boundaries
 ```
 
-Execution Flow describes the operational lifecycle of the Runtime Architecture while remaining independent of persistence concerns.
-
----
-
-# Summary
-
-The Execution Flow describes how PulseStackAI transforms declarative workflow definitions into executable AI behavior.
-
-By traversing the Workflow Model, dispatching workflow steps, coordinating agent execution, invoking tools, communicating with providers, and publishing runtime events, the framework provides a modular and extensible execution engine that remains independent of business intent and storage concerns.
+Use this document to understand the cross-boundary flow. Use the linked architecture documents for the exact contract and semantics of each stage.
