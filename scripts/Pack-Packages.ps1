@@ -82,7 +82,8 @@ function Get-ReleaseIdentity {
     $tags = @($tagsText -split "\r?\n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
 
     $escapedVersionPrefix = [regex]::Escape($VersionPrefix)
-    $releaseTagPattern = "^v$escapedVersionPrefix(?:-(?<prerelease>[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$"
+    $prereleaseIdentifierPattern = "(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)"
+    $releaseTagPattern = "^v$escapedVersionPrefix(?:-(?<prerelease>$prereleaseIdentifierPattern(?:\.$prereleaseIdentifierPattern)*))?$"
     $qualifyingTags = @($tags | Where-Object { $_ -cmatch $releaseTagPattern })
 
     if ($qualifyingTags.Count -eq 0) {
