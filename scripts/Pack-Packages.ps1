@@ -1,5 +1,9 @@
 [CmdletBinding()]
-param()
+param(
+    [Parameter()]
+    [ValidateSet("Development", "Release")]
+    [string] $ProductionKind = "Development"
+)
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
@@ -63,6 +67,46 @@ function Get-EvaluatedVersionPrefix {
     }
 
     return $versionPrefix
+}
+
+function Get-ReleaseIdentity {
+    param(
+        [Parameter(Mandatory)]
+        [string] $VersionPrefix,
+
+        [Parameter(Mandatory)]
+        [string] $SourceCommit
+    )
+
+    $tagsText = Get-GitText @("tag", "--points-at", $SourceCommit)
+    $tags = @($tagsText -split "\r?\n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+
+    $escapedVersionPrefix = [regex]::Escape($VersionPrefix)
+    $releaseTagPattern = "^v$escapedVersionPrefix(?:-(?<prerelease>[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$"
+    $qualifyingTags = @($tags | Where-Object { $_ -cmatch $releaseTagPattern })
+
+    if ($qualifyingTags.Count -eq 0) {
+        throw "Release production requires exactly one qualifying release-version tag at HEAD matching 'v$VersionPrefix' or 'v$VersionPrefix-<prerelease>'."
+    }
+
+    if ($qualifyingTags.Count -ne 1) {
+        throw "Release production found multiple qualifying release-version tags at HEAD: $($qualifyingTags -join ', ')."
+    }
+
+    $tagName = $qualifyingTags[0]
+    $tagCommit = Get-GitText @("rev-list", "-n", "1", $tagName)
+    if ($tagCommit -notmatch "^[0-9a-fA-F]{40}$") {
+        throw "Release tag '$tagName' did not resolve to a full 40-character Git commit SHA."
+    }
+
+    if ($tagCommit.ToLowerInvariant() -cne $SourceCommit) {
+        throw "Release tag '$tagName' does not resolve exactly to HEAD '$SourceCommit'."
+    }
+
+    return [pscustomobject]@{
+        TagName        = $tagName
+        PackageVersion = $tagName.Substring(1)
+    }
 }
 
 function Get-NuspecMetadata {
@@ -135,7 +179,17 @@ try {
 
     $versionProject = Join-Path $repoRoot "src/PulseStack.Abstractions/PulseStack.Abstractions.csproj"
     $versionPrefix = Get-EvaluatedVersionPrefix $versionProject
-    $packageVersion = "$versionPrefix-dev.$sourceCommit"
+
+    $releaseIdentity = $null
+    if ($ProductionKind -ceq "Release") {
+        $releaseIdentity = Get-ReleaseIdentity -VersionPrefix $versionPrefix -SourceCommit $sourceCommit
+        $packageVersion = $releaseIdentity.PackageVersion
+    }
+    else {
+        $packageVersion = "$versionPrefix-dev.$sourceCommit"
+    }
+
+    $productionKindValue = $ProductionKind.ToLowerInvariant()
 
     $stagingPath = Join-Path $repoRoot "artifacts/packages/staging/$packageVersion"
     if (Test-Path -LiteralPath $stagingPath) {
@@ -144,9 +198,13 @@ try {
     New-Item -ItemType Directory -Path $stagingPath -Force | Out-Null
 
     Write-Host "PulseStackAI deterministic package production"
+    Write-Host "ProductionKind $productionKindValue"
     Write-Host "SourceCommit   $sourceCommit"
     Write-Host "VersionPrefix  $versionPrefix"
     Write-Host "PackageVersion $packageVersion"
+    if ($null -ne $releaseIdentity) {
+        Write-Host "ReleaseTag     $($releaseIdentity.TagName)"
+    }
     Write-Host ""
 
     Invoke-Checked dotnet @(
@@ -226,12 +284,20 @@ try {
     }
 
     $manifest = [ordered]@{
+        productionKind = $productionKindValue
         sourceCommit = $sourceCommit
         versionPrefix = $versionPrefix
         packageVersion = $packageVersion
         configuration = "Release"
-        packages = @($verifiedPackages)
     }
+
+    if ($null -ne $releaseIdentity) {
+        $manifest.releaseAuthority = [ordered]@{
+            tagName = $releaseIdentity.TagName
+        }
+    }
+
+    $manifest.packages = @($verifiedPackages)
 
     $manifestPath = Join-Path $stagingPath "package-production.json"
     $manifestJson = $manifest | ConvertTo-Json -Depth 5
@@ -243,9 +309,13 @@ try {
 
     Write-Host ""
     Write-Host "PulseStackAI Package Production"
+    Write-Host "ProductionKind $productionKindValue"
     Write-Host "SourceCommit   $sourceCommit"
     Write-Host "VersionPrefix  $versionPrefix"
     Write-Host "PackageVersion $packageVersion"
+    if ($null -ne $releaseIdentity) {
+        Write-Host "ReleaseTag     $($releaseIdentity.TagName)"
+    }
     Write-Host "Configuration  Release"
     Write-Host "PackageCount   $($verifiedPackages.Count)"
     Write-Host "StagingPath    $stagingPath"
