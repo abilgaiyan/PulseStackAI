@@ -292,12 +292,12 @@ try {
     }
 
     if ($null -ne $releaseIdentity) {
-        $manifest.releaseAuthority = [ordered]@{
+        $manifest["releaseAuthority"] = [ordered]@{
             tagName = $releaseIdentity.TagName
         }
     }
 
-    $manifest.packages = @($verifiedPackages)
+    $manifest["packages"] = @($verifiedPackages)
 
     $manifestPath = Join-Path $stagingPath "package-production.json"
     $manifestJson = $manifest | ConvertTo-Json -Depth 5
