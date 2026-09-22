@@ -230,7 +230,7 @@ Reference applications
     external evidence that documented public paths work
 ```
 
-Some specification and older Workflow documentation is still scheduled for explicit reconciliation. Until that work is complete, the current architecture and guides linked above are the appropriate entry points for implemented application behavior.
+The current architecture, guides, and reconciled specifications linked above are the appropriate authorities for implemented application behavior. Older Workflow and engineering material retained as historical documentation records earlier design states and should be read in that context. Other documentation may remain scheduled for separate future reconciliation without overriding these current authorities.
 
 ## Vision
 
