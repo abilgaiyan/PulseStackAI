@@ -50,8 +50,13 @@ function New-AdmittedSet {
     }
 }
 function New-Preflight {
-    param([string] $State="AllAbsent", [object] $Admitted=(New-AdmittedSet))
+    param(
+        [string] $State="AllAbsent",
+        [object] $Admitted=(New-AdmittedSet),
+        [string] $Registry=$serviceIndex
+    )
     [pscustomobject]@{
+        Registry = $Registry
         State = $State
         Packages = @($Admitted.Packages | ForEach-Object {
             [pscustomobject]@{ Id=$_.Id; Version=$_.Version; State="Absent"; StatusCode=404; Diagnostic=$null }
@@ -240,10 +245,11 @@ $results += Invoke-Case "M16" "interruption after durable Attempting preserves A
 $results += Invoke-Case "M17" "transport exception becomes Indeterminate" {
     $r=Invoke-Operation -PublishRequest (New-PublishTransport -ThrowAt @(0)); Assert-Equal "Indeterminate" $r.Result.packages[0].mutationState "Mutation state."; Assert-Equal "TransportUncertainty" $r.Result.packages[0].diagnostic.Code "Diagnostic."
 }
-$results += Invoke-Case "M18" "Attempting persistence failure prevents transport" {
-    $writes=[pscustomobject]@{Count=0}; $puts=[System.Collections.Generic.List[object]]::new(); $writerCore=${function:Write-AtomicPublicationLedger}
-    $writer={param($ledger,$path) $writes.Count++; if($writes.Count -eq 2){throw "simulated Attempting persistence failure"}; & $writerCore $ledger $path}.GetNewClosure(); $failed=$false
-    try{Invoke-Operation -WriteLedger $writer -PublishRequest (New-PublishTransport -Calls $puts)|Out-Null}catch{$failed=$true}; Assert-True $failed "Expected write failure."; Assert-Equal 0 $puts.Count "Transport must not run."
+$results += Invoke-Case "M18" "first Attempting persistence failure terminalizes NotStarted" {
+    $root=New-TempEvidenceRoot; $writes=[pscustomobject]@{Count=0}; $puts=[System.Collections.Generic.List[object]]::new(); $writerCore=${function:Write-AtomicPublicationLedger}
+    $writer={param($ledger,$path) $writes.Count++; if($writes.Count -eq 2){throw "simulated Attempting persistence failure"}; & $writerCore $ledger $path}.GetNewClosure()
+    $r=Invoke-Operation -EvidenceRoot $root -WriteLedger $writer -PublishRequest (New-PublishTransport -Calls $puts)
+    Assert-Equal 0 $puts.Count "Transport must not run."; Assert-Equal 3 $writes.Count "Expected initial, failed Attempting, and terminal writes."; Assert-Equal "Terminal" $r.Result.ledgerState "Ledger state."; Assert-Equal "NotStarted" $r.Result.operationConclusion "Conclusion."; Assert-Equal 0 $r.Result.knownAcceptedCount "Accepted count."; Assert-Equal 0 $r.Result.knownRejectedCount "Rejected count."; Assert-Equal 0 $r.Result.indeterminateCount "Indeterminate count."; Assert-Equal 10 $r.Result.notAttemptedCount "NotAttempted count."; Assert-Equal "NotAttempted" $r.Result.packages[0].mutationState "First package state."
 }
 $results += Invoke-Case "M19" "outcome persistence failure leaves Attempting authoritative" {
     $root=New-TempEvidenceRoot; $writes=[pscustomobject]@{Count=0}; $writerCore=${function:Write-AtomicPublicationLedger}
@@ -254,8 +260,24 @@ $results += Invoke-Case "M20" "terminal operation id cannot be reopened" {
     $root=New-TempEvidenceRoot; $id="00000000-0000-0000-0000-000000000020"; $null=Invoke-Operation -EvidenceRoot $root -OperationId $id; $failed=$false
     try{Invoke-Operation -EvidenceRoot $root -OperationId $id|Out-Null}catch{$failed=$true}; Assert-True $failed "Existing terminal operation must not reopen."
 }
+$results += Invoke-Case "M21" "equivalent registry URI normalization is accepted" {
+    $admitted=New-AdmittedSet; $preflight=New-Preflight -Admitted $admitted -Registry "HTTPS://UNIT.TEST:443/v3/index.json"; $calls=[System.Collections.Generic.List[object]]::new()
+    $r=Invoke-Operation -Admitted $admitted -Preflight $preflight -PublishRequest (New-PublishTransport -Calls $calls)
+    Assert-Equal "Complete" $r.Result.operationConclusion "Conclusion."; Assert-Equal 10 $calls.Count "Transport count."
+}
+$results += Invoke-Case "M22" "registry mismatch rejects before mutation-side activity" {
+    $admitted=New-AdmittedSet; $preflight=New-Preflight -Admitted $admitted -Registry "https://other.unit.test/v3/index.json"; $events=[System.Collections.Generic.List[string]]::new(); $puts=[System.Collections.Generic.List[object]]::new(); $root=New-TempEvidenceRoot; $failed=$false
+    try{Invoke-Operation -Admitted $admitted -Preflight $preflight -EvidenceRoot $root -DiscoveryRequest (New-Discovery -Calls $events) -CredentialAvailable (New-CredentialAvailability -Calls $events) -AcquireCredential (New-CredentialAcquire -Calls $events) -PublishRequest (New-PublishTransport -Calls $puts)|Out-Null}catch{$failed=$true}
+    Assert-True $failed "Expected registry mismatch failure."; Assert-Equal 0 $events.Count "Discovery/credential activity."; Assert-Equal 0 $puts.Count "PUTs."; Assert-True (-not (Get-ChildItem $root -Recurse -Filter publication-result.json -ErrorAction SilentlyContinue)) "Ledger must not exist."
+}
+$results += Invoke-Case "M23" "operation id requires canonical GUID D representation" {
+    $root=New-TempEvidenceRoot; $puts=[System.Collections.Generic.List[object]]::new(); $failedUpper=$false; $failedUnsafe=$false
+    try{Invoke-Operation -EvidenceRoot $root -OperationId "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA" -PublishRequest (New-PublishTransport -Calls $puts)|Out-Null}catch{$failedUpper=$true}
+    try{Invoke-Operation -EvidenceRoot $root -OperationId "..\unsafe" -PublishRequest (New-PublishTransport -Calls $puts)|Out-Null}catch{$failedUnsafe=$true}
+    Assert-True $failedUpper "Uppercase noncanonical GUID must be rejected."; Assert-True $failedUnsafe "Unsafe operation id must be rejected."; Assert-Equal 0 $puts.Count "PUTs."; Assert-True (-not (Get-ChildItem $root -Recurse -Filter publication-result.json -ErrorAction SilentlyContinue)) "Ledger must not exist."
+}
 
 $results | Format-Table Id,Name,Outcome -AutoSize
-if($results.Count -ne 20 -or @($results|Where-Object Outcome -ne "PASS").Count -ne 0){throw "RP-3A conformance failed."}
+if($results.Count -ne 23 -or @($results|Where-Object Outcome -ne "PASS").Count -ne 0){throw "RP-3A conformance failed."}
 Write-Host ""
-Write-Host "RP-3A CONFORMANCE: 20 / 20 PASS"
+Write-Host "RP-3A CONFORMANCE: 23 / 23 PASS"
