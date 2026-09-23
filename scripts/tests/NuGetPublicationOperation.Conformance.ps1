@@ -88,10 +88,11 @@ function New-CredentialAvailability {
 }
 function New-CredentialAcquire {
     param([System.Collections.Generic.List[string]]$Calls,[switch]$Throw)
+    $credential = $secret
     return {
         if ($null -ne $Calls) { $Calls.Add("acquire") }
         if ($Throw) { throw "credential acquisition failed" }
-        return $secret
+        return $credential
     }.GetNewClosure()
 }
 function New-PublishTransport {
