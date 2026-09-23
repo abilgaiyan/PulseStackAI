@@ -135,7 +135,7 @@ function Invoke-Operation {
         [string]$OperationId="00000000-0000-0000-0000-000000000001"
     )
     if($null -eq $Preflight){$Preflight=New-Preflight -Admitted $Admitted}
-    if($null -eq $EvidenceRoot){$EvidenceRoot=New-TempEvidenceRoot}
+    if([string]::IsNullOrWhiteSpace($EvidenceRoot)){$EvidenceRoot=New-TempEvidenceRoot}
     if($null -eq $DiscoveryRequest){$DiscoveryRequest=New-Discovery}
     if($null -eq $CredentialAvailable){$CredentialAvailable=New-CredentialAvailability}
     if($null -eq $AcquireCredential){$AcquireCredential=New-CredentialAcquire}
