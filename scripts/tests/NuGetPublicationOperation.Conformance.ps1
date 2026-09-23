@@ -72,10 +72,11 @@ function New-ServiceIndexResponse {
 }
 function New-Discovery {
     param([System.Collections.Generic.List[string]] $Calls, [switch]$MissingPublish)
+    $response = New-ServiceIndexResponse -MissingPublish:$MissingPublish
     return {
         param($uri)
         if ($null -ne $Calls) { $Calls.Add("GET $uri") }
-        New-ServiceIndexResponse -MissingPublish:$MissingPublish
+        return $response
     }.GetNewClosure()
 }
 function New-CredentialAvailability {
@@ -216,7 +217,7 @@ $results += Invoke-Case "M12" "mutation order preserves admitted order" {
 }
 $results += Invoke-Case "M13" "secret absent from durable evidence" {
     $r=Invoke-Operation; $json=Get-Content -LiteralPath $r.LedgerPath -Raw
-    Assert-True (-not $json.Contains($secret,[System.StringComparison]::Ordinal)) "Secret leaked to ledger."
+    Assert-True ($json.IndexOf($secret,[System.StringComparison]::Ordinal) -lt 0) "Secret leaked to ledger."
 }
 $results += Invoke-Case "M14" "discovery GET and publication PUT policy only" {
     $events=[System.Collections.Generic.List[string]]::new(); $puts=[System.Collections.Generic.List[object]]::new(); $null=Invoke-Operation -DiscoveryRequest (New-Discovery -Calls $events) -PublishRequest (New-PublishTransport -Calls $puts)
@@ -224,7 +225,8 @@ $results += Invoke-Case "M14" "discovery GET and publication PUT policy only" {
 }
 $results += Invoke-Case "M15" "Attempting is persisted before transport" {
     $sequence=[System.Collections.Generic.List[string]]::new()
-    $writer={param($ledger,$path) $state=[string]$ledger.packages[0].mutationState; $sequence.Add("write:$state"); Write-AtomicPublicationLedger $ledger $path}.GetNewClosure()
+    $writerCore=${function:Write-AtomicPublicationLedger}
+    $writer={param($ledger,$path) $state=[string]$ledger.packages[0].mutationState; $sequence.Add("write:$state"); & $writerCore $ledger $path}.GetNewClosure()
     $transport={param($endpoint,$filePath,$apiKey) $sequence.Add("transport"); [pscustomobject]@{StatusCode=400}}.GetNewClosure()
     $null=Invoke-Operation -WriteLedger $writer -PublishRequest $transport
     $attempt=$sequence.IndexOf("write:Attempting"); $tx=$sequence.IndexOf("transport"); Assert-True ($attempt -ge 0 -and $tx -gt $attempt) "Attempting must persist before transport."
@@ -238,12 +240,13 @@ $results += Invoke-Case "M17" "transport exception becomes Indeterminate" {
     $r=Invoke-Operation -PublishRequest (New-PublishTransport -ThrowAt @(0)); Assert-Equal "Indeterminate" $r.Result.packages[0].mutationState "Mutation state."; Assert-Equal "TransportUncertainty" $r.Result.packages[0].diagnostic.Code "Diagnostic."
 }
 $results += Invoke-Case "M18" "Attempting persistence failure prevents transport" {
-    $writes=[pscustomobject]@{Count=0}; $puts=[System.Collections.Generic.List[object]]::new()
-    $writer={param($ledger,$path) $writes.Count++; if($writes.Count -eq 2){throw "simulated Attempting persistence failure"}; Write-AtomicPublicationLedger $ledger $path}.GetNewClosure(); $failed=$false
+    $writes=[pscustomobject]@{Count=0}; $puts=[System.Collections.Generic.List[object]]::new(); $writerCore=${function:Write-AtomicPublicationLedger}
+    $writer={param($ledger,$path) $writes.Count++; if($writes.Count -eq 2){throw "simulated Attempting persistence failure"}; & $writerCore $ledger $path}.GetNewClosure(); $failed=$false
     try{Invoke-Operation -WriteLedger $writer -PublishRequest (New-PublishTransport -Calls $puts)|Out-Null}catch{$failed=$true}; Assert-True $failed "Expected write failure."; Assert-Equal 0 $puts.Count "Transport must not run."
 }
 $results += Invoke-Case "M19" "outcome persistence failure leaves Attempting authoritative" {
-    $root=New-TempEvidenceRoot; $writes=[pscustomobject]@{Count=0}; $writer={param($ledger,$path) $writes.Count++; if($writes.Count -eq 3){throw "simulated outcome persistence failure"}; Write-AtomicPublicationLedger $ledger $path}.GetNewClosure(); $failed=$false
+    $root=New-TempEvidenceRoot; $writes=[pscustomobject]@{Count=0}; $writerCore=${function:Write-AtomicPublicationLedger}
+    $writer={param($ledger,$path) $writes.Count++; if($writes.Count -eq 3){throw "simulated outcome persistence failure"}; & $writerCore $ledger $path}.GetNewClosure(); $failed=$false
     try{Invoke-Operation -EvidenceRoot $root -WriteLedger $writer -PublishRequest (New-PublishTransport -Statuses @(201))|Out-Null}catch{$failed=$true}; Assert-True $failed "Expected write failure."; $file=Get-ChildItem $root -Recurse -Filter publication-result.json|Select-Object -First 1; $ledger=Get-Content $file.FullName -Raw|ConvertFrom-Json; Assert-Equal "Attempting" $ledger.packages[0].mutationState "Authoritative durable state."
 }
 $results += Invoke-Case "M20" "terminal operation id cannot be reopened" {
