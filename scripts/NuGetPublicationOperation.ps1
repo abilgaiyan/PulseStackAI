@@ -17,10 +17,25 @@ function New-PublicationDiagnostic {
     }
 }
 
+function Get-NormalizedPublicationUriIdentity {
+    param(
+        [Parameter(Mandatory)] [string] $Value,
+        [Parameter(Mandatory)] [string] $Context
+    )
+
+    $uri = $null
+    if (-not [System.Uri]::TryCreate($Value, [System.UriKind]::Absolute, [ref]$uri) -or $uri.Scheme -notin @("http", "https")) {
+        throw [System.InvalidOperationException]::new("$Context must be an absolute HTTP(S) URI.")
+    }
+
+    return $uri.AbsoluteUri
+}
+
 function Assert-PublicationCorrespondence {
     param(
         [Parameter(Mandatory)] [object] $AdmittedPackageSet,
-        [Parameter(Mandatory)] [object] $PreflightResult
+        [Parameter(Mandatory)] [object] $PreflightResult,
+        [Parameter(Mandatory)] [string] $ServiceIndexUri
     )
 
     if ($null -eq $AdmittedPackageSet -or $null -eq $PreflightResult) {
@@ -29,6 +44,17 @@ function Assert-PublicationCorrespondence {
 
     if ([string]$PreflightResult.State -cne "AllAbsent") {
         throw [System.InvalidOperationException]::new("Fresh publication requires RP-2 preflight state 'AllAbsent'.")
+    }
+
+    $registryProperty = $PreflightResult.PSObject.Properties["Registry"]
+    if ($null -eq $registryProperty -or [string]::IsNullOrWhiteSpace([string]$registryProperty.Value)) {
+        throw [System.InvalidOperationException]::new("RP-2 preflight result requires registry identity.")
+    }
+
+    $preflightRegistry = Get-NormalizedPublicationUriIdentity -Value ([string]$registryProperty.Value) -Context "RP-2 registry"
+    $publicationRegistry = Get-NormalizedPublicationUriIdentity -Value $ServiceIndexUri -Context "RP-3 service index"
+    if ($preflightRegistry -cne $publicationRegistry) {
+        throw [System.InvalidOperationException]::new("RP-2 registry identity does not match the RP-3 publication service index.")
     }
 
     $admitted = @($AdmittedPackageSet.Packages)
@@ -214,7 +240,7 @@ function Invoke-NuGetPublicationOperation {
         [scriptblock] $AfterAttemptingPersisted = $null
     )
 
-    Assert-PublicationCorrespondence -AdmittedPackageSet $AdmittedPackageSet -PreflightResult $PreflightResult
+    Assert-PublicationCorrespondence -AdmittedPackageSet $AdmittedPackageSet -PreflightResult $PreflightResult -ServiceIndexUri $ServiceIndexUri
 
     $discoveryResponse = $null
     try {
@@ -233,9 +259,16 @@ function Invoke-NuGetPublicationOperation {
         throw [System.InvalidOperationException]::new("Publication credential is unavailable.")
     }
 
-    $operationId = [string](& $OperationIdFactory)
-    if ([string]::IsNullOrWhiteSpace($operationId)) {
-        throw [System.InvalidOperationException]::new("OperationIdFactory returned an empty operation id.")
+    $operationIdCandidate = [string](& $OperationIdFactory)
+    $parsedOperationId = [guid]::Empty
+    if ([string]::IsNullOrWhiteSpace($operationIdCandidate) -or
+        -not [guid]::TryParseExact($operationIdCandidate, "D", [ref]$parsedOperationId)) {
+        throw [System.InvalidOperationException]::new("OperationIdFactory must return a canonical GUID in 'D' format.")
+    }
+
+    $operationId = $parsedOperationId.ToString("D")
+    if ($operationIdCandidate -cne $operationId) {
+        throw [System.InvalidOperationException]::new("OperationIdFactory must return the canonical lowercase GUID 'D' representation.")
     }
 
     $operationDirectory = Join-Path (Join-Path (Join-Path $EvidenceRoot ([string]$AdmittedPackageSet.PackageVersion)) "attempts") $operationId
@@ -284,7 +317,38 @@ function Invoke-NuGetPublicationOperation {
         $ledger.packages[$i].statusCode = $null
         $ledger.packages[$i].diagnostic = $null
         Update-PublicationCounts -Ledger $ledger
-        & $WriteLedger $ledger $ledgerPath
+
+        try {
+            & $WriteLedger $ledger $ledgerPath
+        }
+        catch {
+            $attemptingPersistenceFailure = $_.Exception
+
+            if ($i -eq 0 -and
+                $ledger.knownAcceptedCount -eq 0 -and
+                $ledger.knownRejectedCount -eq 0) {
+                $ledger.packages[$i].mutationState = "NotAttempted"
+                $ledger.packages[$i].statusCode = $null
+                $ledger.packages[$i].diagnostic = $null
+                $ledger.ledgerState = "Terminal"
+                $ledger.operationConclusion = "NotStarted"
+                $ledger.completedAtUtc = ([DateTimeOffset](& $Clock)).ToUniversalTime().ToString("O")
+                Update-PublicationCounts -Ledger $ledger
+
+                try {
+                    & $WriteLedger $ledger $ledgerPath
+                    return [pscustomobject]@{
+                        LedgerPath = $ledgerPath
+                        Result     = $ledger
+                    }
+                }
+                catch {
+                    throw $attemptingPersistenceFailure
+                }
+            }
+
+            throw $attemptingPersistenceFailure
+        }
 
         if ($null -ne $AfterAttemptingPersisted) {
             & $AfterAttemptingPersisted $ledger $ledgerPath $i
