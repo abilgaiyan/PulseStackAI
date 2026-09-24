@@ -67,8 +67,8 @@ $results += Invoke-Case P05 'continued uncertainty reaches Unresolved' {
     Assert-Eq Unresolved $r.RecoveryState 'state';Assert-Eq 3 $r.ObservationCount 'observations';Assert-Eq 3 $state.Waits 'waits';Assert-Eq ($epoch.AddSeconds(10)) $r.DeadlineUtc 'deadline'
 }
 $results += Invoke-Case P06 'deadline blocks next observation admission' {
-    $state=[pscustomobject]@{Calls=0;Observations=0}
-    $clock={ $value=if($state.Calls-eq 0){$epoch}else{$epoch.AddTicks(1)};$state.Calls++;$value }.GetNewClosure()
+    $state=[pscustomobject]@{Now=$epoch;Calls=0;Observations=0}
+    $clock={ $value=if($state.Calls-eq 0){$state.Now}else{$state.Now.AddTicks(1)};$state.Calls++;$value }.GetNewClosure()
     $observe={ $state.Observations++;[pscustomobject]@{State='Equivalent'} }.GetNewClosure()
     $r=Invoke-NuGetRecoveryPolling -Trigger (New-Trigger) -Observe $observe -RecoveryWindow ([TimeSpan]::FromTicks(1)) -PollInterval ([TimeSpan]::FromSeconds(1)) -Clock $clock
     Assert-Eq Unresolved $r.RecoveryState 'state';Assert-Eq 0 $state.Observations 'observations'
