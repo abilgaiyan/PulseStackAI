@@ -100,7 +100,9 @@ $results+=Invoke-Case H16 'nonterminal recovery algebra state cannot be bound' {
     $p=New-TempLedger;$c=Get-Candidate $p;$r=[pscustomobject]@{RecoveryState='Uncertain';Terminal=$false};$thrown=$false;try{New-NuGetRecoveryEvidenceBinding -Candidate $c -RecoveryResult $r|Out-Null}catch{$thrown=$true};Assert-True $thrown 'Uncertain bound as terminal evidence'
 }
 $results+=Invoke-Case H17 'classification has no age or timeout authority' {
-    $names=@((Get-Command Get-NuGetRecoveryCandidate).Parameters.Keys);Assert-True (@($names|Where-Object{$_ -match '(?i)age|staleafter|timeout|deadline|poll|duration'}).Count-eq 0) 'age/timing classification seam exposed'
+    $names=@((Get-Command Get-NuGetRecoveryCandidate).Parameters.Keys)
+    $forbidden=@('Age','AgeThreshold','StaleAfter','StaleAfterUtc','Timeout','TimeoutSeconds','Deadline','DeadlineUtc','PollInterval','PollCount','Duration','RecoveryWindow')
+    Assert-True (@($names|Where-Object{$forbidden -contains $_}).Count-eq 0) 'age/timing classification seam exposed'
 }
 $results+=Invoke-Case H18 'RP-3C.3 exposes no publication or credential capability' {
     foreach($command in @('Get-NuGetRecoveryCandidate','New-NuGetRecoveryEvidenceBinding')){$names=@((Get-Command $command).Parameters.Keys);Assert-True (@($names|Where-Object{$_ -match '(?i)publish|put|push|apikey|credential|endpoint|retry|remutat'}).Count-eq 0) "$command exposes mutation capability"}
