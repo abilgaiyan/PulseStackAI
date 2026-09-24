@@ -63,11 +63,9 @@ foreach ($triggerKind in @('Conflict409', 'IndeterminateMutation', 'StaleAttempt
     )) {
         $id = 'C{0:d2}' -f $caseNumber
         $name = "$triggerKind + $($transition.Observation) => $($transition.Recovery)"
-        $capturedTrigger = $triggerKind
-        $capturedTransition = $transition
         $results += Invoke-Case $id $name {
-            Assert-Transition -TriggerKind $capturedTrigger -ObservationState $capturedTransition.Observation -RecoveryState $capturedTransition.Recovery -Terminal $capturedTransition.Terminal
-        }.GetNewClosure()
+            Assert-Transition -TriggerKind $triggerKind -ObservationState $transition.Observation -RecoveryState $transition.Recovery -Terminal $transition.Terminal
+        }
         $caseNumber++
     }
 }
