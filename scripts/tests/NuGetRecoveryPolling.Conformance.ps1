@@ -67,11 +67,10 @@ $results += Invoke-Case P05 'continued uncertainty reaches Unresolved' {
     Assert-Eq Unresolved $r.RecoveryState 'state';Assert-Eq 3 $r.ObservationCount 'observations';Assert-Eq 3 $state.Waits 'waits';Assert-Eq ($epoch.AddSeconds(10)) $r.DeadlineUtc 'deadline'
 }
 $results += Invoke-Case P06 'deadline blocks next observation admission' {
-    $state=[pscustomobject]@{Now=$epoch;Observations=0}
-    $clock={ $state.Now }.GetNewClosure()
+    $state=[pscustomobject]@{Calls=0;Observations=0}
+    $clock={ $value=if($state.Calls-eq 0){$epoch}else{$epoch.AddTicks(1)};$state.Calls++;$value }.GetNewClosure()
     $observe={ $state.Observations++;New-Observation Equivalent }.GetNewClosure()
-    $wait={ param($d,$c) $state.Now=$state.Now+$d }.GetNewClosure()
-    $r=Invoke-NuGetRecoveryPolling -Trigger (New-Trigger) -Observe $observe -RecoveryWindow ([TimeSpan]::FromTicks(1)) -PollInterval ([TimeSpan]::FromSeconds(1)) -Clock $clock -Wait $wait
+    $r=Invoke-NuGetRecoveryPolling -Trigger (New-Trigger) -Observe $observe -RecoveryWindow ([TimeSpan]::FromTicks(1)) -PollInterval ([TimeSpan]::FromSeconds(1)) -Clock $clock
     Assert-Eq Unresolved $r.RecoveryState 'state';Assert-Eq 0 $state.Observations 'observations'
 }
 $results += Invoke-Case P07 'admitted Equivalent remains decisive after deadline crossing' {
@@ -140,7 +139,7 @@ $results += Invoke-Case P14 'wait is bounded by remaining deadline budget' {
     Assert-Eq Unresolved $r.RecoveryState 'state';Assert-Eq 1 $state.Durations.Count 'wait count';Assert-Eq ([TimeSpan]::FromSeconds(5)) $state.Durations[0] 'wait duration'
 }
 $results += Invoke-Case P15 'deadline is established once and never reset' {
-    $state=[pscustomobject]@{Now=$epoch;Deadlines=[Collections.Generic.List[DateTimeOffset]]::new();Index=0}
+    $state=[pscustomobject]@{Now=$epoch;Index=0}
     $sequence=@('NotObservable','NotObservable','Equivalent')
     $clock={ $state.Now }.GetNewClosure()
     $observe={ $value=$sequence[$state.Index];$state.Index++;New-Observation $value }.GetNewClosure()
