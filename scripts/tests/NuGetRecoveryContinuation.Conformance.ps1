@@ -13,32 +13,43 @@ $operationId='00000000-0000-0000-0000-000000000401'
 $version='1.0.4-test.1'
 $ids=@('Pkg.A','Pkg.B','Pkg.C','Pkg.D','Pkg.E')
 
-function New-Package([int]$Index,[string]$State,[AllowNull()][object]$StatusCode=$null,[AllowNull()][object]$Diagnostic=$null){
-    [pscustomobject]@{id=$ids[$Index];version=$version;admittedSha256=(($Index+1).ToString('x')*64);mutationState=$State;statusCode=$StatusCode;diagnostic=$Diagnostic}
+function New-Package {
+    param([int]$Index,[string]$State,[AllowNull()][object]$StatusCode=$null,[AllowNull()][object]$Diagnostic=$null)
+    $hex=($Index+1).ToString('x')
+    [pscustomobject]@{id=$ids[$Index];version=$version;admittedSha256=($hex*64);mutationState=$State;statusCode=$StatusCode;diagnostic=$Diagnostic}
 }
-function New-Rejected409([int]$Index){New-Package $Index 'Rejected' 409 ([pscustomobject]@{Code='ExistingIdentityConflict';Message='exists';StatusCode=409})}
-function New-Indeterminate([int]$Index){New-Package $Index 'Indeterminate' $null ([pscustomobject]@{Code='TransportUncertainty';Message='uncertain';StatusCode=$null})}
-function New-Attempting([int]$Index){New-Package $Index 'Attempting'}
+function New-Rejected409([int]$Index){New-Package -Index $Index -State 'Rejected' -StatusCode 409 -Diagnostic ([pscustomobject]@{Code='ExistingIdentityConflict';Message='exists';StatusCode=409})}
+function New-Indeterminate([int]$Index){New-Package -Index $Index -State 'Indeterminate' -Diagnostic ([pscustomobject]@{Code='TransportUncertainty';Message='uncertain';StatusCode=$null})}
+function New-Attempting([int]$Index){New-Package -Index $Index -State 'Attempting'}
 function New-Ledger {
     param([int]$Boundary=2,[string]$BoundaryKind='Rejected409',[object[]]$OverridePackages=$null)
     if($null-ne$OverridePackages){$packages=@($OverridePackages)}else{
         $packages=@()
         for($i=0;$i-lt$ids.Count;$i++){
-            if($i-lt$Boundary){$packages+=New-Package $i 'Accepted' 201 $null}
+            if($i-lt$Boundary){$packages+=New-Package -Index $i -State 'Accepted' -StatusCode 201}
             elseif($i-eq$Boundary){
-                $packages+=switch($BoundaryKind){'Rejected409'{New-Rejected409 $i}'Indeterminate'{New-Indeterminate $i}'Attempting'{New-Attempting $i}default{throw 'bad boundary kind'}}
+                $packages+=switch($BoundaryKind){
+                    'Rejected409'{New-Rejected409 $i}
+                    'Indeterminate'{New-Indeterminate $i}
+                    'Attempting'{New-Attempting $i}
+                    default{throw 'bad boundary kind'}
+                }
             }
-            else{$packages+=New-Package $i 'NotAttempted'}
+            else{$packages+=New-Package -Index $i -State 'NotAttempted'}
         }
     }
     [pscustomobject]@{schemaVersion='1.0';operationId=$operationId;ledgerState='Terminal';registry='NuGet.org';startedAtUtc='2026-09-25T00:00:00Z';completedAtUtc='2026-09-25T00:00:05Z';operationConclusion='StoppedRejected';packages=@($packages)}
 }
 function New-TempLedger([object]$Ledger=(New-Ledger)){
-    $dir=Join-Path ([IO.Path]::GetTempPath()) ('pulsestack-rp3c4-'+[guid]::NewGuid().ToString('N'));New-Item -ItemType Directory -Path $dir -Force|Out-Null
-    $path=Join-Path $dir 'publication-result.json';[IO.File]::WriteAllText($path,($Ledger|ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false));$path
+    $dir=Join-Path ([IO.Path]::GetTempPath()) ('pulsestack-rp3c4-'+[guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Path $dir -Force|Out-Null
+    $path=Join-Path $dir 'publication-result.json'
+    [IO.File]::WriteAllText($path,($Ledger|ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
+    $path
 }
 function Get-Candidate([string]$Path,[int]$Boundary=2){
-    Get-NuGetRecoveryCandidate -LedgerPath $Path -OperationId $operationId -PackageId $ids[$Boundary] -PackageVersion $version -AdmittedSha256 (($Boundary+1).ToString('x')*64)
+    $hex=($Boundary+1).ToString('x')
+    Get-NuGetRecoveryCandidate -LedgerPath $Path -OperationId $operationId -PackageId $ids[$Boundary] -PackageVersion $version -AdmittedSha256 ($hex*64)
 }
 function New-RecoveryResult([string]$State='Converged'){
     [pscustomobject]@{RecoveryState=$State;Terminal=$true;StartedAtUtc=[DateTimeOffset]'2026-09-25T00:10:00Z';DeadlineUtc=[DateTimeOffset]'2026-09-25T00:10:30Z';ObservationCount=1;LastObservation=[pscustomobject]@{State=if($State-ceq'Converged'){'Equivalent'}elseif($State-ceq'Conflict'){'Different'}else{'Indeterminate'}}}
@@ -54,7 +65,7 @@ $results+=Invoke-Case W01 'Converged permits immediate canonical successor' {
     $p=New-TempLedger;$d=Get-Decision $p;Assert-Eq $true $d.MayContinue 'continue';Assert-Eq $true $d.HasNextPackage 'has next';Assert-Eq 2 $d.RecoveryPackageIndex 'boundary';Assert-Eq 3 $d.NextPackageIndex 'next';Assert-Eq 'Pkg.D' $d.NextPackage.Id 'next id';Assert-Eq ContinuationEligible $d.WholeOperationDisposition 'disposition'
 }
 $results+=Invoke-Case W02 'Conflict stops continuation' {
-    $p=New-TempLedger;$d=Get-Decision $p 2 Conflict;Assert-Eq $false $d.MayContinue 'continue';Assert-Eq StoppedConflict $d.WholeOperationDisposition 'disposition';Assert-Eq 'Pkg.D' $d.NextPackage.Id 'identity still positional'
+    $p=New-TempLedger;$d=Get-Decision $p 2 Conflict;Assert-Eq $false $d.MayContinue 'continue';Assert-Eq StoppedConflict $d.WholeOperationDisposition 'disposition';Assert-Eq 'Pkg.D' $d.NextPackage.Id 'positional successor'
 }
 $results+=Invoke-Case W03 'Unresolved stops continuation' {
     $p=New-TempLedger;$d=Get-Decision $p 2 Unresolved;Assert-Eq $false $d.MayContinue 'continue';Assert-Eq StoppedUnresolved $d.WholeOperationDisposition 'disposition'
@@ -72,13 +83,16 @@ $results+=Invoke-Case W07 'Attempting boundary participates without age authorit
     $p=New-TempLedger (New-Ledger -Boundary 1 -BoundaryKind Attempting);$d=Get-Decision $p 1 Converged;Assert-Eq Attempting $d.RecoveryPackage.MutationState 'historical state';Assert-Eq ContinuationEligible $d.WholeOperationDisposition 'disposition'
 }
 $results+=Invoke-Case W08 'non-Accepted prefix is rejected' {
-    $x=@(New-Package 0 'NotAttempted',New-Rejected409 1,New-Package 2 'NotAttempted',New-Package 3 'NotAttempted',New-Package 4 'NotAttempted');$p=New-TempLedger (New-Ledger -OverridePackages $x);$c=Get-Candidate $p 1;$b=New-NuGetRecoveryEvidenceBinding -Candidate $c -RecoveryResult (New-RecoveryResult Converged);$thrown=$false;try{Get-NuGetWholeOperationContinuationDecision $p $c $b|Out-Null}catch{$thrown=$true};Assert-True $thrown 'invalid prefix admitted'
+    $x=@();$x+=New-Package -Index 0 -State 'NotAttempted';$x+=New-Rejected409 1;$x+=New-Package -Index 2 -State 'NotAttempted';$x+=New-Package -Index 3 -State 'NotAttempted';$x+=New-Package -Index 4 -State 'NotAttempted'
+    $p=New-TempLedger (New-Ledger -OverridePackages $x);$c=Get-Candidate $p 1;$b=New-NuGetRecoveryEvidenceBinding -Candidate $c -RecoveryResult (New-RecoveryResult Converged);$thrown=$false;try{Get-NuGetWholeOperationContinuationDecision $p $c $b|Out-Null}catch{$thrown=$true};Assert-True $thrown 'invalid prefix admitted'
 }
 $results+=Invoke-Case W09 'non-NotAttempted suffix is rejected' {
-    $x=@(New-Package 0 'Accepted' 201 $null,New-Rejected409 1,New-Package 2 'Accepted' 201 $null,New-Package 3 'NotAttempted',New-Package 4 'NotAttempted');$p=New-TempLedger (New-Ledger -OverridePackages $x);$c=Get-Candidate $p 1;$b=New-NuGetRecoveryEvidenceBinding -Candidate $c -RecoveryResult (New-RecoveryResult Converged);$thrown=$false;try{Get-NuGetWholeOperationContinuationDecision $p $c $b|Out-Null}catch{$thrown=$true};Assert-True $thrown 'invalid suffix admitted'
+    $x=@();$x+=New-Package -Index 0 -State 'Accepted' -StatusCode 201;$x+=New-Rejected409 1;$x+=New-Package -Index 2 -State 'Accepted' -StatusCode 201;$x+=New-Package -Index 3 -State 'NotAttempted';$x+=New-Package -Index 4 -State 'NotAttempted'
+    $p=New-TempLedger (New-Ledger -OverridePackages $x);$c=Get-Candidate $p 1;$b=New-NuGetRecoveryEvidenceBinding -Candidate $c -RecoveryResult (New-RecoveryResult Converged);$thrown=$false;try{Get-NuGetWholeOperationContinuationDecision $p $c $b|Out-Null}catch{$thrown=$true};Assert-True $thrown 'invalid suffix admitted'
 }
 $results+=Invoke-Case W10 'skipped historical gap before recovery boundary is rejected' {
-    $x=@(New-Package 0 'Accepted' 201 $null,New-Package 1 'NotAttempted',New-Rejected409 2,New-Package 3 'NotAttempted',New-Package 4 'NotAttempted');$p=New-TempLedger (New-Ledger -OverridePackages $x);$c=Get-Candidate $p 2;$b=New-NuGetRecoveryEvidenceBinding -Candidate $c -RecoveryResult (New-RecoveryResult Converged);$thrown=$false;try{Get-NuGetWholeOperationContinuationDecision $p $c $b|Out-Null}catch{$thrown=$true};Assert-True $thrown 'gap admitted'
+    $x=@();$x+=New-Package -Index 0 -State 'Accepted' -StatusCode 201;$x+=New-Package -Index 1 -State 'NotAttempted';$x+=New-Rejected409 2;$x+=New-Package -Index 3 -State 'NotAttempted';$x+=New-Package -Index 4 -State 'NotAttempted'
+    $p=New-TempLedger (New-Ledger -OverridePackages $x);$c=Get-Candidate $p 2;$b=New-NuGetRecoveryEvidenceBinding -Candidate $c -RecoveryResult (New-RecoveryResult Converged);$thrown=$false;try{Get-NuGetWholeOperationContinuationDecision $p $c $b|Out-Null}catch{$thrown=$true};Assert-True $thrown 'gap admitted'
 }
 $results+=Invoke-Case W11 'candidate operation identity must match ledger' {
     $p=New-TempLedger;$c=Get-Candidate $p;$c.Operation.OperationId='00000000-0000-0000-0000-000000000999';$b=[pscustomobject]@{HistoricalPublication=[pscustomobject]@{Operation=[pscustomobject]@{OperationId=$c.Operation.OperationId};Package=$c.Package};Recovery=[pscustomobject]@{Trigger=$c.Trigger;RecoveryState='Converged'}};$thrown=$false;try{Get-NuGetWholeOperationContinuationDecision $p $c $b|Out-Null}catch{$thrown=$true};Assert-True $thrown 'operation mismatch admitted'
