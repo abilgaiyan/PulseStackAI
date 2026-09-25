@@ -1,7 +1,18 @@
 Set-StrictMode -Version Latest
 
-$scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-. (Join-Path $scriptRoot 'NuGetRecoveryEvidence.ps1')
+. (Join-Path $PSScriptRoot 'NuGetRecoveryEvidence.ps1')
+
+function Get-NuGetRecoveryDiagnosticSignature {
+    [CmdletBinding()]
+    param([AllowNull()][object] $Diagnostic)
+
+    if ($null -eq $Diagnostic) { return '<null>' }
+
+    $code = if ($null -ne $Diagnostic.PSObject.Properties['Code']) { [string]$Diagnostic.Code } else { '' }
+    $message = if ($null -ne $Diagnostic.PSObject.Properties['Message']) { [string]$Diagnostic.Message } else { '' }
+    $statusCode = if ($null -ne $Diagnostic.PSObject.Properties['StatusCode']) { [string]$Diagnostic.StatusCode } else { '' }
+    return "$code|$message|$statusCode"
+}
 
 function Assert-NuGetRecoveryBindingMatchesCandidate {
     [CmdletBinding()]
@@ -26,8 +37,17 @@ function Assert-NuGetRecoveryBindingMatchesCandidate {
         throw [System.InvalidOperationException]::new('Recovery evidence does not bind to the exact historical recovery candidate.')
     }
 
+    if ([string]$historicalOperation.LedgerState -cne [string]$Candidate.Operation.LedgerState -or
+        [string]$historicalOperation.OperationConclusion -cne [string]$Candidate.Operation.OperationConclusion -or
+        [string]$historicalOperation.StartedAtUtc -cne [string]$Candidate.Operation.StartedAtUtc -or
+        [string]$historicalOperation.CompletedAtUtc -cne [string]$Candidate.Operation.CompletedAtUtc -or
+        [string]$historicalOperation.Registry -cne [string]$Candidate.Operation.Registry) {
+        throw [System.InvalidOperationException]::new('Recovery evidence does not preserve historical publication lifecycle evidence.')
+    }
+
     if ([string]$historicalPackage.MutationState -cne [string]$Candidate.Package.MutationState -or
-        [string]$historicalPackage.StatusCode -cne [string]$Candidate.Package.StatusCode) {
+        [string]$historicalPackage.StatusCode -cne [string]$Candidate.Package.StatusCode -or
+        (Get-NuGetRecoveryDiagnosticSignature $historicalPackage.Diagnostic) -cne (Get-NuGetRecoveryDiagnosticSignature $Candidate.Package.Diagnostic)) {
         throw [System.InvalidOperationException]::new('Recovery evidence does not preserve the historical mutation classification.')
     }
 
@@ -41,6 +61,33 @@ function Assert-NuGetRecoveryBindingMatchesCandidate {
     }
 
     return $state
+}
+
+function Assert-NuGetPersistedCandidateMatchesLedger {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] [object] $Ledger,
+        [Parameter(Mandatory)] [object] $Candidate,
+        [Parameter(Mandatory)] [object] $PersistedPackage
+    )
+
+    if ([string]$Ledger.operationId -cne [string]$Candidate.Operation.OperationId -or
+        [string]$Ledger.ledgerState -cne [string]$Candidate.Operation.LedgerState -or
+        [string]$Ledger.operationConclusion -cne [string]$Candidate.Operation.OperationConclusion -or
+        [string]$Ledger.startedAtUtc -cne [string]$Candidate.Operation.StartedAtUtc -or
+        [string]$Ledger.completedAtUtc -cne [string]$Candidate.Operation.CompletedAtUtc -or
+        [string]$Ledger.registry -cne [string]$Candidate.Operation.Registry) {
+        throw [System.InvalidOperationException]::new('Recovery candidate operation evidence does not match the persisted publication ledger.')
+    }
+
+    if ([string]$PersistedPackage.id -cne [string]$Candidate.Package.Id -or
+        [string]$PersistedPackage.version -cne [string]$Candidate.Package.Version -or
+        [string]$PersistedPackage.admittedSha256 -cne [string]$Candidate.Package.AdmittedSha256 -or
+        [string]$PersistedPackage.mutationState -cne [string]$Candidate.Package.MutationState -or
+        [string]$PersistedPackage.statusCode -cne [string]$Candidate.Package.StatusCode -or
+        (Get-NuGetRecoveryDiagnosticSignature $PersistedPackage.diagnostic) -cne (Get-NuGetRecoveryDiagnosticSignature $Candidate.Package.Diagnostic)) {
+        throw [System.InvalidOperationException]::new('Recovery candidate package evidence does not match the persisted publication ledger.')
+    }
 }
 
 function Get-NuGetWholeOperationContinuationDecision {
@@ -57,10 +104,6 @@ function Get-NuGetWholeOperationContinuationDecision {
 
     $recoveryState = Assert-NuGetRecoveryBindingMatchesCandidate -Candidate $Candidate -RecoveryEvidence $RecoveryEvidence
     $ledger = Read-NuGetPublicationLedger -LedgerPath $LedgerPath
-
-    if ([string]$ledger.operationId -cne [string]$Candidate.Operation.OperationId) {
-        throw [System.InvalidOperationException]::new('Continuation ledger does not match the recovery operation identity.')
-    }
 
     $packages = @($ledger.packages)
     $targetMatches = @()
@@ -79,6 +122,8 @@ function Get-NuGetWholeOperationContinuationDecision {
 
     $targetIndex = [int]$targetMatches[0]
     $targetPackage = $packages[$targetIndex]
+    Assert-NuGetPersistedCandidateMatchesLedger -Ledger $ledger -Candidate $Candidate -PersistedPackage $targetPackage
+
     $persistedTrigger = Get-NuGetRecoveryTriggerForHistoricalAttempt -PackageAttempt $targetPackage
     if ([string]$persistedTrigger -cne [string]$Candidate.Trigger) {
         throw [System.InvalidOperationException]::new('Persisted recovery boundary trigger does not match the recovery candidate.')
@@ -97,8 +142,9 @@ function Get-NuGetWholeOperationContinuationDecision {
     }
 
     $hasNextPackage = $targetIndex -lt ($packages.Count - 1)
-    $nextPackageIndex = if ($hasNextPackage) { $targetIndex + 1 } else { $null }
-    $nextPackage = if ($hasNextPackage) {
+    $mayContinue = $recoveryState -ceq 'Converged' -and $hasNextPackage
+    $nextPackageIndex = if ($mayContinue) { $targetIndex + 1 } else { $null }
+    $nextPackage = if ($mayContinue) {
         $persistedNext = $packages[$nextPackageIndex]
         [pscustomobject]@{
             Id             = [string]$persistedNext.id
@@ -108,7 +154,6 @@ function Get-NuGetWholeOperationContinuationDecision {
         }
     } else { $null }
 
-    $mayContinue = $recoveryState -ceq 'Converged' -and $hasNextPackage
     $disposition = switch ($recoveryState) {
         'Converged' {
             if ($hasNextPackage) { 'ContinuationEligible' } else { 'RecoveredEnd' }
