@@ -6,9 +6,18 @@ function Assert-Eq($Expected,$Actual,[string]$Message){if($Expected-cne$Actual){
 function Assert-True([bool]$Value,[string]$Message){if(-not$Value){throw $Message}}
 function Invoke-Case([string]$Id,[string]$Name,[scriptblock]$Body){try{&$Body;[pscustomobject]@{Id=$Id;Name=$Name;Outcome='PASS'}}catch{[pscustomobject]@{Id=$Id;Name=$Name;Outcome='FAIL';Error=$_.Exception.Message}}}
 function Assert-Throws([scriptblock]$Body,[string]$Contains){try{&$Body;throw 'Expected exception was not thrown.'}catch{if($_.Exception.Message-eq'Expected exception was not thrown.'){throw};if($_.Exception.Message-notlike"*$Contains*"){throw "Unexpected exception: $($_.Exception.Message)"}}}
-$registry='https://api.nuget.org/v3/index.json';$publish='https://www.nuget.org/api/v2/package';$serviceJson='{"resources":[{"@id":"https://www.nuget.org/api/v2/package","@type":"PackagePublish/2.0.0"}]}'
+$registry='https://api.nuget.org/v3/index.json';$serviceJson='{"resources":[{"@id":"https://www.nuget.org/api/v2/package","@type":"PackagePublish/2.0.0"}]}'
 function New-Grant([string]$Artifact,[string]$Hash,[string]$Registry=$registry){[pscustomobject]@{HistoricalPublicationOperationId='00000000-0000-0000-0000-000000000401';ContinuationOperationId='00000000-0000-0000-0000-000000000402';TargetRegistryIdentity=$Registry;PackageIndex=3;PackageId='Pkg.D';PackageVersion='1.0.4-test.1';AdmittedSha256=$Hash;ArtifactPath=$Artifact;SourceCommit=('a'*40);ReleaseAuthorityTag='release/v1.0.4';RecoveryState='Converged';RemoteAdmissionState='Admissible';RemoteAdmissionReason='AuthoritativeAbsent'}}
-function New-Fixture([int]$Status=201,[bool]$ThrowPublish=$false,[bool]$CredentialAvailable=$true,[bool]$ThrowCredential=$false){$s=[pscustomobject]@{Discovery=0;Availability=0;Acquire=0;Publish=0;Writes=[System.Collections.Generic.List[object]]::new();PublishedPath=$null};$d={param($u);$s.Discovery++;[pscustomobject]@{StatusCode=200;Content=$serviceJson}}.GetNewClosure();$ca={$s.Availability++;$CredentialAvailable}.GetNewClosure();$ac={$s.Acquire++;if($ThrowCredential){throw 'credential failed'};'secret'}.GetNewClosure();$p={param($e,$f,$k);$s.Publish++;$s.PublishedPath=$f;if($ThrowPublish){throw 'transport failed'};[pscustomobject]@{StatusCode=$Status}}.GetNewClosure();$w={param($l,$path);$copy=$l|ConvertTo-Json -Depth 8|ConvertFrom-Json;$s.Writes.Add($copy)}.GetNewClosure();[pscustomobject]@{State=$s;Discovery=$d;Available=$ca;Acquire=$ac;Publish=$p;Write=$w}}
+function New-Fixture([int]$Status=201,[bool]$ThrowPublish=$false,[bool]$CredentialAvailable=$true,[bool]$ThrowCredential=$false){
+ $json=$script:serviceJson
+ $s=[pscustomobject]@{Discovery=0;Availability=0;Acquire=0;Publish=0;Writes=[System.Collections.Generic.List[object]]::new();PublishedPath=$null}
+ $d={param($u);$s.Discovery++;[pscustomobject]@{StatusCode=200;Content=$json}}.GetNewClosure()
+ $ca={$s.Availability++;$CredentialAvailable}.GetNewClosure()
+ $ac={$s.Acquire++;if($ThrowCredential){throw 'credential failed'};'secret'}.GetNewClosure()
+ $p={param($e,$f,$k);$s.Publish++;$s.PublishedPath=$f;if($ThrowPublish){throw 'transport failed'};[pscustomobject]@{StatusCode=$Status}}.GetNewClosure()
+ $w={param($l,$path);$copy=$l|ConvertTo-Json -Depth 8|ConvertFrom-Json;$s.Writes.Add($copy)}.GetNewClosure()
+ [pscustomobject]@{State=$s;Discovery=$d;Available=$ca;Acquire=$ac;Publish=$p;Write=$w}
+}
 $temp=Join-Path ([IO.Path]::GetTempPath()) ('pulsestack-rp4b-'+[guid]::NewGuid().ToString('N'));New-Item -ItemType Directory -Path $temp -Force|Out-Null
 $results=@()
 try{$artifact=Join-Path $temp 'Pkg.D.nupkg';[IO.File]::WriteAllText($artifact,'package',[Text.UTF8Encoding]::new($false));$hash=(Get-FileHash $artifact -Algorithm SHA256).Hash.ToLowerInvariant();$grant=New-Grant $artifact $hash
