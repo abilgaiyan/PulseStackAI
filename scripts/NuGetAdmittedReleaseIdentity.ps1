@@ -26,7 +26,8 @@ function Get-AdmittedReleaseUtf8Bytes {
     Assert-AdmittedReleaseIdentityText -Value $Value -Name $Name
     try {
         $encoding = [System.Text.UTF8Encoding]::new($false, $true)
-        return [byte[]]$encoding.GetBytes($Value)
+        $bytes = [byte[]]$encoding.GetBytes($Value)
+        Write-Output -NoEnumerate $bytes
     }
     catch {
         throw [System.ArgumentException]::new("$Name must be valid Unicode encodable as UTF-8.", $_.Exception)
@@ -39,7 +40,8 @@ function Get-AdmittedReleaseByteLength {
         [Parameter(Mandatory)] [string] $Name
     )
 
-    return (Get-AdmittedReleaseUtf8Bytes -Value $Value -Name $Name).Count
+    [byte[]]$bytes = Get-AdmittedReleaseUtf8Bytes -Value $Value -Name $Name
+    return $bytes.Count
 }
 
 function Get-NuGetAdmittedReleaseIdentityProjection {
@@ -135,15 +137,14 @@ function Get-NuGetAdmittedReleaseIdentityCanonicalBytes {
     $lines = [System.Collections.Generic.List[string]]::new()
     $lines.Add($script:AdmittedReleaseIdentityHeader)
 
-    foreach ($field in @(
-        @('productionKind', [string]$Projection.ProductionKind, 'ProductionKind'),
-        @('sourceCommit', [string]$Projection.SourceCommit, 'SourceCommit'),
-        @('packageVersion', [string]$Projection.PackageVersion, 'PackageVersion'),
-        @('releaseAuthorityTag', [string]$Projection.ReleaseAuthorityTag, 'ReleaseAuthorityTag')
-    )) {
-        $length = Get-AdmittedReleaseByteLength -Value $field[1] -Name $field[2]
-        $lines.Add("$($field[0]):$length:$($field[1])")
-    }
+    $productionKindLength = Get-AdmittedReleaseByteLength -Value ([string]$Projection.ProductionKind) -Name 'ProductionKind'
+    $sourceCommitLength = Get-AdmittedReleaseByteLength -Value ([string]$Projection.SourceCommit) -Name 'SourceCommit'
+    $packageVersionLength = Get-AdmittedReleaseByteLength -Value ([string]$Projection.PackageVersion) -Name 'PackageVersion'
+    $releaseAuthorityTagLength = Get-AdmittedReleaseByteLength -Value ([string]$Projection.ReleaseAuthorityTag) -Name 'ReleaseAuthorityTag'
+    $lines.Add("productionKind:${productionKindLength}:$([string]$Projection.ProductionKind)")
+    $lines.Add("sourceCommit:${sourceCommitLength}:$([string]$Projection.SourceCommit)")
+    $lines.Add("packageVersion:${packageVersionLength}:$([string]$Projection.PackageVersion)")
+    $lines.Add("releaseAuthorityTag:${releaseAuthorityTagLength}:$([string]$Projection.ReleaseAuthorityTag)")
 
     $packages = @($Projection.Packages)
     if ([int]$Projection.PackageCount -ne $packages.Count -or $packages.Count -eq 0) {
@@ -165,7 +166,7 @@ function Get-NuGetAdmittedReleaseIdentityCanonicalBytes {
 
         $idLength = Get-AdmittedReleaseByteLength -Value ([string]$package.Id) -Name "Packages[$i].Id"
         $versionLength = Get-AdmittedReleaseByteLength -Value ([string]$package.Version) -Name "Packages[$i].Version"
-        $lines.Add("package:$i:$idLength:$([string]$package.Id):$versionLength:$([string]$package.Version):$([string]$package.Sha256)")
+        $lines.Add("package:${i}:${idLength}:$([string]$package.Id):${versionLength}:$([string]$package.Version):$([string]$package.Sha256)")
     }
 
     $canonicalText = ($lines -join "`n") + "`n"
