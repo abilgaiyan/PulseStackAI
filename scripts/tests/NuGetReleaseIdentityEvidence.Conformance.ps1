@@ -51,11 +51,12 @@ $results+=Invoke-Case 'B06' 'evidence plumbing adds only identity fields' {
     $set=New-AdmittedSet;$e=[pscustomobject]@{schemaVersion='1.0';sourceCommit=$set.SourceCommit}
     $before=@($e.PSObject.Properties.Name)
     Add-NuGetReleaseIdentityEvidence -Evidence $e -AdmittedPackageSet $set | Out-Null
+    $after=@($e.PSObject.Properties.Name)
     Assert-Eq '1' ([string]$e.releaseIdentityProfile) 'profile'
     Assert-True ([string]$e.releaseIdentitySha256 -match '^[0-9a-f]{64}$') 'digest is not canonical SHA-256'
     Assert-Eq '1.0' ([string]$e.schemaVersion) 'existing evidence changed'
     Assert-Eq $set.SourceCommit ([string]$e.sourceCommit) 'existing provenance changed'
-    Assert-Eq ([string]($before.Count+2)) ([string]$e.PSObject.Properties.Count) 'unexpected evidence mutation'
+    Assert-Eq ([string]($before.Count+2)) ([string]$after.Count) 'unexpected evidence mutation'
 }
 $results+=Invoke-Case 'B07' 'identity evidence cannot be overwritten' {
     $set=New-AdmittedSet;$e=[pscustomobject]@{releaseIdentityProfile='1';releaseIdentitySha256=('d'*64)}
