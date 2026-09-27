@@ -57,9 +57,38 @@ function ConvertFrom-NuGetOriginalPublicationLedgerClaims {
         $status=$actual.PSObject.Properties['statusCode'];$diagnostic=$actual.PSObject.Properties['diagnostic']
         $claims.Add([pscustomobject]@{
             ReleaseIdentityProfile=$canonical.Profile;ReleaseIdentitySha256=$canonical.Sha256;PackageIndex=$i;PackageId=$id;PackageVersion=$version;AdmittedSha256=$sha
-            EvidenceSource='OriginalPublication';OperationId=$operationId;RawDisposition='PublicationMutation';RawMutationState=$mutation;RecoveryState=$null
+            EvidenceSource='OriginalPublication';OperationId=$operationId;HistoricalPublicationOperationId=$null;RawDisposition='PublicationMutation';RawMutationState=$mutation;RecoveryState=$null
             StatusCode=if($null -eq $status){$null}else{$status.Value};Diagnostic=if($null -eq $diagnostic){$null}else{$diagnostic.Value};Evidence=$actual
         })
     }
     return @($claims)
+}
+
+function ConvertFrom-NuGetContinuationPublicationLedgerClaim {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][object]$Ledger,[Parameter(Mandatory)][object]$Release)
+    $canonical=Get-Rp5CanonicalRelease $Release
+    Assert-Rp5LedgerReleaseIdentity $Ledger $canonical
+    $operationKind=[string](Assert-Rp5Property $Ledger 'operationKind' 'Continuation ledger')
+    if($operationKind -cne 'Continuation'){throw [System.InvalidOperationException]::new("Continuation ledger operationKind must be exactly 'Continuation'.")}
+    $operationId=[string](Assert-Rp5Property $Ledger 'operationId' 'Continuation ledger')
+    $historicalOperationId=[string](Assert-Rp5Property $Ledger 'historicalPublicationOperationId' 'Continuation ledger')
+    if([string]::IsNullOrWhiteSpace($historicalOperationId)){throw [System.InvalidOperationException]::new('Continuation ledger historical publication operation provenance is required.')}
+    $packageIndex=[int](Assert-Rp5Property $Ledger 'packageIndex' 'Continuation ledger')
+    if($packageIndex -lt 0 -or $packageIndex -ge $canonical.PackageCount){throw [System.InvalidOperationException]::new("Continuation ledger packageIndex '$packageIndex' is outside the supplied release identity.")}
+    $ledgerPackages=@(Assert-Rp5Property $Ledger 'packages' 'Continuation ledger')
+    if($ledgerPackages.Count -ne 1){throw [System.InvalidOperationException]::new('Continuation ledger must contain exactly one package.')}
+    $actual=$ledgerPackages[0];$expected=$canonical.Packages[$packageIndex]
+    $id=[string](Assert-Rp5Property $actual 'id' 'Continuation package')
+    $version=[string](Assert-Rp5Property $actual 'version' 'Continuation package')
+    $sha=[string](Assert-Rp5Property $actual 'admittedSha256' 'Continuation package')
+    if($id -cne [string]$expected.Id -or $version -cne [string]$expected.Version -or $sha -cne [string]$expected.Sha256){throw [System.InvalidOperationException]::new("Continuation ledger package does not match canonical release position $packageIndex.")}
+    $mutation=[string](Assert-Rp5Property $actual 'mutationState' 'Continuation package')
+    if($mutation -notin @('Accepted','NotAttempted','Attempting','Indeterminate','Rejected')){throw [System.InvalidOperationException]::new("Continuation package has unsupported mutation state '$mutation'.")}
+    $status=$actual.PSObject.Properties['statusCode'];$diagnostic=$actual.PSObject.Properties['diagnostic']
+    [pscustomobject]@{
+        ReleaseIdentityProfile=$canonical.Profile;ReleaseIdentitySha256=$canonical.Sha256;PackageIndex=$packageIndex;PackageId=$id;PackageVersion=$version;AdmittedSha256=$sha
+        EvidenceSource='ContinuationPublication';OperationId=$operationId;HistoricalPublicationOperationId=$historicalOperationId;RawDisposition='PublicationMutation';RawMutationState=$mutation;RecoveryState=$null
+        StatusCode=if($null -eq $status){$null}else{$status.Value};Diagnostic=if($null -eq $diagnostic){$null}else{$diagnostic.Value};Evidence=$actual
+    }
 }
