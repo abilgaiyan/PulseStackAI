@@ -22,7 +22,14 @@ function New-ReferenceSet([string]$Tag='v1.0.4') {
     }
 }
 
-$referenceText = @"
+# Keep this test source ASCII-only so Windows PowerShell 5.1 does not reinterpret
+# a UTF-8-without-BOM script using the active ANSI code page. The identity
+# implementation itself remains strict UTF-8; the multibyte scalar is created
+# explicitly below from its Unicode code point.
+$eAcute = [string][char]0x00E9
+$multibyteTag = 'v1.0.4-' + $eAcute
+
+$referenceText = (@"
 pulsestack.nuget.admitted-release.v1
 productionKind:7:Release
 sourceCommit:40:0123456789abcdef0123456789abcdef01234567
@@ -31,7 +38,7 @@ releaseAuthorityTag:6:v1.0.4
 packageCount:2
 package:0:15:PulseStack.Core:5:1.0.4:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 package:1:17:PulseStack.Agents:5:1.0.4:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-"@ -replace "`r`n", "`n"
+"@ -replace "`r`n", "`n") + "`n"
 
 $results=@()
 $results+=Invoke-Case 'I01' 'ASCII reference vector is exact' {
@@ -44,12 +51,12 @@ $results+=Invoke-Case 'I01' 'ASCII reference vector is exact' {
     Assert-Eq $referenceText $text 'canonical text'
 }
 $results+=Invoke-Case 'I02' 'multibyte vector uses UTF-8 byte length' {
-    $identity=Get-NuGetAdmittedReleaseIdentity (New-ReferenceSet 'v1.0.4-é')
+    $identity=Get-NuGetAdmittedReleaseIdentity (New-ReferenceSet $multibyteTag)
     Assert-Eq '395' ([string]$identity.ByteCount) 'byte count'
     Assert-Eq 'ed7af455ea586dd7b10fe3470260185acffe2c9f88eb832facc05ae8926e0c96' $identity.Sha256 'SHA-256'
     [byte[]]$bytes=Get-NuGetAdmittedReleaseIdentityCanonicalBytes $identity.Projection
     $text=[Text.UTF8Encoding]::new($false,$true).GetString($bytes)
-    Assert-True $text.Contains("releaseAuthorityTag:9:v1.0.4-é`n") 'multibyte tag did not use UTF-8 byte length 9'
+    Assert-True $text.Contains("releaseAuthorityTag:9:${multibyteTag}`n") 'multibyte tag did not use UTF-8 byte length 9'
 }
 $results+=Invoke-Case 'I03' 'package order is identity-sensitive' {
     $a=New-ReferenceSet;$b=New-ReferenceSet;$b.Packages=@($b.Packages[1],$b.Packages[0])
