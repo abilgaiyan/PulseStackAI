@@ -72,8 +72,41 @@ function ConvertFrom-NuGetContinuationPublicationLedgerClaim {
     $operationKind=[string](Assert-Rp5Property $Ledger 'operationKind' 'Continuation ledger')
     if($operationKind -cne 'Continuation'){throw [System.InvalidOperationException]::new("Continuation ledger operationKind must be exactly 'Continuation'.")}
     $operationId=[string](Assert-Rp5Property $Ledger 'operationId' 'Continuation ledger')
-    $historicalOperationId=[string](Assert-Rp5Property $Ledger 'historicalPublicationOperationId' 'Continuation ledger')
-    if([string]::IsNullOrWhiteSpace($historicalOperationId)){throw [System.InvalidOperationException]::new('Continuation ledger historical publication operation provenance is required.')}
+
+    $selectionSourceProperty=$Ledger.PSObject.Properties['selectionSource']
+    $historicalProperty=$Ledger.PSObject.Properties['historicalPublicationOperationId']
+    $profileProperty=$Ledger.PSObject.Properties['releaseIdentityProfile']
+    $shaProperty=$Ledger.PSObject.Properties['releaseIdentitySha256']
+    $historicalOperationId=$null
+
+    if($null -eq $selectionSourceProperty){
+        if($null -eq $historicalProperty -or [string]::IsNullOrWhiteSpace([string]$historicalProperty.Value)){
+            throw [System.InvalidOperationException]::new('Legacy continuation ledger historical publication operation provenance is required.')
+        }
+        $historicalOperationId=[string]$historicalProperty.Value
+    }
+    else{
+        $selectionSource=[string]$selectionSourceProperty.Value
+        if($null -eq $profileProperty -or $null -eq $shaProperty){
+            throw [System.InvalidOperationException]::new('RP-6 continuation ledger selectionSource requires complete canonical release identity evidence.')
+        }
+        if($selectionSource -ceq 'RP3RecoveryContinuation'){
+            if($null -eq $historicalProperty -or [string]::IsNullOrWhiteSpace([string]$historicalProperty.Value)){
+                throw [System.InvalidOperationException]::new('RP-3 continuation ledger historical publication operation provenance is required.')
+            }
+            $historicalOperationId=[string]$historicalProperty.Value
+        }
+        elseif($selectionSource -ceq 'RP5EffectiveRelease'){
+            if($null -ne $historicalProperty -and -not [string]::IsNullOrEmpty([string]$historicalProperty.Value)){
+                throw [System.InvalidOperationException]::new('RP-5 continuation ledger must not contain historical publication operation provenance.')
+            }
+            $historicalOperationId=$null
+        }
+        else{
+            throw [System.InvalidOperationException]::new("Continuation ledger selectionSource '$selectionSource' is unsupported.")
+        }
+    }
+
     $packageIndex=[int](Assert-Rp5Property $Ledger 'packageIndex' 'Continuation ledger')
     if($packageIndex -lt 0 -or $packageIndex -ge $canonical.PackageCount){throw [System.InvalidOperationException]::new("Continuation ledger packageIndex '$packageIndex' is outside the supplied release identity.")}
     $ledgerPackages=@(Assert-Rp5Property $Ledger 'packages' 'Continuation ledger')
