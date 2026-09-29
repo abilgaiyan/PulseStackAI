@@ -18,7 +18,7 @@ function Assert-NuGetContinuationAdmissionSelection {
         [AllowNull()][object]$AdmittedPackageSet = $null
     )
 
-    foreach ($name in @('ReleaseIdentityProfile','ReleaseIdentitySha256','PackageIndex','PackageId','PackageVersion','AdmittedSha256','SourceCommit','ReleaseAuthorityTag','SelectionSource','LegacyHistoricalPublicationOperationId')) {
+    foreach ($name in @('ReleaseIdentityProfile','ReleaseIdentitySha256','PackageIndex','PackageId','PackageVersion','AdmittedSha256','SourceCommit','ReleaseAuthorityTag','SelectionSource','SelectionEvidence','LegacyHistoricalPublicationOperationId')) {
         if ($null -eq $Selection.PSObject.Properties[$name]) {
             throw [System.InvalidOperationException]::new("Continuation selection must contain $name.")
         }
@@ -68,6 +68,60 @@ function Assert-NuGetContinuationAdmissionSelection {
             [string]$Selection.PackageVersion -cne [string]$expected.Version -or
             [string]$Selection.AdmittedSha256 -cne [string]$expected.Sha256) {
             throw [System.InvalidOperationException]::new("Continuation selection package does not match admitted release position $index.")
+        }
+    }
+
+    return $Selection
+}
+
+function Assert-NuGetContinuationSelectionEvidence {
+    param([Parameter(Mandatory)][object]$Selection)
+
+    $evidence=$Selection.SelectionEvidence
+    if ($null -eq $evidence) {
+        throw [System.InvalidOperationException]::new('Continuation selection requires source SelectionEvidence before grant issuance.')
+    }
+
+    $source=[string]$Selection.SelectionSource
+    if ($source -ceq 'RP3RecoveryContinuation') {
+        foreach ($name in @('OperationId','RecoveryPackageIndex','RecoveryState','MayContinue','HasNextPackage','NextPackageIndex','NextPackage','WholeOperationDisposition')) {
+            if ($null -eq $evidence.PSObject.Properties[$name]) { throw [System.InvalidOperationException]::new("RP-3 selection evidence must contain $name.") }
+        }
+        if ([string]$evidence.RecoveryState -cne 'Converged' -or -not [bool]$evidence.MayContinue -or -not [bool]$evidence.HasNextPackage -or [string]$evidence.WholeOperationDisposition -cne 'ContinuationEligible') {
+            throw [System.InvalidOperationException]::new('RP-3 selection evidence is not a genuine converged continuation decision.')
+        }
+        if ([string]$evidence.OperationId -cne [string]$Selection.LegacyHistoricalPublicationOperationId) {
+            throw [System.InvalidOperationException]::new('RP-3 selection evidence operation provenance does not match the canonical selection.')
+        }
+        $index=[int]$Selection.PackageIndex
+        if ([int]$evidence.NextPackageIndex -ne $index -or [int]$evidence.RecoveryPackageIndex + 1 -ne $index) {
+            throw [System.InvalidOperationException]::new('RP-3 selection evidence does not identify the exact immediate successor.')
+        }
+        $next=$evidence.NextPackage
+        foreach ($name in @('Id','Version','AdmittedSha256','MutationState')) {
+            if ($null -eq $next.PSObject.Properties[$name]) { throw [System.InvalidOperationException]::new("RP-3 selection evidence NextPackage must contain $name.") }
+        }
+        if ([string]$next.Id -cne [string]$Selection.PackageId -or [string]$next.Version -cne [string]$Selection.PackageVersion -or
+            [string]$next.AdmittedSha256 -cne [string]$Selection.AdmittedSha256 -or [string]$next.MutationState -cne 'NotAttempted') {
+            throw [System.InvalidOperationException]::new('RP-3 selection evidence successor does not match the canonical selection.')
+        }
+    }
+    elseif ($source -ceq 'RP5EffectiveRelease') {
+        foreach ($name in @('ReleaseState','ReleaseIdentityProfile','ReleaseIdentitySha256','PackageIndex','PackageId','PackageVersion','AdmittedSha256','SourceCommit','ReleaseAuthorityTag')) {
+            if ($null -eq $evidence.PSObject.Properties[$name]) { throw [System.InvalidOperationException]::new("RP-5 selection evidence must contain $name.") }
+        }
+        if ([string]$evidence.ReleaseState -cne 'ContinuationEligible') {
+            throw [System.InvalidOperationException]::new('RP-5 selection evidence is not a genuine ContinuationEligible effective-release result.')
+        }
+        if ([string]$evidence.ReleaseIdentityProfile -cne [string]$Selection.ReleaseIdentityProfile -or
+            [string]$evidence.ReleaseIdentitySha256 -cne [string]$Selection.ReleaseIdentitySha256 -or
+            [int]$evidence.PackageIndex -ne [int]$Selection.PackageIndex -or
+            [string]$evidence.PackageId -cne [string]$Selection.PackageId -or
+            [string]$evidence.PackageVersion -cne [string]$Selection.PackageVersion -or
+            [string]$evidence.AdmittedSha256 -cne [string]$Selection.AdmittedSha256 -or
+            [string]$evidence.SourceCommit -cne [string]$Selection.SourceCommit -or
+            [string]$evidence.ReleaseAuthorityTag -cne [string]$Selection.ReleaseAuthorityTag) {
+            throw [System.InvalidOperationException]::new('RP-5 selection evidence does not match the canonical selection.')
         }
     }
 
@@ -155,6 +209,7 @@ function New-NuGetExactPackageContinuationGrant {
     $parsed=[guid]::Empty
     if (-not [guid]::TryParseExact($ContinuationOperationId,'D',[ref]$parsed) -or $ContinuationOperationId -cne $parsed.ToString('D')) { throw [ArgumentException]::new("ContinuationOperationId must be a canonical lowercase GUID in 'D' format.") }
     $selection=Assert-NuGetContinuationAdmissionSelection -Selection $ContinuationSelection -AdmittedPackageSet $AdmittedPackageSet
+    $selection=Assert-NuGetContinuationSelectionEvidence -Selection $selection
     if ([string]$RemoteAdmission.State -cne 'Admissible' -or [string]$RemoteAdmission.Reason -cne 'AuthoritativeAbsent' -or [int]$RemoteAdmission.StatusCode -ne 404) { throw [InvalidOperationException]::new('Remote admission is not Admissible by authoritative exact absence.') }
 
     foreach ($name in @('ReleaseIdentityProfile','ReleaseIdentitySha256','PackageIndex','Id','Version','AdmittedSha256','SelectionSource')) {
