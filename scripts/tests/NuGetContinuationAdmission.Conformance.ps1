@@ -26,10 +26,18 @@ function New-Selection(
     [string]$Source='RP3RecoveryContinuation',
     [AllowNull()][string]$LegacyId=$historicalId,
     [string]$SourceCommit=('a'*40),
-    [string]$ReleaseAuthorityTag='release/v1.0.4') {
+    [string]$ReleaseAuthorityTag='release/v1.0.4',
+    [AllowNull()][object]$Evidence=$null) {
+    if($null -eq $Evidence){
+        if($Source -ceq 'RP3RecoveryContinuation'){
+            $Evidence=[pscustomobject]@{OperationId=$LegacyId;RecoveryPackageIndex=($Index-1);RecoveryState='Converged';MayContinue=$true;HasNextPackage=$true;NextPackageIndex=$Index;NextPackage=[pscustomobject]@{Id=$Id;Version=$Version;AdmittedSha256=$Hash;MutationState='NotAttempted'};WholeOperationDisposition='ContinuationEligible'}
+        } else {
+            $Evidence=[pscustomobject]@{ReleaseState='ContinuationEligible';ReleaseIdentityProfile='1';ReleaseIdentitySha256=$ReleaseSha;PackageIndex=$Index;PackageId=$Id;PackageVersion=$Version;AdmittedSha256=$Hash;SourceCommit=$SourceCommit;ReleaseAuthorityTag=$ReleaseAuthorityTag;ProjectionEvidence=[pscustomobject]@{Kind='fixture'}}
+        }
+    }
     [pscustomobject]@{
         ReleaseIdentityProfile='1';ReleaseIdentitySha256=$ReleaseSha;PackageIndex=$Index;PackageId=$Id;PackageVersion=$Version;AdmittedSha256=$Hash
-        SourceCommit=$SourceCommit;ReleaseAuthorityTag=$ReleaseAuthorityTag;SelectionSource=$Source;SelectionEvidence=[pscustomobject]@{Kind='fixture'}
+        SourceCommit=$SourceCommit;ReleaseAuthorityTag=$ReleaseAuthorityTag;SelectionSource=$Source;SelectionEvidence=$Evidence
         LegacyHistoricalPublicationOperationId=$LegacyId
     }
 }
@@ -87,6 +95,8 @@ try {
     $results+=Invoke-Case 'G08' 'grant rejects artifact changed after admission' {[IO.File]::WriteAllText($target.FilePath,'changed',[Text.UTF8Encoding]::new($false));Assert-Throws {New-NuGetExactPackageContinuationGrant $set $rp5 $remote5 $continuationId} 'changed after admission';[IO.File]::WriteAllBytes($target.FilePath,[Text.Encoding]::UTF8.GetBytes('admitted-package'))}
     $results+=Invoke-Case 'G09' 'grant requires canonical new operation identity' {Assert-Throws {New-NuGetExactPackageContinuationGrant $set $rp5 $remote5 'NOT-A-GUID'} 'canonical lowercase GUID'}
     $results+=Invoke-Case 'G10' 'grant propagates canonical selection identity unchanged' {$g=New-NuGetExactPackageContinuationGrant $set $rp5 $remote5 $continuationId;foreach($name in @('ReleaseIdentityProfile','ReleaseIdentitySha256','SelectionSource','PackageIndex','PackageId','PackageVersion','AdmittedSha256','SourceCommit','ReleaseAuthorityTag')){Assert-Eq $rp5.$name $g.$name "grant field $name"}}
+    $results+=Invoke-Case 'G11' 'forged RP-5 selection without genuine ContinuationEligible evidence cannot produce grant' {$fakeEvidence=[pscustomobject]@{ReleaseState='ReleaseComplete';ReleaseIdentityProfile='1';ReleaseIdentitySha256=$identity.ReleaseIdentitySha256;PackageIndex=3;PackageId=$target.Id;PackageVersion=$target.Version;AdmittedSha256=$target.Sha256;SourceCommit=('a'*40);ReleaseAuthorityTag='release/v1.0.4'};$forged=New-Selection -Id $target.Id -Version $target.Version -Hash $target.Sha256 -ReleaseSha $identity.ReleaseIdentitySha256 -Source 'RP5EffectiveRelease' -LegacyId $null -Evidence $fakeEvidence;Assert-Throws {New-NuGetExactPackageContinuationGrant $set $forged $remote5 $continuationId} 'genuine ContinuationEligible'}
+    $results+=Invoke-Case 'G12' 'forged RP-3 selection without genuine converged continuation evidence cannot produce grant' {$fakeEvidence=[pscustomobject]@{OperationId=$historicalId;RecoveryPackageIndex=2;RecoveryState='Unresolved';MayContinue=$false;HasNextPackage=$true;NextPackageIndex=3;NextPackage=[pscustomobject]@{Id=$target.Id;Version=$target.Version;AdmittedSha256=$target.Sha256;MutationState='NotAttempted'};WholeOperationDisposition='Unresolved'};$forged=New-Selection -Id $target.Id -Version $target.Version -Hash $target.Sha256 -ReleaseSha $identity.ReleaseIdentitySha256 -Source 'RP3RecoveryContinuation' -LegacyId $historicalId -Evidence $fakeEvidence;Assert-Throws {New-NuGetExactPackageContinuationGrant $set $forged $remote3 $continuationId} 'genuine converged continuation'}
 }
 finally {Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue}
 
