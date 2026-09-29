@@ -9,9 +9,15 @@ function Assert-NuGetContinuationGrantForOperation {
         [Parameter(Mandatory)] [string] $ServiceIndexUri
     )
 
-    foreach ($name in @('HistoricalPublicationOperationId','ContinuationOperationId','TargetRegistryIdentity','PackageIndex','PackageId','PackageVersion','AdmittedSha256','ArtifactPath','SourceCommit','ReleaseAuthorityTag','RecoveryState','RemoteAdmissionState','RemoteAdmissionReason')) {
+    foreach ($name in @('HistoricalPublicationOperationId','ContinuationOperationId','TargetRegistryIdentity','ReleaseIdentityProfile','ReleaseIdentitySha256','SelectionSource','PackageIndex','PackageId','PackageVersion','AdmittedSha256','ArtifactPath','SourceCommit','ReleaseAuthorityTag','RemoteAdmissionState','RemoteAdmissionReason')) {
         $property=$Grant.PSObject.Properties[$name]
-        if ($null -eq $property -or [string]::IsNullOrWhiteSpace([string]$property.Value)) {
+        if ($null -eq $property) {
+            throw [System.ArgumentException]::new("Continuation grant must contain $name.")
+        }
+    }
+
+    foreach ($name in @('ContinuationOperationId','TargetRegistryIdentity','ReleaseIdentityProfile','ReleaseIdentitySha256','SelectionSource','PackageId','PackageVersion','AdmittedSha256','ArtifactPath','SourceCommit','ReleaseAuthorityTag','RemoteAdmissionState','RemoteAdmissionReason')) {
+        if ([string]::IsNullOrWhiteSpace([string]$Grant.$name)) {
             throw [System.ArgumentException]::new("Continuation grant must contain $name.")
         }
     }
@@ -20,9 +26,27 @@ function Assert-NuGetContinuationGrantForOperation {
     if (-not [guid]::TryParseExact([string]$Grant.ContinuationOperationId,'D',[ref]$parsed) -or [string]$Grant.ContinuationOperationId -cne $parsed.ToString('D')) {
         throw [System.ArgumentException]::new("ContinuationOperationId must be a canonical lowercase GUID in 'D' format.")
     }
+    if ([string]$Grant.ReleaseIdentityProfile -cne '1') { throw [System.ArgumentException]::new('ReleaseIdentityProfile is unsupported.') }
+    if ([string]$Grant.ReleaseIdentitySha256 -cnotmatch '^[0-9a-f]{64}$') { throw [System.ArgumentException]::new('ReleaseIdentitySha256 must be canonical lowercase SHA-256.') }
     if ([string]$Grant.AdmittedSha256 -cnotmatch '^[0-9a-f]{64}$') { throw [System.ArgumentException]::new('AdmittedSha256 must be canonical lowercase SHA-256.') }
     if ([int]$Grant.PackageIndex -lt 0) { throw [System.ArgumentException]::new('PackageIndex must be non-negative.') }
-    if ([string]$Grant.RecoveryState -cne 'Converged' -or [string]$Grant.RemoteAdmissionState -cne 'Admissible' -or [string]$Grant.RemoteAdmissionReason -cne 'AuthoritativeAbsent') {
+
+    $source=[string]$Grant.SelectionSource
+    if ($source -ceq 'RP3RecoveryContinuation') {
+        if ([string]::IsNullOrWhiteSpace([string]$Grant.HistoricalPublicationOperationId)) {
+            throw [System.InvalidOperationException]::new('RP-3 continuation grant requires genuine historical publication operation provenance.')
+        }
+    }
+    elseif ($source -ceq 'RP5EffectiveRelease') {
+        if (-not [string]::IsNullOrEmpty([string]$Grant.HistoricalPublicationOperationId)) {
+            throw [System.InvalidOperationException]::new('RP-5 continuation grant must not contain historical publication operation provenance.')
+        }
+    }
+    else {
+        throw [System.InvalidOperationException]::new("Continuation grant selection source '$source' is unsupported.")
+    }
+
+    if ([string]$Grant.RemoteAdmissionState -cne 'Admissible' -or [string]$Grant.RemoteAdmissionReason -cne 'AuthoritativeAbsent') {
         throw [System.InvalidOperationException]::new('Continuation grant is not mutation-authoritative.')
     }
 
@@ -69,7 +93,10 @@ function Invoke-NuGetContinuationOperation {
         schemaVersion=$script:PublicationSchemaVersion
         operationId=$operationId
         operationKind='Continuation'
-        historicalPublicationOperationId=[string]$Grant.HistoricalPublicationOperationId
+        historicalPublicationOperationId=if ([string]$Grant.SelectionSource -ceq 'RP3RecoveryContinuation') { [string]$Grant.HistoricalPublicationOperationId } else { $null }
+        releaseIdentityProfile=[string]$Grant.ReleaseIdentityProfile
+        releaseIdentitySha256=[string]$Grant.ReleaseIdentitySha256
+        selectionSource=[string]$Grant.SelectionSource
         packageIndex=[int]$Grant.PackageIndex
         ledgerState='InProgress'
         registry='NuGet.org'
