@@ -104,7 +104,12 @@ function ConvertFrom-NuGetRecoveryContinuationSelection {
         throw [System.InvalidOperationException]::new('RP-3C continuation decision must preserve its historical publication operation ID.')
     }
 
+    $recoveryPackageIndex = [int](Assert-NuGetContinuationSelectionProperty $ContinuationDecision 'RecoveryPackageIndex' 'RP-3C continuation decision')
     $packageIndex = [int](Assert-NuGetContinuationSelectionProperty $ContinuationDecision 'NextPackageIndex' 'RP-3C continuation decision')
+    if ($packageIndex -ne ($recoveryPackageIndex + 1)) {
+        throw [System.InvalidOperationException]::new('RP-3C continuation selection must identify the exact successor immediately after the recovery boundary.')
+    }
+
     $package = Assert-NuGetContinuationSelectionProperty $ContinuationDecision 'NextPackage' 'RP-3C continuation decision'
     if ($null -eq $package) {
         throw [System.InvalidOperationException]::new('RP-3C continuation decision must contain its exact next package.')
