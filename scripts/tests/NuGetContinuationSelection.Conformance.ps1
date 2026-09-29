@@ -37,12 +37,12 @@ $release = [pscustomobject]@{
 }
 
 function New-Rp3Decision {
-    param([int]$Index=1,[string]$RecoveryState='Converged',[bool]$MayContinue=$true,[bool]$HasNextPackage=$true,[string]$Disposition='ContinuationEligible',[string]$MutationState='NotAttempted')
+    param([int]$Index=1,[int]$RecoveryIndex=0,[string]$RecoveryState='Converged',[bool]$MayContinue=$true,[bool]$HasNextPackage=$true,[string]$Disposition='ContinuationEligible',[string]$MutationState='NotAttempted')
     $p = $release.Packages[$Index]
     [pscustomobject]@{
         OperationId = 'publication-operation-001'
-        RecoveryPackageIndex = 0
-        RecoveryPackage = $release.Packages[0]
+        RecoveryPackageIndex = $RecoveryIndex
+        RecoveryPackage = $release.Packages[$RecoveryIndex]
         RecoveryState = $RecoveryState
         MayContinue = $MayContinue
         HasNextPackage = $HasNextPackage
@@ -88,7 +88,7 @@ $results += Invoke-Case 'S01' 'RP-3C eligible decision projects canonical select
     Assert-CanonicalSelection $s 1
 }
 $results += Invoke-Case 'S02' 'RP-3C selection preserves exact R N package identity' {
-    $s = ConvertFrom-NuGetRecoveryContinuationSelection -Release $release -ContinuationDecision (New-Rp3Decision -Index 2)
+    $s = ConvertFrom-NuGetRecoveryContinuationSelection -Release $release -ContinuationDecision (New-Rp3Decision -Index 2 -RecoveryIndex 1)
     Assert-CanonicalSelection $s 2
 }
 $results += Invoke-Case 'S03' 'RP-3C selection records recovery continuation source' {
@@ -184,6 +184,10 @@ $results += Invoke-Case 'S20' 'descriptive timestamp evidence does not affect ca
     foreach ($name in @('ReleaseIdentityProfile','ReleaseIdentitySha256','PackageIndex','PackageId','PackageVersion','AdmittedSha256','SourceCommit','ReleaseAuthorityTag','SelectionSource','LegacyHistoricalPublicationOperationId')) {
         Assert-Eq $sa.$name $sb.$name "timestamp-independent field $name"
     }
+}
+$results += Invoke-Case 'S21' 'RP-3C cannot skip canonical successor after recovery boundary' {
+    $d = New-Rp3Decision -Index 2 -RecoveryIndex 0
+    Assert-Throws { ConvertFrom-NuGetRecoveryContinuationSelection -Release $release -ContinuationDecision $d } 'exact successor immediately after the recovery boundary'
 }
 
 $results | Format-Table -AutoSize
