@@ -147,7 +147,9 @@ restores and verifies the resolved graph
 builds as an external consumer
 ```
 
-Package-production and local-publication semantics remain owned by PulseStackAI's development-package guide.
+Package-production and local-publication semantics remain owned by PulseStackAI's development-package guide. The R5 development/local-package foundation remains valid alongside the framework's later RP-1 through RP-6 release-publication capabilities.
+
+The verified MeridianWorks baseline proves external development-package consumption and application execution. It does not prove RP-6 next-successor selection, fresh remote admission, single-position continuation, or recovery into canonical effective-release state. It also does not establish NuGet.org distribution or public general availability. Those release capabilities and their frozen limits are described in the [release-publication layer of the package guide](../guides/development-packages.md#release-publication-above-the-r5-foundation); they are not additional claims about MeridianWorks.
 
 ## MeridianWorks-owned package automation
 
@@ -296,6 +298,8 @@ It does **not**:
 - define new PulseStackAI APIs or contracts;
 - replace the R4 declarative-application guide;
 - replace the R5 development-package guide;
+- prove RP-6 release continuation or recovery;
+- establish public package distribution;
 - make explicit graph loading the recommended application execution path;
 - make explicit realization the recommended application execution path;
 - make its RFQ prompt or manufacturing domain part of the framework;
