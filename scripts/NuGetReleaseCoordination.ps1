@@ -23,11 +23,11 @@ function New-NuGetReleaseCoordinationResult {
     )
 
     [pscustomobject][ordered]@{
-        Disposition     = $Disposition
-        ReleaseIdentity = $ReleaseIdentity
+        Disposition      = $Disposition
+        ReleaseIdentity  = $ReleaseIdentity
         EffectiveRelease = $EffectiveRelease
-        Action          = $Action
-        OperationResult = $OperationResult
+        Action           = $Action
+        OperationResult  = $OperationResult
     }
 }
 
@@ -47,7 +47,13 @@ function Invoke-NuGetReleaseCoordination {
         [scriptblock]$GetInitialPreflight,
 
         [Parameter(Mandatory)]
-        [scriptblock]$InvokeInitialPublication
+        [scriptblock]$InvokeInitialPublication,
+
+        [scriptblock]$SelectContinuation,
+
+        [scriptblock]$AdmitContinuation,
+
+        [scriptblock]$InvokeContinuation
     )
 
     # RP-7 is intentionally ephemeral. It coordinates existing authorities and
@@ -131,8 +137,59 @@ function Invoke-NuGetReleaseCoordination {
                 -OperationResult $publicationResult
         }
 
+        'ContinuationEligible' {
+            if ($null -eq $SelectContinuation -or $null -eq $AdmitContinuation -or $null -eq $InvokeContinuation) {
+                throw 'Continuation coordination authorities are required for a continuation-eligible release.'
+            }
+
+            # Selection is read-only and carries no mutation authority.
+            $selection = & $SelectContinuation $AdmittedRelease $releaseIdentity $effectiveRelease
+            if ($null -eq $selection) {
+                throw 'Continuation selection authority returned null.'
+            }
+
+            # Admission must be fresh for the selected successor. The admission
+            # authority decides whether an exact one-position grant exists.
+            $admission = & $AdmitContinuation $AdmittedRelease $releaseIdentity $effectiveRelease $selection
+            if ($null -eq $admission) {
+                throw 'Continuation admission authority returned null.'
+            }
+
+            $admissionOutcome = [string]$admission.Outcome
+            if ($admissionOutcome -ne 'Admitted') {
+                $disposition = if ($admissionOutcome -eq 'Indeterminate') {
+                    'Indeterminate'
+                }
+                else {
+                    'Blocked'
+                }
+
+                return New-NuGetReleaseCoordinationResult `
+                    -Disposition $disposition `
+                    -Action 'None' `
+                    -ReleaseIdentity $releaseIdentity `
+                    -EffectiveRelease $effectiveRelease `
+                    -OperationResult $admission
+            }
+
+            # RP-6 owns the exact-successor mutation scope. RP-7 invokes the
+            # continuation authority once and returns immediately; it never
+            # selects or publishes a second successor in the same invocation.
+            $continuationResult = & $InvokeContinuation $AdmittedRelease $releaseIdentity $effectiveRelease $selection $admission
+            if ($null -eq $continuationResult) {
+                throw 'Continuation authority returned null.'
+            }
+
+            return New-NuGetReleaseCoordinationResult `
+                -Disposition 'Progressed' `
+                -Action 'Continuation' `
+                -ReleaseIdentity $releaseIdentity `
+                -EffectiveRelease $effectiveRelease `
+                -OperationResult $continuationResult
+        }
+
         default {
-            throw "RP-7C foundation does not yet route effective release state '$state'."
+            throw "Unsupported effective release state '$state'."
         }
     }
 }
