@@ -23,7 +23,7 @@ function Invoke-WithCounts {
         AdmitContinuation={param($release,$releaseIdentity,$effectiveRelease,$selection)$Counts.Admission++;[pscustomobject]@{State=$AdmissionState;Reason=if($AdmissionState-eq'Admissible'){'AuthoritativeAbsent'}else{'NotAdmissible'}}}
         InvokeContinuation={param($release,$releaseIdentity,$effectiveRelease,$selection,$admission)$Counts.Continuation++;[pscustomobject]@{LedgerPath='continuation.json';Result=[pscustomobject]@{operationConclusion='Accepted'}}}
     }
-    if($null-ne$RecoveredReleaseState){
+    if($PSBoundParameters.ContainsKey('RecoveredReleaseState') -and $null-ne$RecoveredReleaseState){
         $parameters.RecoverRelease={param($release,$releaseIdentity,$effectiveRelease)$Counts.Recovery++;[pscustomobject]@{RecoveryState='Converged';EvidenceSource='ContinuationRecovery'}}
         $parameters.ReprojectEffectiveRelease={param($release,$releaseIdentity,$recoveryResult)$Counts.Reprojection++;[pscustomobject]@{ReleaseState=$RecoveredReleaseState;Reason=$null}}
     }
