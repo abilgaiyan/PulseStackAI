@@ -112,6 +112,8 @@ The current foundation includes:
 - provider integrations including OpenAI, Azure OpenAI, Ollama, Gemini, Groq, and OpenRouter;
 - deterministic SHA-qualified NuGet development-package production;
 - immutable local development-package publication;
+- admitted release publication with durable evidence, effective-release projection, and recovery through evidence convergence;
+- exact successor selection with fresh remote admission and single-position continuation authority;
 - external package-consumer and application proof through MeridianWorks.
 
 Detailed milestone history and architectural decision records live under [Engineering](docs/Engineering/) rather than in the public front door.
@@ -126,9 +128,11 @@ See:
 
 **[Consume PulseStackAI Development Packages](docs/guides/development-packages.md)**
 
-That guide owns package production, provenance, local publication, consumer source configuration, exact-version adoption, and restore/build verification.
+That guide owns development-package production, provenance, local publication, consumer source configuration, exact-version adoption, and restore/build verification. It also explains the delivered RP-1 through RP-6 release-publication layer: canonical admitted release identity, durable publication evidence, effective per-position and whole-release state, and next-successor selection with fresh admission for every successor.
 
-It does not establish a stable public NuGet release policy.
+Release recovery converges evidence rather than replaying publication. Recovered-equivalent evidence reaches the same canonical effective-release state as normal accepted/equivalent evidence. Continuation authority covers one position: there is no suffix-wide mutation authority, automatic continuation loop, historical-ledger reopening, or historical-pointer traversal.
+
+These capabilities do not establish NuGet.org distribution or public general availability.
 
 ## Build an application
 
@@ -192,7 +196,7 @@ reach provider-backed runtime execution
 return business-readable output
 ```
 
-MeridianWorks is external conformance/reference evidence. It is not a second PulseStackAI tutorial and does not define new framework contracts.
+MeridianWorks is external development-package consumption and application conformance/reference evidence. It does not prove RP-6 release continuation or recovery. It is not a second PulseStackAI tutorial and does not define new framework contracts.
 
 ## Documentation map
 

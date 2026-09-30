@@ -4,6 +4,8 @@
 
 This guide explains how PulseStackAI produces a verified development package set, publishes that already-produced set to a local NuGet directory feed, and how an external application consumes the exact version it needs.
 
+The R5 development/local-package path remains the foundation. The [release-publication layer](#release-publication-above-the-r5-foundation) below describes the delivered RP-1 through RP-6 capabilities above it; they preserve the development identity and consumer-adoption rules.
+
 It documents **framework distribution**. It does not define AI Asset packaging.
 
 ## Keep the three package concepts separate
@@ -22,7 +24,7 @@ This guide does not assign NuGet semantics to an AI Asset Package and does not r
 
 ## Lifecycle at a glance
 
-The current development-package lifecycle is:
+The R5 development-package lifecycle is:
 
 ```text
 clean committed PulseStackAI HEAD
@@ -495,17 +497,62 @@ They must not be conflated.
 
 MeridianWorks provides external evidence for this distribution model. It consumes PulseStackAI through exact development-package versions rather than project references or copied framework binaries, and its package-adoption workflow verifies the resolved framework graph before application execution.
 
-MeridianWorks is evidence that an external repository can use the package boundary. Its repository-specific updater is not a mandatory PulseStackAI API or a required consumer implementation.
+MeridianWorks is evidence that an external repository can use the development-package boundary. This evidence does not prove RP-6 release continuation or recovery. Its repository-specific updater is not a mandatory PulseStackAI API or a required consumer implementation.
+
+## Release publication above the R5 foundation
+
+Release production uses a qualifying version tag at the exact clean committed source HEAD, as described in [Release Package Production](release-packages.md). Development production still uses `<VersionPrefix>-dev.<full HEAD SHA>`. Both paths produce verified artifact bytes and a manifest; publication consumes those bytes without rebuilding or repacking them.
+
+The delivered release-publication capabilities are layered:
+
+| Layer | Responsibility |
+| --- | --- |
+| RP-1 | Admit the produced release manifest and exact artifact set, validating release authority, package identity, provenance, and hashes before publication. |
+| RP-2 | Observe the remote registry through read-only preflight; fresh publication requires the admitted set to be absent. Preflight does not publish packages. |
+| RP-3 | Execute publication with durable operation evidence, observe remote byte equivalence, and recover uncertain outcomes through evidence convergence. |
+| RP-4 | Admit the exact successor remotely and issue a grant for a new continuation operation at that single package position. |
+| RP-5 | Define canonical admitted release identity, bind publication and recovery evidence to it, and project effective per-position and whole-release state. |
+| RP-6 | Select the next successor from eligible recovery or effective-release evidence, use fresh admission and single-position publication, and feed normal or recovered evidence back into the same effective-release projection. |
+
+### Canonical identity and durable evidence
+
+The canonical admitted release identity binds the release production kind, source commit, package version, release-authority tag, and ordered package positions with their IDs, versions, and admitted SHA-256 hashes. Its profile and digest identify the same release across separate publication, continuation, and recovery operations. An operation ID identifies an attempt; it is not the release identity.
+
+Durable publication ledgers record operation provenance and package mutation outcomes. Recovery evidence remains bound to the exact operation and package attempt it observes. Normalized claims join those records to the canonical release position without rewriting the original outcome or treating a historical pointer as new authority.
+
+RP-5 reduces evidence at each position to `Satisfied`, `Unsatisfied`, `Blocked`, or `Indeterminate`. The whole-release projection returns `ReleaseComplete`, `ContinuationEligible`, `Blocked`, or `Indeterminate`. Continuation eligibility identifies the first unsatisfied position after a satisfied prefix, with an unsatisfied remainder; conflicts, uncertainty, or out-of-sequence satisfaction prevent ordinary advancement. Projection itself grants no permission to publish.
+
+### One successor requires one fresh admission
+
+RP-6 accepts either an eligible RP-3 recovery-continuation decision or an RP-5 `ContinuationEligible` result as selection evidence. Both select one exact package position in the admitted release. The RP-3 path preserves genuine historical operation provenance. The RP-5 path does not synthesize historical publication provenance.
+
+The selected successor must receive fresh remote admission. Authoritative absence permits grant issuance; an already-present package, including equivalent bytes, does not authorize another publication attempt through this admission path. Conflicting or indeterminate observations cannot issue a grant. The grant binds the release, package position, admitted bytes, target registry, and new continuation operation.
+
+That grant provides **single-position publication authority**. Once its durable evidence is available, effective-release projection can select the next successor. Every successor requires fresh admission and its own grant; selection of a later position never inherits mutation authority from the previous one.
+
+### Recovery converges evidence instead of replaying publication
+
+When an eligible publication attempt has an uncertain outcome or a recoverable identity conflict, recovery observes remote content and records whether its bytes converge with the admitted package. Recovery does not replay the publication request.
+
+Recovered-equivalent evidence converges to the **same canonical effective-release state as normal accepted/equivalent evidence**. The historical mutation result remains intact while converged recovery can satisfy that release position. The unchanged projection can then select the next successor, which still needs fresh remote admission.
+
+The frozen limits remain explicit:
+
+- **No suffix-wide mutation authority:** a continuation grant covers one position, never all remaining packages.
+- **No automatic continuation loop:** next-successor selection does not automatically admit or publish the remainder.
+- **No historical-ledger reopening:** recovery and projection do not resume or rewrite an old publication operation.
+- **No historical-pointer traversal:** recovery uses the exact source operation evidence; historical provenance does not authorize following a chain of earlier operations.
+
+These are repository-owned release capabilities. Their implementation and conformance evidence do not establish that packages have been distributed on NuGet.org or that public general availability has occurred.
 
 ## Current boundary and deferred capabilities
 
-This guide describes the current local development-package workflow only.
+The R5 local development-package workflow and the RP-1 through RP-6 release-publication capabilities above are delivered boundaries. Neither establishes a public distribution event or a general release-automation service.
 
 It does **not** establish or authorize:
 
-- stable `1.0.4` publication;
-- NuGet.org or other public publication;
-- a remote package-registry architecture;
+- an actual stable `1.0.4` distribution or public GA release;
+- actual NuGet.org or other public distribution;
 - CI/CD package publication;
 - automatic package-version advancement;
 - symbols, `.snupkg`, or SourceLink policy;
@@ -513,7 +560,6 @@ It does **not** establish or authorize:
 - AI Asset Package semantics;
 - `WorkflowPackage` reconciliation;
 - a mandatory MeridianWorks-style updater;
-- declarative application authoring;
-- README restructuring.
+- declarative application authoring.
 
 Those concerns require separate authority if and when they are introduced.

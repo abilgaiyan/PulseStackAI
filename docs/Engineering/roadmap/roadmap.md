@@ -371,7 +371,26 @@ Delivered capabilities include:
 
 This capability is framework software distribution. It is distinct from the declarative AI Asset `Package` concept and from the older Workflow Package subsystem.
 
-The delivered boundary does **not** claim completion of stable public releases, NuGet.org publication, remote/public-feed publication, CI/CD package publication, SourceLink or symbol publication, or the broader release-management lifecycle.
+This R5 development/local-package boundary remains a valid foundation. The release-publication capabilities below extend it without changing SHA-qualified development identities or consumer-owned adoption.
+
+## Delivered Package Production and Release Publication: RP-1 through RP-6
+
+| Increment | Delivered capability |
+| --- | --- |
+| RP-1 | Release-manifest and artifact admission, preserving exact produced bytes, release authority, and source provenance. |
+| RP-2 | Read-only remote registry preflight for the admitted package set. |
+| RP-3 | Publication operations with durable evidence, remote equivalence observation, and recovery by evidence convergence rather than publication replay. |
+| RP-4 | Exact-successor remote admission and a new continuation operation with single-position publication authority. |
+| RP-5 | Canonical admitted release identity; publication, continuation, and recovery evidence bound to that identity; effective per-position and whole-release projection. |
+| RP-6 | Next-successor selection from eligible recovery or effective-release evidence, fresh admission for every successor, and normal/recovered continuation evidence returned to the same projection. |
+
+Canonical release identity binds source commit, release version and authority tag, and the ordered package identities and hashes. Separate operation IDs retain attempt provenance. Effective projection determines whether the release is complete, continuation-eligible, blocked, or indeterminate; selection alone never grants publication authority.
+
+Recovered-equivalent evidence converges to the **same canonical effective-release state as normal accepted/equivalent evidence**. Recovery preserves the historical mutation outcome and supplies evidence for the existing projection. A newly selected successor requires fresh remote admission and its own single-position grant.
+
+The frozen limits are **no suffix-wide mutation authority, no automatic continuation loop, no historical-ledger reopening, and no historical-pointer traversal**. RP-6 does not turn eligibility into an unattended publication loop or reopen historical operations.
+
+See the [package guide](../../guides/development-packages.md#release-publication-above-the-r5-foundation) for the current boundary. Delivered remote release capabilities do **not** establish actual NuGet.org distribution, public GA, CI/CD package publication, SourceLink or symbol publication, or completion of the broader release-management lifecycle.
 
 ---
 
@@ -401,7 +420,7 @@ provider integration
 business-readable application result
 ```
 
-MeridianWorks is external conformance/reference evidence. It is not a PulseStackAI framework dependency, architectural authority, or retrospectively numbered PulseStackAI milestone.
+MeridianWorks is external development-package consumption and application conformance/reference evidence. It does not prove RP-6 release continuation or recovery, or public package distribution. It is not a PulseStackAI framework dependency, architectural authority, or retrospectively numbered PulseStackAI milestone.
 
 ---
 
@@ -448,9 +467,15 @@ The following capabilities should evolve as focused runtime/platform tracks rath
   - manifest and source provenance
   - local NuGet-compatible feed
   - external package-consumer conformance
-- **Public/stable Packaging & Release — future**
+- **Release publication: RP-1 through RP-6 delivered**
+  - canonical admitted release identity and remote preflight
+  - durable publication and recovery evidence
+  - effective per-position and whole-release projection
+  - exact successor selection, fresh remote admission, and single-position publication authority
+  - recovery by evidence convergence with the frozen limits above
+- **Public distribution and broader release automation: not established by RP-1 through RP-6**
   - stable public package publication
-  - NuGet.org / remote-feed publication
+  - actual NuGet.org / public GA distribution
   - CI/CD package publication
   - SourceLink / symbol publication
   - broader release-management automation
