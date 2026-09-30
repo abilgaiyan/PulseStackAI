@@ -56,138 +56,75 @@ function Invoke-NuGetReleaseCoordination {
         [scriptblock]$InvokeContinuation
     )
 
-    # RP-7 is intentionally ephemeral. It coordinates existing authorities and
-    # creates no coordinator ledger, operation identity, or durable state.
     $releaseIdentity = & $GetReleaseIdentity $AdmittedRelease
-    if ($null -eq $releaseIdentity) {
-        throw 'Release identity authority returned null.'
-    }
+    if ($null -eq $releaseIdentity) { throw 'Release identity authority returned null.' }
 
     $effectiveRelease = & $GetEffectiveRelease $AdmittedRelease $releaseIdentity
-    if ($null -eq $effectiveRelease) {
-        throw 'Effective release authority returned null.'
-    }
+    if ($null -eq $effectiveRelease) { throw 'Effective release authority returned null.' }
 
-    $state = [string]$effectiveRelease.State
+    $releaseStateProperty = $effectiveRelease.PSObject.Properties['ReleaseState']
+    if ($null -eq $releaseStateProperty) {
+        throw 'Effective release authority result must contain ReleaseState.'
+    }
+    $state = [string]$releaseStateProperty.Value
 
     switch ($state) {
-        'Complete' {
-            return New-NuGetReleaseCoordinationResult `
-                -Disposition 'NoActionRequired' `
-                -Action 'None' `
-                -ReleaseIdentity $releaseIdentity `
-                -EffectiveRelease $effectiveRelease `
-                -OperationResult $null
+        'ReleaseComplete' {
+            return New-NuGetReleaseCoordinationResult -Disposition 'NoActionRequired' -Action 'None' -ReleaseIdentity $releaseIdentity -EffectiveRelease $effectiveRelease -OperationResult $null
         }
-
         'Blocked' {
-            return New-NuGetReleaseCoordinationResult `
-                -Disposition 'Blocked' `
-                -Action 'None' `
-                -ReleaseIdentity $releaseIdentity `
-                -EffectiveRelease $effectiveRelease `
-                -OperationResult $null
+            return New-NuGetReleaseCoordinationResult -Disposition 'Blocked' -Action 'None' -ReleaseIdentity $releaseIdentity -EffectiveRelease $effectiveRelease -OperationResult $null
         }
-
         'Indeterminate' {
-            return New-NuGetReleaseCoordinationResult `
-                -Disposition 'Indeterminate' `
-                -Action 'None' `
-                -ReleaseIdentity $releaseIdentity `
-                -EffectiveRelease $effectiveRelease `
-                -OperationResult $null
+            return New-NuGetReleaseCoordinationResult -Disposition 'Indeterminate' -Action 'None' -ReleaseIdentity $releaseIdentity -EffectiveRelease $effectiveRelease -OperationResult $null
         }
-
         'NotStarted' {
             $preflight = & $GetInitialPreflight $AdmittedRelease $releaseIdentity
-            if ($null -eq $preflight) {
-                throw 'Initial preflight authority returned null.'
+            if ($null -eq $preflight) { throw 'Initial preflight authority returned null.' }
+
+            $preflightStateProperty = $preflight.PSObject.Properties['State']
+            if ($null -eq $preflightStateProperty) {
+                throw 'Initial preflight authority result must contain State.'
+            }
+            $preflightState = [string]$preflightStateProperty.Value
+
+            if ($preflightState -ne 'AllAbsent') {
+                $disposition = if ($preflightState -eq 'Indeterminate') { 'Indeterminate' } else { 'Blocked' }
+                return New-NuGetReleaseCoordinationResult -Disposition $disposition -Action 'None' -ReleaseIdentity $releaseIdentity -EffectiveRelease $effectiveRelease -OperationResult $preflight
             }
 
-            if ([string]$preflight.Outcome -ne 'AllAbsent') {
-                $disposition = if ([string]$preflight.Outcome -eq 'Indeterminate') {
-                    'Indeterminate'
-                }
-                else {
-                    'Blocked'
-                }
-
-                return New-NuGetReleaseCoordinationResult `
-                    -Disposition $disposition `
-                    -Action 'None' `
-                    -ReleaseIdentity $releaseIdentity `
-                    -EffectiveRelease $effectiveRelease `
-                    -OperationResult $preflight
-            }
-
-            # One coordinator invocation may invoke at most one mutation
-            # operation. RP-3 owns the package-level mutation scope of this
-            # initial publication operation; RP-7 does not enlarge it and does
-            # not launch continuation after it returns.
             $publicationResult = & $InvokeInitialPublication $AdmittedRelease $releaseIdentity $preflight
-            if ($null -eq $publicationResult) {
-                throw 'Initial publication authority returned null.'
-            }
+            if ($null -eq $publicationResult) { throw 'Initial publication authority returned null.' }
 
-            return New-NuGetReleaseCoordinationResult `
-                -Disposition 'Progressed' `
-                -Action 'InitialPublication' `
-                -ReleaseIdentity $releaseIdentity `
-                -EffectiveRelease $effectiveRelease `
-                -OperationResult $publicationResult
+            return New-NuGetReleaseCoordinationResult -Disposition 'Progressed' -Action 'InitialPublication' -ReleaseIdentity $releaseIdentity -EffectiveRelease $effectiveRelease -OperationResult $publicationResult
         }
-
         'ContinuationEligible' {
             if ($null -eq $SelectContinuation -or $null -eq $AdmitContinuation -or $null -eq $InvokeContinuation) {
                 throw 'Continuation coordination authorities are required for a continuation-eligible release.'
             }
 
-            # Selection is read-only and carries no mutation authority.
             $selection = & $SelectContinuation $AdmittedRelease $releaseIdentity $effectiveRelease
-            if ($null -eq $selection) {
-                throw 'Continuation selection authority returned null.'
-            }
+            if ($null -eq $selection) { throw 'Continuation selection authority returned null.' }
 
-            # Admission must be fresh for the selected successor. The admission
-            # authority decides whether an exact one-position grant exists.
             $admission = & $AdmitContinuation $AdmittedRelease $releaseIdentity $effectiveRelease $selection
-            if ($null -eq $admission) {
-                throw 'Continuation admission authority returned null.'
+            if ($null -eq $admission) { throw 'Continuation admission authority returned null.' }
+
+            $admissionStateProperty = $admission.PSObject.Properties['State']
+            if ($null -eq $admissionStateProperty) {
+                throw 'Continuation admission authority result must contain State.'
+            }
+            $admissionState = [string]$admissionStateProperty.Value
+
+            if ($admissionState -ne 'Admissible') {
+                $disposition = if ($admissionState -eq 'Indeterminate') { 'Indeterminate' } else { 'Blocked' }
+                return New-NuGetReleaseCoordinationResult -Disposition $disposition -Action 'None' -ReleaseIdentity $releaseIdentity -EffectiveRelease $effectiveRelease -OperationResult $admission
             }
 
-            $admissionOutcome = [string]$admission.Outcome
-            if ($admissionOutcome -ne 'Admitted') {
-                $disposition = if ($admissionOutcome -eq 'Indeterminate') {
-                    'Indeterminate'
-                }
-                else {
-                    'Blocked'
-                }
-
-                return New-NuGetReleaseCoordinationResult `
-                    -Disposition $disposition `
-                    -Action 'None' `
-                    -ReleaseIdentity $releaseIdentity `
-                    -EffectiveRelease $effectiveRelease `
-                    -OperationResult $admission
-            }
-
-            # RP-6 owns the exact-successor mutation scope. RP-7 invokes the
-            # continuation authority once and returns immediately; it never
-            # selects or publishes a second successor in the same invocation.
             $continuationResult = & $InvokeContinuation $AdmittedRelease $releaseIdentity $effectiveRelease $selection $admission
-            if ($null -eq $continuationResult) {
-                throw 'Continuation authority returned null.'
-            }
+            if ($null -eq $continuationResult) { throw 'Continuation authority returned null.' }
 
-            return New-NuGetReleaseCoordinationResult `
-                -Disposition 'Progressed' `
-                -Action 'Continuation' `
-                -ReleaseIdentity $releaseIdentity `
-                -EffectiveRelease $effectiveRelease `
-                -OperationResult $continuationResult
+            return New-NuGetReleaseCoordinationResult -Disposition 'Progressed' -Action 'Continuation' -ReleaseIdentity $releaseIdentity -EffectiveRelease $effectiveRelease -OperationResult $continuationResult
         }
-
         default {
             throw "Unsupported effective release state '$state'."
         }
