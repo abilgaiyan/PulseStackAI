@@ -25,6 +25,7 @@ internal sealed class AgentComposer : IAgentComposer
     private readonly IMemoryBindingResolver _memoryBindingResolver;
     private readonly IPolicyBindingResolver _policyBindingResolver;
     private readonly IToolExecutor _toolExecutor;
+    private readonly KnowledgeExecutionOptions _knowledgeOptions;
 
     public AgentComposer(
         IAssetResolver assetResolver,
@@ -34,7 +35,8 @@ internal sealed class AgentComposer : IAgentComposer
         IKnowledgeBindingResolver knowledgeBindingResolver,
         IMemoryBindingResolver memoryBindingResolver,
         IPolicyBindingResolver policyBindingResolver,
-        IToolExecutor toolExecutor)
+        IToolExecutor toolExecutor,
+        KnowledgeExecutionOptions? knowledgeOptions = null)
     {
         ArgumentNullException.ThrowIfNull(assetResolver);
         ArgumentNullException.ThrowIfNull(modelRealizer);
@@ -53,6 +55,10 @@ internal sealed class AgentComposer : IAgentComposer
         _memoryBindingResolver = memoryBindingResolver;
         _policyBindingResolver = policyBindingResolver;
         _toolExecutor = toolExecutor;
+        _knowledgeOptions = new KnowledgeExecutionOptions
+        {
+            MaxContributionBytes = KnowledgeContribution.SnapshotLimit(knowledgeOptions)
+        };
     }
 
     public async Task<IAgent> ComposeAsync(
@@ -101,7 +107,7 @@ internal sealed class AgentComposer : IAgentComposer
             Memory = memory
         };
 
-        return new Agent(composition, binding);
+        return new Agent(composition, binding, _knowledgeOptions);
     }
 
     private async Task<ModelAsset> ResolveModelAsync(

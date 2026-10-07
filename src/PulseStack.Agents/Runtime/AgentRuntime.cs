@@ -3,6 +3,7 @@ using Microsoft.Extensions.AI;
 using PulseStack.Abstractions.Agents;
 using PulseStack.Abstractions.Chat;
 using PulseStack.Abstractions.Memory;
+using PulseStack.Abstractions.Knowledge;
 using PulseStack.Abstractions.Runtime.Pipeline;
 using PulseStack.Abstractions.Runtime.Usage;
 using PulseStack.Abstractions.Tools;
@@ -18,6 +19,8 @@ namespace PulseStack.Agents.Runtime;
 public sealed class AgentRuntime : IAgentRuntime, IAgentExecutionRuntime
 {
     private const int MaxToolIterations = 3;
+    private readonly IReadOnlyCollection<IKnowledgeSource> _knowledge = [];
+    private readonly int _knowledgeLimit = 64 * 1024;
 
     private readonly IChatClient? _client;
     private readonly IChatClientFactory? _clientFactory;
@@ -70,9 +73,13 @@ public sealed class AgentRuntime : IAgentRuntime, IAgentExecutionRuntime
         string? model,
         IAgent? agent,
         IRuntimeEventDispatcher eventDispatcher,
-        UsageExtractorRegistry? usageExtractors = null)
+        UsageExtractorRegistry? usageExtractors = null,
+        IReadOnlyCollection<IKnowledgeSource>? knowledge = null,
+        KnowledgeExecutionOptions? knowledgeOptions = null)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
+        _knowledge = knowledge?.ToArray() ?? [];
+        _knowledgeLimit = KnowledgeContribution.SnapshotLimit(knowledgeOptions);
         _instructions = instructions;
         _temperature = temperature;
         _tools = tools;
@@ -120,12 +127,16 @@ public sealed class AgentRuntime : IAgentRuntime, IAgentExecutionRuntime
         IConversationMemory? memory,
         IAgent? agent,
         IRuntimeEventDispatcher eventDispatcher,
-        UsageExtractorRegistry? usageExtractors = null)
+        UsageExtractorRegistry? usageExtractors = null,
+        IReadOnlyCollection<IKnowledgeSource>? knowledge = null,
+        KnowledgeExecutionOptions? knowledgeOptions = null)
     {
         _clientFactory = clientFactory ?? throw new ArgumentNullException(nameof(clientFactory));
         _model = string.IsNullOrWhiteSpace(model)
             ? throw new ArgumentException("Model is required.", nameof(model))
             : model;
+        _knowledge = knowledge?.ToArray() ?? [];
+        _knowledgeLimit = KnowledgeContribution.SnapshotLimit(knowledgeOptions);
         _instructions = instructions;
         _temperature = temperature;
         _tools = tools;
@@ -168,9 +179,10 @@ public sealed class AgentRuntime : IAgentRuntime, IAgentExecutionRuntime
 
         }
 
-        var messages = BuildMessages(
+        var messages = await BuildMessagesAsync(
             context,
-            context.CurrentOutput);
+            context.CurrentOutput,
+            cancellationToken);
 
         var eventDispatcher =
             ResolveEventDispatcher(context);
@@ -408,9 +420,10 @@ public sealed class AgentRuntime : IAgentRuntime, IAgentExecutionRuntime
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(executionContext);
 
-        var messages = BuildMessages(
+        var messages = await BuildMessagesAsync(
             context,
-            context.CurrentOutput);
+            context.CurrentOutput,
+            cancellationToken);
 
         var agentExecutionContext =
             new AgentExecutionContext(
@@ -438,14 +451,16 @@ public sealed class AgentRuntime : IAgentRuntime, IAgentExecutionRuntime
         [System.Runtime.CompilerServices.EnumeratorCancellation]
         CancellationToken cancellationToken = default)
     {
-        var messages = BuildMessages(
+        var messages = await BuildMessagesAsync(
             null,
-            input);
+            input,
+            cancellationToken);
 
         var options = BuildChatOptions();
 
         var responseBuilder = new StringBuilder();
 
+        cancellationToken.ThrowIfCancellationRequested();
         var client = ResolveClient();
         await foreach (var update in client.GetStreamingResponseAsync(
             messages,
@@ -463,10 +478,14 @@ public sealed class AgentRuntime : IAgentRuntime, IAgentExecutionRuntime
         PersistAssistantMessage(responseBuilder.ToString());
     }
 
-    private List<ChatMessage> BuildMessages(
+    private async Task<List<ChatMessage>> BuildMessagesAsync(
         PipelineContext? context,
-        string input)
+        string input,
+        CancellationToken cancellationToken)
     {
+        var contribution = await KnowledgeContribution.RetrieveAsync(
+            _knowledge, input, _knowledgeLimit, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
         var messages = new List<ChatMessage>();
 
         AddSystemInstructions(messages);
@@ -476,6 +495,9 @@ public sealed class AgentRuntime : IAgentRuntime, IAgentExecutionRuntime
         AddPipelineContext(context, messages);
 
         AddMemory(messages);
+
+        if (contribution is not null)
+            messages.Add(new ChatMessage(ChatRole.User, contribution));
 
         var userMessage = new ChatMessage(
             ChatRole.User,
@@ -614,6 +636,7 @@ public sealed class AgentRuntime : IAgentRuntime, IAgentExecutionRuntime
                 """));
         }
 
+        executionContext.CancellationToken.ThrowIfCancellationRequested();
         var fallback = await client.GetResponseAsync(
             executionContext.Messages,
             options,

@@ -1,3 +1,4 @@
+using PulseStack.Abstractions.Knowledge;
 using PulseStack.Abstractions.Runtime.Realization.Application;
 using PulseStack.Abstractions.Runtime.Realization.Binding;
 using PulseStack.Abstractions.Runtime.Realization.Composition;
@@ -18,6 +19,7 @@ internal sealed class ApplicationRealizationChainFactory : IApplicationRealizati
     private readonly IMemoryBindingResolver _memoryBindingResolver;
     private readonly IPolicyBindingResolver _policyBindingResolver;
     private readonly IToolExecutor _toolExecutor;
+    private readonly KnowledgeExecutionOptions _knowledgeOptions;
     private readonly IConditionBindingResolver _conditionBindingResolver;
     private readonly IWorkflowValueEvaluator _workflowValueEvaluator;
 
@@ -30,7 +32,8 @@ internal sealed class ApplicationRealizationChainFactory : IApplicationRealizati
         IPolicyBindingResolver policyBindingResolver,
         IToolExecutor toolExecutor,
         IConditionBindingResolver conditionBindingResolver,
-        IWorkflowValueEvaluator workflowValueEvaluator)
+        IWorkflowValueEvaluator workflowValueEvaluator,
+        KnowledgeExecutionOptions? knowledgeOptions = null)
     {
         ArgumentNullException.ThrowIfNull(modelRealizer);
         ArgumentNullException.ThrowIfNull(promptRealizer);
@@ -49,6 +52,10 @@ internal sealed class ApplicationRealizationChainFactory : IApplicationRealizati
         _memoryBindingResolver = memoryBindingResolver;
         _policyBindingResolver = policyBindingResolver;
         _toolExecutor = toolExecutor;
+        _knowledgeOptions = new KnowledgeExecutionOptions
+        {
+            MaxContributionBytes = KnowledgeContribution.SnapshotLimit(knowledgeOptions)
+        };
         _conditionBindingResolver = conditionBindingResolver;
         _workflowValueEvaluator = workflowValueEvaluator;
     }
@@ -65,7 +72,8 @@ internal sealed class ApplicationRealizationChainFactory : IApplicationRealizati
             _knowledgeBindingResolver,
             _memoryBindingResolver,
             _policyBindingResolver,
-            _toolExecutor);
+            _toolExecutor,
+            _knowledgeOptions);
 
         return new WorkflowComposer(
             assetResolver,
