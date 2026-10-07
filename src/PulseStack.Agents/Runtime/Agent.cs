@@ -1,4 +1,6 @@
 using PulseStack.Abstractions.Agents;
+using PulseStack.Abstractions.Knowledge;
+using PulseStack.Agents.Runtime.Diagnostics;
 using PulseStack.Agents.Realization.Binding;
 using PulseStack.Agents.Realization.Composition;
 
@@ -19,7 +21,8 @@ internal sealed class Agent :
 
     internal Agent(
         AgentComposition composition,
-        AgentBinding binding)
+        AgentBinding binding,
+        KnowledgeExecutionOptions? knowledgeOptions = null)
     {
         ArgumentNullException.ThrowIfNull(composition);
         ArgumentNullException.ThrowIfNull(binding);
@@ -40,7 +43,10 @@ internal sealed class Agent :
             binding.Tools,
             binding.Memory,
             composition.Model.Options.Model,
-            this);
+            this,
+            new RuntimeEventDispatcher(),
+            knowledge: composition.Knowledge,
+            knowledgeOptions: knowledgeOptions);
     }
 
     public Task<AgentResponse> RunAsync(

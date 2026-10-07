@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using PulseStack.Abstractions.Agents;
+using PulseStack.Abstractions.Knowledge;
 using PulseStack.Abstractions.Runtime.Application;
 using PulseStack.Abstractions.Runtime.Invocation.Application;
 using PulseStack.Abstractions.Runtime.Realization.Application;
@@ -20,6 +21,8 @@ public static class AgentServiceCollectionExtensions
         this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
+
+        services.TryAddSingleton<KnowledgeExecutionOptions>();
 
         services.TryAddSingleton<IRuntimeEventDispatcher,
                                  RuntimeEventDispatcher>();
